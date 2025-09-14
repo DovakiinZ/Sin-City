@@ -1,8 +1,8 @@
 const AsciiSidebar = () => {
   const navItems = [
     { label: "Home", href: "/" },
+    { label: "Manage", href: "/manage" },
     { label: "About", href: "/about" },
-    { label: "Blog", href: "/blog" },
     { label: "Contact", href: "/contact" }
   ];
 
