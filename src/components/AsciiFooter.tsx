@@ -4,7 +4,7 @@ const AsciiFooter = () => {
       <pre className="ascii-dim text-center">
 {`╔══════════════════════════════════════════════════════════════════════════════╗
 ║                                                                              ║
-║  © 2024 DevBlog │ Made with ♥ and ASCII │ Powered by Terminal Nostalgia    ║
+║  © 2024 Sin City │ Made with ♥ and ASCII │ Designed by Dovakiin           ║
 ║                                                                              ║
 ║  [GitHub] │ [Twitter] │ [LinkedIn] │ [RSS] │ [Email: dev@ascii-blog.com]   ║
 ║                                                                              ║

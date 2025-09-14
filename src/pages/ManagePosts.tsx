@@ -7,6 +7,7 @@ interface BlogPost {
   title: string;
   type: "Text" | "Image" | "Video" | "Link";
   date: string;
+  attachments?: File[];
 }
 
 const ManagePosts = () => {
@@ -20,7 +21,8 @@ const ManagePosts = () => {
   const [formData, setFormData] = useState({
     title: "",
     type: "Text" as BlogPost["type"],
-    content: ""
+    content: "",
+    attachments: [] as File[]
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -30,10 +32,11 @@ const ManagePosts = () => {
         id: posts.length + 1,
         title: formData.title,
         type: formData.type,
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0],
+        attachments: formData.attachments
       };
       setPosts([newPost, ...posts]);
-      setFormData({ title: "", type: "Text", content: "" });
+      setFormData({ title: "", type: "Text", content: "", attachments: [] });
     }
   };
 
@@ -105,10 +108,43 @@ const ManagePosts = () => {
                   <textarea
                     value={formData.content}
                     onChange={(e) => setFormData({...formData, content: e.target.value})}
-                    rows={8}
+                    rows={6}
                     className="w-full bg-background border border-ascii-border p-3 ascii-text focus:border-ascii-highlight focus:outline-none resize-none"
                     placeholder="Write your post content here..."
                   />
+                  <pre className="ascii-dim">
+{`└${'─'.repeat(73)}┘`}
+                  </pre>
+                </div>
+
+                {/* Attachments Field */}
+                <div>
+                  <pre className="ascii-text mb-2">
+{`┌── ATTACHMENTS ${'─'.repeat(58)}┐`}
+                  </pre>
+                  <div className="border border-ascii-border p-4 bg-background">
+                    <input
+                      type="file"
+                      multiple
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setFormData({...formData, attachments: files});
+                      }}
+                      className="w-full ascii-text file:bg-secondary file:border-ascii-border file:border file:px-4 file:py-2 file:ascii-text file:cursor-pointer hover:file:bg-accent"
+                    />
+                    {formData.attachments.length > 0 && (
+                      <div className="mt-3">
+                        <pre className="ascii-dim text-xs mb-2">
+{`│ Selected Files:`}
+                        </pre>
+                        {formData.attachments.map((file, index) => (
+                          <div key={index} className="ascii-dim text-xs">
+                            <span>│ ► {file.name} ({(file.size / 1024).toFixed(1)}KB)</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <pre className="ascii-dim">
 {`└${'─'.repeat(73)}┘`}
                   </pre>
