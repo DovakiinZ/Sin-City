@@ -1,4 +1,4 @@
-const AsciiSidebar = () => {
+function AsciiSidebar() {
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Manage", href: "/manage" },
@@ -9,7 +9,7 @@ const AsciiSidebar = () => {
   return (
     <aside className="ascii-text">
       <pre className="ascii-dim">
-{`┌─────────────────┐
+        {`┌─────────────────┐
 │   NAVIGATION    │
 └─────────────────┘`}
       </pre>
@@ -24,7 +24,7 @@ const AsciiSidebar = () => {
         ))}
       </nav>
       <pre className="mt-6 ascii-dim text-xs">
-{`┌─────────────────┐
+        {`┌─────────────────┐
 │     STATUS      │
 └─────────────────┘
 │ Online: ████░░░ │
@@ -34,6 +34,30 @@ const AsciiSidebar = () => {
       </pre>
     </aside>
   );
-};
+}
 
 export default AsciiSidebar;
+
+function AsciiSidebar() {
+  const navItems = [
+    { label: "Home", href: "/" },
+    { label: "Manage", href: "/manage" },
+    { label: "Posts", href: "/posts" }, // << add this
+    { label: "About", href: "/about" },
+    { label: "Contact", href: "/contact" },
+  ];
+
+  return (
+    <aside className="ascii-text">
+      {/* ... */}
+      <nav className="mt-4 space-y-2">
+        {navItems.map((item) => (
+          <a key={item.href} href={item.href} className="block underline hover:no-underline">
+            {item.href} — {item.label}
+          </a>
+        ))}
+      </nav>
+      {/* ... */}
+    </aside>
+  );
+}
