@@ -4,9 +4,9 @@ const AsciiFooter = () => {
       <pre className="ascii-dim text-center">
 {`╔══════════════════════════════════════════════════════════════════════════════╗
 ║                                                                              ║
-║  © 2024 Sin City │ Made with ♥ and ASCII │ Designed by Dovakiin           ║
+║  © 2025 Sin City │ Made with ♥ and ASCII │ Designed by Dovakiin              ║
 ║                                                                              ║
-║  [GitHub] │ [Twitter] │ [LinkedIn] │ [RSS] │ [Email: dev@ascii-blog.com]   ║
+║  [GitHub] │ [Twitter] │ [LinkedIn] │ [RSS] │ [Email: v4xd@outlook.sa     ]   ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝`}
       </pre>
