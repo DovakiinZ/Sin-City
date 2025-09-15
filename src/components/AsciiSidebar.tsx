@@ -1,4 +1,7 @@
+import { Link, useLocation } from "react-router-dom";
+
 export default function AsciiSidebar() {
+  const location = useLocation();
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Manage", href: "/manage" },
@@ -15,14 +18,23 @@ export default function AsciiSidebar() {
 +---------------------+`}
       </pre>
       <nav className="mt-4 space-y-2">
-        {navItems.map((item) => (
-          <div key={item.href} className="ascii-text">
-            <span className="ascii-dim">» </span>
-            <a href={item.href} className="ascii-nav-link hover:ascii-highlight transition-colors">
-              {item.label}
-            </a>
-          </div>
-        ))}
+        {navItems.map((item) => {
+          const active = location.pathname === item.href;
+          return (
+            <div key={item.href} className="ascii-text">
+              <span className="ascii-dim">» </span>
+              <Link
+                to={item.href}
+                className={
+                  "ascii-nav-link transition-colors " +
+                  (active ? "ascii-highlight" : "hover:ascii-highlight")
+                }
+              >
+                {item.label}
+              </Link>
+            </div>
+          );
+        })}
       </nav>
 
       <pre className="mt-6 ascii-dim text-xs">
@@ -37,4 +49,3 @@ export default function AsciiSidebar() {
     </aside>
   );
 }
-
