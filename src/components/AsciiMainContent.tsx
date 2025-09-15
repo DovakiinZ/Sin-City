@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 const AsciiMainContent = () => {
   const posts = [
     {
@@ -38,9 +40,9 @@ const AsciiMainContent = () => {
               {post.content}
             </p>
             <div className="ascii-dim">
-              <span className="ascii-nav-link cursor-pointer hover:ascii-highlight transition-colors">
+              <Link to="/posts" className="ascii-nav-link hover:ascii-highlight transition-colors">
                 [Read More →]
-              </span>
+              </Link>
             </div>
             <pre className="ascii-dim mt-2">
 {`└${'─'.repeat(65)}┘`}

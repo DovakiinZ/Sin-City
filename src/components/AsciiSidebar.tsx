@@ -1,63 +1,51 @@
-function AsciiSidebar() {
+import { Link, useLocation } from "react-router-dom";
+
+export default function AsciiSidebar() {
+  const location = useLocation();
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Manage", href: "/manage" },
-    { label: "About", href: "/about" },
-    { label: "Contact", href: "/contact" }
-  ];
-
-  return (
-    <aside className="ascii-text">
-      <pre className="ascii-dim">
-        {`┌─────────────────┐
-│   NAVIGATION    │
-└─────────────────┘`}
-      </pre>
-      <nav className="mt-4 space-y-2">
-        {navItems.map((item, index) => (
-          <div key={index} className="ascii-text">
-            <span className="ascii-dim">│ </span>
-            <a href={item.href} className="ascii-nav-link hover:ascii-highlight transition-colors">
-              ► {item.label}
-            </a>
-          </div>
-        ))}
-      </nav>
-      <pre className="mt-6 ascii-dim text-xs">
-        {`┌─────────────────┐
-│     STATUS      │
-└─────────────────┘
-│ Online: ████░░░ │
-│ Posts: 42       │
-│ Views: 1,337    │
-└─────────────────┘`}
-      </pre>
-    </aside>
-  );
-}
-
-export default AsciiSidebar;
-
-function AsciiSidebar() {
-  const navItems = [
-    { label: "Home", href: "/" },
-    { label: "Manage", href: "/manage" },
-    { label: "Posts", href: "/posts" }, // << add this
+    { label: "Posts", href: "/posts" },
     { label: "About", href: "/about" },
     { label: "Contact", href: "/contact" },
   ];
 
   return (
-    <aside className="ascii-text">
-      {/* ... */}
+    <aside className="ascii-text p-4">
+      <pre className="ascii-dim">
+{`+---------------------+
+|     NAVIGATION      |
++---------------------+`}
+      </pre>
       <nav className="mt-4 space-y-2">
-        {navItems.map((item) => (
-          <a key={item.href} href={item.href} className="block underline hover:no-underline">
-            {item.href} — {item.label}
-          </a>
-        ))}
+        {navItems.map((item) => {
+          const active = location.pathname === item.href;
+          return (
+            <div key={item.href} className="ascii-text">
+              <span className="ascii-dim">» </span>
+              <Link
+                to={item.href}
+                className={
+                  "ascii-nav-link transition-colors " +
+                  (active ? "ascii-highlight" : "hover:ascii-highlight")
+                }
+              >
+                {item.label}
+              </Link>
+            </div>
+          );
+        })}
       </nav>
-      {/* ... */}
+
+      <pre className="mt-6 ascii-dim text-xs">
+{`+---------------------+
+|       STATUS        |
++---------------------+
+| Online:  yes        |
+| Posts:   42         |
+| Views:   1,337      |
++---------------------+`}
+      </pre>
     </aside>
   );
 }
