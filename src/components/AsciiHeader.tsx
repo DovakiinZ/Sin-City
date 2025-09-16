@@ -1,25 +1,23 @@
+// Cicada overlay now uses an image (public/cicada.png)
+
 const AsciiHeader = () => {
   return (
     <header className="ascii-text mb-6">
-      <pre className="text-center ascii-highlight">
+      <div className="relative">
+        <pre className="text-center ascii-highlight font-mono leading-[0.85] text-[18px] sm:text-[22px] md:text-[26px] lg:text-[30px]">
 {`╔══════════════════════════════════════════════════════════════════════════════╗
-║                                                                              ║
-║     ███████╗██╗███╗   ██╗     ██████╗██╗████████╗██╗   ██╗                  ║
-║     ██╔════╝██║████╗  ██║    ██╔════╝██║╚══██╔══╝╚██╗ ██╔╝                  ║
-║     ███████╗██║██╔██╗ ██║    ██║     ██║   ██║    ╚████╔╝                   ║
-║     ╚════██║██║██║╚██╗██║    ██║     ██║   ██║     ╚██╔╝                    ║
-║     ███████║██║██║ ╚████║    ╚██████╗██║   ██║      ██║                     ║
-║     ╚══════╝╚═╝╚═╝  ╚═══╝     ╚═════╝╚═╝   ╚═╝      ╚═╝                     ║
-║                                                                              ║
+║                                                                                ║
+║     ███████╗██╗███╗   ██╗     ██████╗██╗████████╗██╗   ██╗                     ║
+║     ██╔════╝██║████╗  ██║    ██╔════╝██║╚══██╔══╝╚██╗ ██╔╝                     ║
+║     ███████╗██║██╔██╗ ██║    ██║     ██║   ██║    ╚████╔╝                      ║
+║     ╚════██║██║██║╚██╗██║    ██║     ██║   ██║     ╚██╔╝                       ║
+║     ███████║██║██║ ╚████║    ╚██████╗██║   ██║      ██║                        ║
+║     ╚══════╝╚═╝╚═╝  ╚═══╝     ╚═════╝╚═╝   ╚═╝      ╚═╝                        ║
+║                                                                                ║
 ╚══════════════════════════════════════════════════════════════════════════════╝`}
-      </pre>
-      <div className="text-center mt-4 ascii-dim">
-        <span>{">> Welcome to the Dark Side of Digital Content <<"}</span>
-        <div className="mt-2 text-xs">
-          <span>Designed and created by: </span>
-          <span className="ascii-highlight">Dovakiin</span>
-        </div>
+        </pre>
       </div>
+      {/* Tagline removed per request */}
     </header>
   );
 };

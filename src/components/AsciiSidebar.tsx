@@ -1,22 +1,22 @@
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
 export default function AsciiSidebar() {
   const location = useLocation();
-  const navItems = [
+  const { user, logout } = useAuth();
+  const baseItems = [
     { label: "Home", href: "/" },
     { label: "Manage", href: "/manage" },
     { label: "Posts", href: "/posts" },
     { label: "About", href: "/about" },
     { label: "Contact", href: "/contact" },
   ];
+  const navItems = user
+    ? [...baseItems, { label: "Profile", href: "/profile" }]
+    : [...baseItems, { label: "Login", href: "/login" }, { label: "Register", href: "/register" }];
 
   return (
     <aside className="ascii-text p-4">
-      <pre className="ascii-dim">
-{`+---------------------+
-|     NAVIGATION      |
-+---------------------+`}
-      </pre>
       <nav className="mt-4 space-y-2">
         {navItems.map((item) => {
           const active = location.pathname === item.href;
@@ -36,16 +36,12 @@ export default function AsciiSidebar() {
           );
         })}
       </nav>
-
-      <pre className="mt-6 ascii-dim text-xs">
-{`+---------------------+
-|       STATUS        |
-+---------------------+
-| Online:  yes        |
-| Posts:   42         |
-| Views:   1,337      |
-+---------------------+`}
-      </pre>
+      {user && (
+        <div className="mt-6 ascii-dim text-xs">
+          <div className="mb-2">Signed in as <span className="ascii-highlight">{user.displayName}</span></div>
+          <button onClick={logout} className="ascii-nav-link hover:ascii-highlight">Logout</button>
+        </div>
+      )}
     </aside>
   );
 }
