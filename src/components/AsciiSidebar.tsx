@@ -1,8 +1,10 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import BackButton from "@/components/BackButton";
 
 export default function AsciiSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const baseItems = [
     { label: "Home", href: "/" },
@@ -17,6 +19,9 @@ export default function AsciiSidebar() {
 
   return (
     <aside className="ascii-text p-4">
+      <div className="mb-4">
+        <BackButton />
+      </div>
       <nav className="mt-4 space-y-2">
         {navItems.map((item) => {
           const active = location.pathname === item.href;

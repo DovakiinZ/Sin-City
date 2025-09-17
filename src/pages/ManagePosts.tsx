@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AsciiHeader from "@/components/AsciiHeader";
 import AsciiFooter from "@/components/AsciiFooter";
+import BackButton from "@/components/BackButton";
 
 interface BlogPost {
   id: number;
@@ -44,7 +45,7 @@ const ManagePosts = () => {
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-7xl mx-auto">
         <AsciiHeader />
-        
+        <div className="mb-4"><BackButton /></div>
         <main className="ascii-text">
           <pre className="ascii-highlight mb-6">
 {`╔════════════════════════════════════════════════════════════════════════════════╗

@@ -3,6 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import ReactMarkdown from "react-markdown";
 import matter from "gray-matter";
 import { cn } from "@/lib/utils";
+import BackButton from "@/components/BackButton";
 
 type Post = {
   title: string;
@@ -59,6 +60,9 @@ export default function Posts() {
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto space-y-6">
+        <div>
+          <BackButton />
+        </div>
         <AsciiBox>
           <div className="text-center">
             <div className="text-xl">+-[ SIN-CITY BLOG ]-+</div>
