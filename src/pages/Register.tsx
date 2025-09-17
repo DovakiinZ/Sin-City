@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import AvatarUploader from "@/components/AvatarUploader";
+import BackButton from "@/components/BackButton";
 
 export default function Register() {
   const { register } = useAuth();
@@ -26,6 +27,7 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-md mx-auto font-mono border border-green-700 p-4 bg-black/70">
+        <div className="mb-2"><BackButton /></div>
         <div className="ascii-highlight mb-4 text-xl">+-- Register --+</div>
         {error && <div className="text-red-400 mb-3">{error}</div>}
         <form onSubmit={onSubmit} className="space-y-3">
@@ -53,4 +55,3 @@ export default function Register() {
     </div>
   );
 }
-

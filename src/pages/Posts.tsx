@@ -3,6 +3,8 @@ import { useAuth } from "@/context/AuthContext";
 import ReactMarkdown from "react-markdown";
 import matter from "gray-matter";
 import { cn } from "@/lib/utils";
+import BackButton from "@/components/BackButton";
+import { listPostsFromDb, listPostsLocal } from "@/data/posts";
 
 type Post = {
   title: string;
@@ -47,10 +49,28 @@ export default function Posts() {
           };
         })
       );
-      const storedRaw = JSON.parse(localStorage.getItem("userPosts") || "[]") as Post[];
-      // ensure any stored posts without author pick the current user's name if available
-      const stored = storedRaw.map((p) => (p.author ? p : { ...p, author: user?.displayName }));
-      const all = [...stored, ...loaded];
+      // Try Supabase first, fall back to local storage demo posts
+      let dbPosts: Post[] = [];
+      try {
+        const fromDb = await listPostsFromDb();
+        dbPosts = fromDb.map((p) => ({
+          title: p.title,
+          date: p.created_at ? new Date(p.created_at).toISOString().split("T")[0] : "",
+          content: p.content || "",
+          slug: p.id || p.title + Math.random().toString(36).slice(2),
+          author: p.author_name || undefined,
+        }));
+      } catch {
+        const fromLocal = listPostsLocal();
+        dbPosts = fromLocal.map((p) => ({
+          title: p.title,
+          date: p.created_at ? new Date(p.created_at).toISOString().split("T")[0] : "",
+          content: p.content || "",
+          slug: p.title + Math.random().toString(36).slice(2),
+          author: p.author_name || user?.displayName,
+        }));
+      }
+      const all = [...dbPosts, ...loaded];
       all.sort((a, b) => (a.date < b.date ? 1 : -1));
       setPosts(all);
     })();
@@ -59,6 +79,9 @@ export default function Posts() {
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto space-y-6">
+        <div>
+          <BackButton />
+        </div>
         <AsciiBox>
           <div className="text-center">
             <div className="text-xl">+-[ SIN-CITY BLOG ]-+</div>

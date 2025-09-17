@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import AvatarUploader from "@/components/AvatarUploader";
+import BackButton from "@/components/BackButton";
 
 export default function Profile() {
   const { user, updateProfile, logout } = useAuth();
@@ -25,6 +26,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-lg mx-auto font-mono border border-green-700 p-4 bg-black/70 space-y-4">
+        <div className="mb-2"><BackButton /></div>
         <div className="ascii-highlight text-xl">+-- Profile --+</div>
         <div className="ascii-dim text-xs">Email: {user.email}</div>
         <label className="block">
@@ -43,4 +45,3 @@ export default function Profile() {
     </div>
   );
 }
-

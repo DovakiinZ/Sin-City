@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import BackButton from "@/components/BackButton";
 
 export default function Login() {
   const { login } = useAuth();
@@ -23,6 +24,7 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-md mx-auto font-mono border border-green-700 p-4 bg-black/70">
+        <div className="mb-2"><BackButton /></div>
         <div className="ascii-highlight mb-4 text-xl">+-- Login --+</div>
         {error && <div className="text-red-400 mb-3">{error}</div>}
         <form onSubmit={onSubmit} className="space-y-3">
@@ -44,4 +46,3 @@ export default function Login() {
     </div>
   );
 }
-
