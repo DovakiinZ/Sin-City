@@ -9,6 +9,7 @@ export type DbPost = {
   attachments?: any | null; // JSON payload of attachments metadata
   author_name?: string | null;
   author_email?: string | null;
+  user_id?: string | null;
   created_at?: string;
 };
 
@@ -16,7 +17,17 @@ const LOCAL_KEY = "userPosts";
 
 export async function addPostToDb(post: DbPost): Promise<DbPost | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase.from("posts").insert(post).select().single();
+  // Attach current Supabase user id if available
+  let user_id: string | null = post.user_id ?? null;
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    user_id = userData?.user?.id ?? user_id ?? null;
+  } catch {}
+  const { data, error } = await supabase
+    .from("posts")
+    .insert({ ...post, user_id })
+    .select()
+    .single();
   if (error) throw error;
   return data as DbPost;
 }
@@ -57,4 +68,3 @@ export function toDbPost(input: { title: string; type: DbPost["type"]; content?:
     author_email: user?.email || null,
   } satisfies DbPost;
 }
-
