@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 import ReactMarkdown from "react-markdown";
 import matter from "gray-matter";
 import { cn } from "@/lib/utils";
@@ -8,6 +9,7 @@ type Post = {
   date: string;
   content: string;
   slug: string;
+  author?: string;
 };
 
 const FILES = ["post1.md", "post2.md"];
@@ -27,6 +29,7 @@ function AsciiBox({ children, className }: { children: React.ReactNode; classNam
 
 export default function Posts() {
   const [posts, setPosts] = useState<Post[]>([]);
+  const { user } = useAuth();
 
   useEffect(() => {
     (async () => {
@@ -40,12 +43,16 @@ export default function Posts() {
             date: String((data as any).date || ""),
             content,
             slug: file.replace(/\.md$/, ""),
+            author: (data as any).author ? String((data as any).author) : undefined,
           };
         })
       );
-      // newest first if date exists
-      loaded.sort((a, b) => (a.date < b.date ? 1 : -1));
-      setPosts(loaded);
+      const storedRaw = JSON.parse(localStorage.getItem("userPosts") || "[]") as Post[];
+      // ensure any stored posts without author pick the current user's name if available
+      const stored = storedRaw.map((p) => (p.author ? p : { ...p, author: user?.displayName }));
+      const all = [...stored, ...loaded];
+      all.sort((a, b) => (a.date < b.date ? 1 : -1));
+      setPosts(all);
     })();
   }, []);
 
@@ -62,7 +69,12 @@ export default function Posts() {
         {posts.map((post) => (
           <AsciiBox key={post.slug} className="space-y-3">
             <div className="text-lg">+-- {post.title} --+</div>
-            {post.date && <div className="text-xs opacity-70">{post.date}</div>}
+            {(post.date || post.author) && (
+              <div className="text-xs opacity-70">
+                {post.date}
+                {post.author && <> • by <span className="ascii-highlight">{post.author}</span></>}
+              </div>
+            )}
             <div className="prose prose-invert max-w-none">
               <ReactMarkdown>{post.content}</ReactMarkdown>
             </div>

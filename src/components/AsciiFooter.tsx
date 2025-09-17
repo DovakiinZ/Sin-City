@@ -6,7 +6,7 @@ const AsciiFooter = () => {
 ║                                                                              ║
 ║  © 2025 Sin City │ Made with ♥ and ASCII │ Designed by Dovakiin              ║
 ║                                                                              ║
-║  [GitHub] │ [Twitter] │ [LinkedIn] │ [RSS] │ [Email: v4xd@outlook.sa     ]   ║
+║  │ [Twitter] │ [Email: v4xd@outlook.sa     ]                                 ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝`}
       </pre>
