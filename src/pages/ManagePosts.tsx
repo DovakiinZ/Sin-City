@@ -1,6 +1,8 @@
 import { useState } from "react";
 import AsciiHeader from "@/components/AsciiHeader";
 import AsciiFooter from "@/components/AsciiFooter";
+import { useAuth } from "@/context/AuthContext";
+import { addPostLocal, addPostToDb, toDbPost } from "@/data/posts";
 import BackButton from "@/components/BackButton";
 
 interface BlogPost {
@@ -11,7 +13,7 @@ interface BlogPost {
   attachments?: File[];
 }
 
-const ManagePosts = () => {
+const ManagePosts = () => {\n  const { user } = useAuth();
   const [posts, setPosts] = useState<BlogPost[]>([
     { id: 1, title: "Building ASCII Art Interfaces", type: "Text", date: "2024-01-15" },
     { id: 2, title: "Retro Computing Showcase", type: "Image", date: "2024-01-10" },
@@ -26,7 +28,7 @@ const ManagePosts = () => {
     attachments: [] as File[]
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.title.trim()) {
       const newPost: BlogPost = {
@@ -36,6 +38,27 @@ const ManagePosts = () => {
         date: new Date().toISOString().split('T')[0],
         attachments: formData.attachments
       };
+      // Persist to Supabase (if configured), otherwise to localStorage for demo
+      try {
+        const dbPost = toDbPost({
+          title: formData.title,
+          type: formData.type,
+          content: formData.content,
+          attachments: formData.attachments,
+          user,
+        });
+        await addPostToDb(dbPost);
+      } catch {
+        addPostLocal(
+          toDbPost({
+            title: formData.title,
+            type: formData.type,
+            content: formData.content,
+            attachments: formData.attachments,
+            user,
+          })
+        );
+      }
       setPosts([newPost, ...posts]);
       setFormData({ title: "", type: "Text", content: "", attachments: [] });
     }
@@ -222,3 +245,4 @@ const ManagePosts = () => {
 };
 
 export default ManagePosts;
+
