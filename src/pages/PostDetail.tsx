@@ -130,6 +130,23 @@ export default function PostDetail() {
                                 </span>
                             ))}
                         </div>
+                    )}
+
+                    <div className="prose prose-invert max-w-none mb-8">
+                        <ReactMarkdown>{post.content}</ReactMarkdown>
+                    </div>
+
+                    {/* Reactions & Bookmark */}
+                    <div className="mt-8 pt-6 border-t border-ascii-border flex items-center justify-between flex-wrap gap-4">
+                        <ReactionButtons postId={post.slug} />
+                        <BookmarkButton postId={post.slug} />
+                    </div>
+                </div>
+
+                {/* Comments */}
+                <CommentList postId={post.slug} />
+
+                <div className="text-center">
                     <button
                         onClick={() => navigate("/posts")}
                         className="ascii-nav-link hover:ascii-highlight"
