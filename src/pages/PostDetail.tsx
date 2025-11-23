@@ -6,6 +6,7 @@ import BackButton from "@/components/BackButton";
 import CommentList from "@/components/comments/CommentList";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
+import ShareButtons from "@/components/sharing/ShareButtons";
 import { listPostsFromDb } from "@/data/posts";
 import { estimateReadTime } from "@/lib/markdown";
 
@@ -141,6 +142,9 @@ export default function PostDetail() {
                         <ReactionButtons postId={post.slug} />
                         <BookmarkButton postId={post.slug} />
                     </div>
+
+                    {/* Sharing */}
+                    <ShareButtons title={post.title} slug={post.slug} content={post.content} />
                 </div>
 
                 {/* Comments */}
