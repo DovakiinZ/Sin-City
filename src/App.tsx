@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,35 +11,96 @@ import Profile from "./pages/Profile";
 import Index from "./pages/Index";
 import ManagePosts from "./pages/ManagePosts";
 import NotFound from "./pages/NotFound";
-import Posts from "./pages/Posts"; // << added
+import Posts from "./pages/Posts";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
+import BootSequence from "./components/BootSequence";
+import ScanlineEffect from "./components/ScanlineEffect";
+import TerminalCommand from "./components/TerminalCommand";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/manage" element={<ManagePosts />} />
-            <Route path="/posts" element={<Posts />} /> {/* << added */}
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/profile" element={<Profile />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const AppContent = () => {
+  const [showTerminal, setShowTerminal] = useState(false);
+
+  useKeyboardShortcuts({
+    onHelp: () => {
+      // Help is handled per-page
+    },
+  });
+
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === "~" || e.key === "`") {
+        e.preventDefault();
+        setShowTerminal(!showTerminal);
+      }
+      if (e.key === "Escape" && showTerminal) {
+        setShowTerminal(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [showTerminal]);
+
+  return (
+    <>
+      <ScanlineEffect />
+      {showTerminal && <TerminalCommand onClose={() => setShowTerminal(false)} />}
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/manage" element={<ManagePosts />} />
+        <Route path="/posts" element={<Posts />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/profile" element={<Profile />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
+  );
+};
+
+const App = () => {
+  const [showBoot, setShowBoot] = useState(true);
+  const [hasBooted, setHasBooted] = useState(false);
+
+  useEffect(() => {
+    // Check if user has already seen boot sequence in this session
+    const booted = sessionStorage.getItem("hasBooted");
+    if (booted) {
+      setShowBoot(false);
+      setHasBooted(true);
+    }
+  }, []);
+
+  const handleBootComplete = () => {
+    sessionStorage.setItem("hasBooted", "true");
+    setShowBoot(false);
+    setHasBooted(true);
+  };
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <BrowserRouter>
+            {showBoot && !hasBooted ? (
+              <BootSequence onComplete={handleBootComplete} />
+            ) : (
+              <AppContent />
+            )}
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
