@@ -14,6 +14,8 @@ import NotFound from "./pages/NotFound";
 import Posts from "./pages/Posts";
 import PostDetail from "./pages/PostDetail";
 import SearchResults from "./pages/SearchResults";
+import UserProfile from "./pages/UserProfile";
+import Bookmarks from "./pages/Bookmarks";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import BootSequence from "./components/BootSequence";
@@ -57,6 +59,8 @@ const AppContent = () => {
         <Route path="/posts" element={<Posts />} />
         <Route path="/post/:slug" element={<PostDetail />} />
         <Route path="/search" element={<SearchResults />} />
+        <Route path="/user/:username" element={<UserProfile />} />
+        <Route path="/bookmarks" element={<Bookmarks />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/login" element={<Login />} />

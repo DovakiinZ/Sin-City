@@ -5,6 +5,7 @@ import matter from "gray-matter";
 import BackButton from "@/components/BackButton";
 import CommentList from "@/components/comments/CommentList";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
+import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import { listPostsFromDb } from "@/data/posts";
 import { estimateReadTime } from "@/lib/markdown";
 
@@ -129,22 +130,6 @@ export default function PostDetail() {
                                 </span>
                             ))}
                         </div>
-                    )}
-
-                    <div className="prose prose-invert max-w-none mb-8">
-                        <ReactMarkdown>{post.content}</ReactMarkdown>
-                    </div>
-
-                    {/* Reactions */}
-                    <div className="mt-8 pt-6 border-t border-ascii-border">
-                        <ReactionButtons postId={post.slug} />
-                    </div>
-                </div>
-
-                {/* Comments */}
-                <CommentList postId={post.slug} />
-
-                <div className="text-center">
                     <button
                         onClick={() => navigate("/posts")}
                         className="ascii-nav-link hover:ascii-highlight"
