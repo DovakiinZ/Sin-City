@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
@@ -96,19 +97,17 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
+      <BrowserRouter>
         <AuthProvider>
-          <BrowserRouter>
-            {showBoot && !hasBooted ? (
-              <BootSequence onComplete={handleBootComplete} />
-            ) : (
-              <AppContent />
-            )}
-          </BrowserRouter>
+          <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+            <TooltipProvider>
+              {hasBooted ? <AppContent /> : <BootSequence onComplete={handleBootComplete} />}
+              <Toaster />
+              <Sonner />
+            </TooltipProvider>
+          </ThemeProvider>
         </AuthProvider>
-      </TooltipProvider>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 };

@@ -1,9 +1,10 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import SearchBar from "./search/SearchBar";
 import TagCloud from "./tags/TagCloud";
 import PopularPosts from "./analytics/PopularPosts";
 import BackButton from "@/components/BackButton";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
 
 const AsciiSidebar = () => {
   const { user, logout } = useAuth();
@@ -92,7 +93,10 @@ const AsciiSidebar = () => {
 
       {/* System Info */}
       <div className="ascii-box p-4">
-        <pre className="ascii-highlight text-xs mb-2">SYSTEM</pre>
+        <div className="flex justify-between items-start mb-2">
+          <pre className="ascii-highlight text-xs">SYSTEM</pre>
+          <ThemeSwitcher />
+        </div>
         <div className="ascii-dim text-xs space-y-1">
           <div>Status: ONLINE</div>
           <div>Mode: ASCII</div>
