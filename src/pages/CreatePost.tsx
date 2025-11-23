@@ -43,7 +43,7 @@ export default function CreatePost() {
                 title,
                 content,
                 slug,
-                user_id: (user as any).uid || user.id,
+                user_id: user.id,
                 author_name: user.displayName || "Anonymous",
                 draft,
                 updated_at: new Date().toISOString(),
