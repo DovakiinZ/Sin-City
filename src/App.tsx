@@ -18,6 +18,7 @@ import SearchResults from "./pages/SearchResults";
 import UserProfile from "./pages/UserProfile";
 import Bookmarks from "./pages/Bookmarks";
 import CreatePost from "./pages/CreatePost";
+import AsciiGallery from "./pages/AsciiGallery";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import BootSequence from "./components/BootSequence";
@@ -64,6 +65,7 @@ const AppContent = () => {
         <Route path="/user/:username" element={<UserProfile />} />
         <Route path="/bookmarks" element={<Bookmarks />} />
         <Route path="/create" element={<CreatePost />} />
+        <Route path="/gallery" element={<AsciiGallery />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/login" element={<Login />} />
