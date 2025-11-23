@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import BackButton from "@/components/BackButton";
 import { listPostsFromDb } from "@/data/posts";
 import { estimateReadTime, extractHeadings, slugify } from "@/lib/markdown";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import CommentList from "@/components/comments/CommentList";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
 
@@ -221,17 +221,12 @@ export default function Posts() {
                   ref={i === 0 ? (el) => { if (!selectedRef.current) selectedRef.current = el; } : undefined}
                 >
                   <div className="text-lg">
-                    <button
-                      onClick={() => {
-                        setSelectedPost(post);
-                        const p = new URLSearchParams(location.search);
-                        p.set("slug", post.slug);
-                        navigate({ pathname: location.pathname, search: p.toString() });
-                      }}
+                    <Link
+                      to={`/post/${post.slug}`}
                       className="hover:ascii-highlight"
                     >
                       +-- {post.title} --+
-                    </button>
+                    </Link>
                   </div>
                   {(post.date || post.author) && (
                     <div className="text-xs opacity-70 flex flex-wrap gap-3 items-center">
