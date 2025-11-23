@@ -17,10 +17,16 @@ export default function Register() {
     e.preventDefault();
     setError(null);
     try {
-      await register({ email, password, displayName: displayName || email.split("@")[0], avatarDataUrl: avatar });
+      await register({
+        email,
+        password,
+        displayName: displayName || email.split("@")[0],
+        avatarDataUrl: avatar,
+      });
       nav("/profile");
-    } catch (err: any) {
-      setError(err?.message || "Registration failed");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Registration failed";
+      setError(message);
     }
   }
 

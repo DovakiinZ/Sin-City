@@ -7,6 +7,13 @@ import UserPanel from "./UserPanel";
 import { useAuth } from "@/context/AuthContext";
 
 type Post = { title: string; date: string; content: string; slug: string; author?: string };
+
+interface FrontMatterData {
+  title?: unknown;
+  date?: unknown;
+  author?: unknown;
+}
+
 const FILES = ["post1.md", "post2.md"]; // served from /public/posts
 
 const AsciiMainContent = () => {
@@ -21,12 +28,13 @@ const AsciiMainContent = () => {
           const res = await fetch(`/posts/${file}`);
           const text = await res.text();
           const { data, content } = matter(text);
+          const frontmatter = data as FrontMatterData;
           return {
-            title: String((data as any).title || file),
-            date: String((data as any).date || ""),
+            title: String(frontmatter.title || file),
+            date: String(frontmatter.date || ""),
             content,
             slug: file.replace(/\.md$/, ""),
-            author: (data as any).author ? String((data as any).author) : undefined,
+            author: frontmatter.author ? String(frontmatter.author) : undefined,
           };
         })
       );

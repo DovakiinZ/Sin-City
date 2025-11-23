@@ -14,15 +14,18 @@ export default function AsciiLogo({ className = "", variant = "boxed" }: { class
         if (!cancelled) setLogo(txt);
       })
       .catch(() => {
-        if (!cancelled)
-          setLogo(`
-   _   _
- _( )_( )_
-(_   V   _)
-  |     |
-   \   /
-    \_/
-`);
+        if (!cancelled) {
+          setLogo(
+            [
+              "   _   _",
+              " _( )_( )_",
+              "(_   V   _)",
+              "  |     |",
+              "   \\   /",
+              "    \\_/",
+            ].join("\n"),
+          );
+        }
       });
     return () => {
       cancelled = true;

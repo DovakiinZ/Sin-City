@@ -16,8 +16,9 @@ export default function Login() {
     try {
       await login(email, password);
       nav("/");
-    } catch (err: any) {
-      setError(err?.message || "Login failed");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Login failed";
+      setError(message);
     }
   }
 

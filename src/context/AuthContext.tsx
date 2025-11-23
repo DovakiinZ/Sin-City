@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import type { User as SupabaseAuthUser } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
 export type User = {
@@ -34,7 +35,7 @@ function saveUsers(users: User[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-function mapSupabaseUser(u: any | null): User | null {
+function mapSupabaseUser(u: SupabaseAuthUser | null): User | null {
   if (!u) return null;
   const displayName = (u.user_metadata?.displayName as string | undefined) || u.email?.split("@")[0] || "User";
   const avatarDataUrl = (u.user_metadata?.avatarDataUrl as string | undefined) || undefined;
@@ -87,7 +88,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         if (error) throw error;
         if (data.session && data.user) {
-          setUser(mapSupabaseUser(data.user));
+          const mapped = mapSupabaseUser(data.user);
+          if (!mapped) throw new Error("Sign up succeeded but user data is missing.");
+          setUser(mapped);
         } else {
           throw new Error("Sign up successful. Please check your email to confirm.");
         }
@@ -115,7 +118,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        setUser(mapSupabaseUser(data.user) as User);
+        const mapped = mapSupabaseUser(data.user);
+        if (!mapped) throw new Error("Login succeeded but user data is missing.");
+        setUser(mapped);
         return;
       }
       const users = loadUsers();
@@ -144,7 +149,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
         });
         if (error) throw error;
-        setUser(mapSupabaseUser(data.user) as User);
+        const mapped = mapSupabaseUser(data.user);
+        if (!mapped) return;
+        setUser(mapped);
         return;
       }
       setUser((prev) => {
