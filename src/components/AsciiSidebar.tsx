@@ -1,15 +1,14 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import SearchBar from "./search/SearchBar";
+import TagCloud from "./tags/TagCloud";
+import PopularPosts from "./analytics/PopularPosts";
 import BackButton from "@/components/BackButton";
 
-export default function AsciiSidebar() {
-  const location = useLocation();
-  const navigate = useNavigate();
+const AsciiSidebar = () => {
   const { user, logout } = useAuth();
-  const baseItems = [
-    { label: "Home", href: "/" },
-    { label: "Create Post", href: "/create" },
-    { label: "Manage", href: "/manage" },
+
+  return (
     <aside className="space-y-6">
       {/* Search */}
       <div>
@@ -26,8 +25,18 @@ export default function AsciiSidebar() {
             </Link>
           </li>
           <li>
+            <Link to="/create" className="ascii-nav-link hover:ascii-highlight">
+              → Create Post
+            </Link>
+          </li>
+          <li>
             <Link to="/posts" className="ascii-nav-link hover:ascii-highlight">
               → Posts
+            </Link>
+          </li>
+          <li>
+            <Link to="/manage" className="ascii-nav-link hover:ascii-highlight">
+              → Manage Posts
             </Link>
           </li>
           <li>
@@ -40,11 +49,38 @@ export default function AsciiSidebar() {
               → Contact
             </Link>
           </li>
-          <li>
-            <Link to="/manage" className="ascii-nav-link hover:ascii-highlight">
-              → Manage Posts
-            </Link>
-          </li>
+          {user ? (
+            <>
+              <li>
+                <Link to="/profile" className="ascii-nav-link hover:ascii-highlight">
+                  → Profile
+                </Link>
+              </li>
+              <li>
+                <Link to="/bookmarks" className="ascii-nav-link hover:ascii-highlight">
+                  → Bookmarks
+                </Link>
+              </li>
+              <li className="pt-2 border-t border-ascii-border mt-2">
+                <button onClick={logout} className="ascii-nav-link hover:ascii-highlight text-red-400">
+                  → Logout
+                </button>
+              </li>
+            </>
+          ) : (
+            <>
+              <li className="pt-2 border-t border-ascii-border mt-2">
+                <Link to="/login" className="ascii-nav-link hover:ascii-highlight">
+                  → Login
+                </Link>
+              </li>
+              <li>
+                <Link to="/register" className="ascii-nav-link hover:ascii-highlight">
+                  → Register
+                </Link>
+              </li>
+            </>
+          )}
         </ul>
       </nav>
 
@@ -61,10 +97,11 @@ export default function AsciiSidebar() {
           <div>Status: ONLINE</div>
           <div>Mode: ASCII</div>
           <div>Theme: Terminal</div>
+          {user && <div>User: {user.email?.split('@')[0]}</div>}
         </div>
       </div>
     </aside>
-    );
+  );
 };
 
 export default AsciiSidebar;
