@@ -18,9 +18,8 @@ export type DbPost = {
   author_email?: string | null;
   user_id?: string | null;
   created_at?: string;
+  draft?: boolean;
 };
-
-const LOCAL_KEY = "userPosts";
 
 const normalizeAttachments = (value: unknown): AttachmentMetadata[] | null => {
   if (!Array.isArray(value)) return null;
@@ -45,8 +44,15 @@ const normalizeAttachments = (value: unknown): AttachmentMetadata[] | null => {
   return normalized.length > 0 ? normalized : null;
 };
 
+/**
+ * Add a post to Supabase database
+ * All posts are now stored in the database - no localStorage fallback
+ */
 export async function addPostToDb(post: DbPost): Promise<DbPost | null> {
-  if (!supabase) return null;
+  if (!supabase) {
+    throw new Error("Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file");
+  }
+
   // Attach current Supabase user id if available
   let user_id: string | null = post.user_id ?? null;
   try {
@@ -56,34 +62,34 @@ export async function addPostToDb(post: DbPost): Promise<DbPost | null> {
     // Silently handle auth errors - user may not be logged in
     // This is expected behavior and not an error condition
   }
+
   const { data, error } = await supabase
     .from("posts")
     .insert({ ...post, user_id })
     .select()
     .single();
+
   if (error) throw error;
   return data ? ({ ...data, attachments: normalizeAttachments(data.attachments) } as DbPost) : null;
 }
 
-export function addPostLocal(post: DbPost) {
-  const raw = localStorage.getItem(LOCAL_KEY);
-  const arr: DbPost[] = raw ? (JSON.parse(raw) as DbPost[]) : [];
-  arr.unshift({
-    ...post,
-    attachments: normalizeAttachments(post.attachments) ?? null,
-    created_at: new Date().toISOString(),
-  });
-  localStorage.setItem(LOCAL_KEY, JSON.stringify(arr));
-}
-
+/**
+ * List all posts from Supabase database
+ * All posts are fetched from the database - no localStorage fallback
+ */
 export async function listPostsFromDb(): Promise<DbPost[]> {
-  if (!supabase) return [];
+  if (!supabase) {
+    throw new Error("Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file");
+  }
+
   const { data, error } = await supabase
     .from("posts")
-    .select("id,title,type,content,attachments,author_name,author_email,created_at")
+    .select("id,title,type,content,attachments,author_name,author_email,user_id,created_at,draft")
     .order("created_at", { ascending: false })
     .limit(100);
+
   if (error) throw error;
+
   return (data || []).map(
     (p) =>
       ({
@@ -93,21 +99,23 @@ export async function listPostsFromDb(): Promise<DbPost[]> {
   );
 }
 
-export function listPostsLocal(): DbPost[] {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]") as DbPost[];
-    return parsed.map((p) => ({ ...p, attachments: normalizeAttachments(p.attachments) }));
-  } catch {
-    return [];
-  }
-}
-
-export function toDbPost(input: { title: string; type: DbPost["type"]; content?: string; attachments?: File[]; user?: User | null }): DbPost {
-  const { title, type, content, attachments, user } = input;
+/**
+ * Helper function to convert form data to DbPost format
+ */
+export function toDbPost(input: {
+  title: string;
+  type: DbPost["type"];
+  content?: string;
+  attachments?: File[];
+  user?: User | null;
+  draft?: boolean;
+}): DbPost {
+  const { title, type, content, attachments, user, draft } = input;
   return {
     title,
     type,
     content: content || null,
+    draft: draft ?? false,
     attachments:
       attachments && attachments.length > 0
         ? attachments.map<AttachmentMetadata>((f) => ({ name: f.name, size: f.size, type: f.type }))

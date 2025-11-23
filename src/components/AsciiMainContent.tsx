@@ -5,6 +5,8 @@ import { Link } from "react-router-dom";
 import AsciiNewPostForm, { NewPost } from "./AsciiNewPostForm";
 import UserPanel from "./UserPanel";
 import { useAuth } from "@/context/AuthContext";
+import { useSupabasePosts, createPost } from "@/hooks/useSupabasePosts";
+import { useToast } from "@/hooks/use-toast";
 
 type Post = { title: string; date: string; content: string; slug: string; author?: string };
 
@@ -17,9 +19,11 @@ interface FrontMatterData {
 const FILES = ["post1.md", "post2.md"]; // served from /public/posts
 
 const AsciiMainContent = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [markdownPosts, setMarkdownPosts] = useState<Post[]>([]);
+  const { posts: dbPosts, loading } = useSupabasePosts();
   const [showForm, setShowForm] = useState(false);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -39,37 +43,48 @@ const AsciiMainContent = () => {
         })
       );
       loaded.sort((a, b) => (a.date < b.date ? 1 : -1));
-      // include locally saved posts
-      const stored = JSON.parse(localStorage.getItem("userPosts") || "[]") as Post[];
-      const all = [...stored, ...loaded];
-      all.sort((a, b) => (a.date < b.date ? 1 : -1));
-      setPosts(all);
+      setMarkdownPosts(loaded);
     })();
   }, []);
 
-  function toSlug(s: string) {
-    return (
-      s
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .trim()
-        .replace(/\s+/g, "-") + "-" + Date.now()
-    );
-  }
-
-  function handleAdd(p: NewPost) {
-    const username = user?.displayName || localStorage.getItem("username") || undefined;
-    const newPost: Post = {
+  // Combine markdown posts with database posts
+  const allPosts = [
+    ...dbPosts.map(p => ({
       title: p.title,
-      date: p.date || new Date().toISOString().slice(0, 10),
-      content: p.content,
-      slug: toSlug(p.title),
-      author: username,
-    };
-    const current = JSON.parse(localStorage.getItem("userPosts") || "[]") as Post[];
-    const updated = [newPost, ...current];
-    localStorage.setItem("userPosts", JSON.stringify(updated));
-    setPosts((prev) => [newPost, ...prev]);
+      date: p.created_at ? new Date(p.created_at).toISOString().split('T')[0] : "",
+      content: p.content || "",
+      slug: p.id || p.title,
+      author: p.author_name || undefined,
+    })),
+    ...markdownPosts
+  ].sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  async function handleAdd(p: NewPost) {
+    try {
+      await createPost({
+        title: p.title,
+        type: "Text",
+        content: p.content,
+        draft: false,
+        author_name: user?.displayName || "Anonymous",
+        author_email: user?.email || "",
+        user_id: user?.uid,
+      });
+
+      toast({
+        title: "Success",
+        description: "Post created successfully!",
+      });
+
+      setShowForm(false);
+    } catch (error) {
+      console.error("Error creating post:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create post. Please check your Supabase configuration.",
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -92,23 +107,25 @@ const AsciiMainContent = () => {
         </div>
       )}
       <div className="space-y-6">
-        {posts.map((post) => (
-          <article key={post.slug} className="border border-green-600 bg-black/60 p-4">
-            <h3 className="ascii-highlight text-xl mb-1">{post.title}</h3>
-            <div className="ascii-dim text-xs mb-3">
-              {post.date}
-              {post.author && <> • by <span className="ascii-highlight">{post.author}</span></>}
-            </div>
-            <div className="prose prose-invert max-w-none">
-              <ReactMarkdown>
-                {post.content.length > 400 ? post.content.slice(0, 400) + "..." : post.content}
-              </ReactMarkdown>
-            </div>
-          </article>
-        ))}
-
-        {posts.length === 0 && (
-          <div className="ascii-dim">No posts yet. Add markdown files to /public/posts.</div>
+        {loading ? (
+          <div className="ascii-dim text-center">Loading posts...</div>
+        ) : allPosts.length === 0 ? (
+          <div className="ascii-dim">No posts yet. Add markdown files to /public/posts or create a post above.</div>
+        ) : (
+          allPosts.map((post) => (
+            <article key={post.slug} className="border border-green-600 bg-black/60 p-4">
+              <h3 className="ascii-highlight text-xl mb-1">{post.title}</h3>
+              <div className="ascii-dim text-xs mb-3">
+                {post.date}
+                {post.author && <> • by <span className="ascii-highlight">{post.author}</span></>}
+              </div>
+              <div className="prose prose-invert max-w-none">
+                <ReactMarkdown>
+                  {post.content.length > 400 ? post.content.slice(0, 400) + "..." : post.content}
+                </ReactMarkdown>
+              </div>
+            </article>
+          ))
         )}
       </div>
       <div className="mt-6">

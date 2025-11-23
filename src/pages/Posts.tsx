@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 import matter from "gray-matter";
 import { cn } from "@/lib/utils";
 import BackButton from "@/components/BackButton";
-import { listPostsFromDb, listPostsLocal } from "@/data/posts";
+import { listPostsFromDb } from "@/data/posts";
 import { estimateReadTime, extractHeadings, slugify } from "@/lib/markdown";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -79,7 +79,8 @@ export default function Posts() {
           };
         })
       );
-      // Try Supabase first, fall back to local storage demo posts
+
+      // Fetch posts from Supabase database only
       let dbPosts: Post[] = [];
       try {
         const fromDb = await listPostsFromDb();
@@ -87,19 +88,15 @@ export default function Posts() {
           title: p.title,
           date: p.created_at ? new Date(p.created_at).toISOString().split("T")[0] : "",
           content: p.content || "",
-          slug: p.id || p.title + Math.random().toString(36).slice(2),
+          slug: p.id || slugify(p.title),
           author: p.author_name || undefined,
+          draft: p.draft || false,
         }));
-      } catch {
-        const fromLocal = listPostsLocal();
-        dbPosts = fromLocal.map((p) => ({
-          title: p.title,
-          date: p.created_at ? new Date(p.created_at).toISOString().split("T")[0] : "",
-          content: p.content || "",
-          slug: p.title + Math.random().toString(36).slice(2),
-          author: p.author_name || user?.displayName,
-        }));
+      } catch (error) {
+        console.error("Error loading posts from database:", error);
+        // Show error to user instead of falling back to localStorage
       }
+
       const showDrafts = import.meta.env.VITE_SHOW_DRAFTS === "true";
       const all = [...dbPosts, ...loaded].filter((p) => (showDrafts ? true : !p.draft));
       all.sort((a, b) => (a.date < b.date ? 1 : -1));
