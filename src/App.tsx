@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import MatrixRain from "@/components/effects/MatrixRain";
+import useKonamiCode from "@/hooks/useKonamiCode";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
@@ -31,6 +33,9 @@ const queryClient = new QueryClient();
 
 const AppContent = () => {
   const [showTerminal, setShowTerminal] = useState(false);
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const showMatrix = useKonamiCode();
 
   useKeyboardShortcuts({
     onHelp: () => {
