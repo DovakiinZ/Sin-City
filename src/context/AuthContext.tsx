@@ -10,13 +10,14 @@ export type User = {
   avatarDataUrl?: string;
 };
 
-type AuthContextType = {
+interface AuthContextType {
   user: User | null;
+  loading: boolean;
   register: (info: { email: string; password: string; displayName: string; avatarDataUrl?: string }) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateProfile: (changes: Partial<Pick<User, "displayName" | "avatarDataUrl">>) => void;
-};
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -50,26 +51,32 @@ function mapSupabaseUser(u: SupabaseAuthUser | null): User | null {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Initialize from Supabase session if available; otherwise fallback to local demo auth
   useEffect(() => {
     let unsub: (() => void) | undefined;
     (async () => {
-      if (supabase) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const currentUser = mapSupabaseUser(sessionData.session?.user ?? null);
-        setUser(currentUser);
-        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-          setUser(mapSupabaseUser(session?.user ?? null));
-        });
-        unsub = () => listener.subscription.unsubscribe();
-      } else {
-        const id = localStorage.getItem(CURRENT_KEY);
-        if (id) {
-          const users = loadUsers();
-          const u = users.find((x) => x.id === id) || null;
-          setUser(u);
+      try {
+        if (supabase) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const currentUser = mapSupabaseUser(sessionData.session?.user ?? null);
+          setUser(currentUser);
+          const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(mapSupabaseUser(session?.user ?? null));
+            setLoading(false);
+          });
+          unsub = () => listener.subscription.unsubscribe();
+        } else {
+          const id = localStorage.getItem(CURRENT_KEY);
+          if (id) {
+            const users = loadUsers();
+            const u = users.find((x) => x.id === id) || null;
+            setUser(u);
+          }
         }
+      } finally {
+        setLoading(false);
       }
     })();
     return () => {
@@ -79,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const api = useMemo<AuthContextType>(() => ({
     user,
+    loading,
     async register({ email, password, displayName, avatarDataUrl }) {
       if (supabase) {
         const { data, error } = await supabase.auth.signUp({
@@ -167,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return updated;
       });
     },
-  }), [user]);
+  }), [user, loading]);
 
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>;
 }

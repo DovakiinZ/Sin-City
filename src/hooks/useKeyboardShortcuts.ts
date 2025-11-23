@@ -3,9 +3,10 @@ import { useEffect } from "react";
 interface KeyboardShortcuts {
     onHelp?: () => void;
     onSearch?: () => void;
+    onTerminal?: () => void;
 }
 
-export function useKeyboardShortcuts({ onHelp, onSearch }: KeyboardShortcuts = {}) {
+export function useKeyboardShortcuts({ onHelp, onSearch, onTerminal }: KeyboardShortcuts = {}) {
     useEffect(() => {
         const handleKeyPress = (e: KeyboardEvent) => {
             // Ignore if user is typing in an input/textarea
@@ -42,10 +43,16 @@ export function useKeyboardShortcuts({ onHelp, onSearch }: KeyboardShortcuts = {
                     e.preventDefault();
                     if (onHelp) onHelp();
                     break;
+                case "`":
+                case "~":
+                    // Toggle terminal
+                    e.preventDefault();
+                    if (onTerminal) onTerminal();
+                    break;
             }
         };
 
         window.addEventListener("keydown", handleKeyPress);
         return () => window.removeEventListener("keydown", handleKeyPress);
-    }, [onHelp, onSearch]);
+    }, [onHelp, onSearch, onTerminal]);
 }
