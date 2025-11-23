@@ -13,6 +13,7 @@ import ManagePosts from "./pages/ManagePosts";
 import NotFound from "./pages/NotFound";
 import Posts from "./pages/Posts";
 import PostDetail from "./pages/PostDetail";
+import SearchResults from "./pages/SearchResults";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import BootSequence from "./components/BootSequence";
@@ -55,6 +56,7 @@ const AppContent = () => {
         <Route path="/manage" element={<ManagePosts />} />
         <Route path="/posts" element={<Posts />} />
         <Route path="/post/:slug" element={<PostDetail />} />
+        <Route path="/search" element={<SearchResults />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/login" element={<Login />} />
