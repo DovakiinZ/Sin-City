@@ -60,28 +60,22 @@ const AsciiMainContent = () => {
     ...markdownPosts
   ].sort((a, b) => (a.date < b.date ? 1 : -1));
 
+
   async function handleAdd(p: NewPost) {
     try {
-      // Get the Supabase user ID (not Firebase UID)
+      // Get the Supabase user ID if available
       const { data: { user: supabaseUser } } = await supabase.auth.getUser();
 
-      if (!supabaseUser) {
-        toast({
-          title: "Error",
-          description: "You must be logged in to create a post.",
-          variant: "destructive",
-        });
-        return;
-      }
-
+      // Allow post creation even without Supabase auth
+      // user_id will be null for anonymous posts
       await createPost({
         title: p.title,
         type: "Text",
         content: p.content,
         draft: false,
-        author_name: user?.displayName || supabaseUser.email || "Anonymous",
-        author_email: user?.email || supabaseUser.email || "",
-        user_id: supabaseUser.id,
+        author_name: user?.displayName || supabaseUser?.email || "Anonymous",
+        author_email: user?.email || supabaseUser?.email || "",
+        user_id: supabaseUser?.id || null,
       });
 
       toast({
