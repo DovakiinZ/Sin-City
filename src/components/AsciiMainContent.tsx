@@ -7,6 +7,7 @@ import UserPanel from "./UserPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useSupabasePosts, createPost } from "@/hooks/useSupabasePosts";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 type Post = { title: string; date: string; content: string; slug: string; author?: string };
 
@@ -61,14 +62,26 @@ const AsciiMainContent = () => {
 
   async function handleAdd(p: NewPost) {
     try {
+      // Get the Supabase user ID (not Firebase UID)
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+
+      if (!supabaseUser) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to create a post.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       await createPost({
         title: p.title,
         type: "Text",
         content: p.content,
         draft: false,
-        author_name: user?.displayName || "Anonymous",
-        author_email: user?.email || "",
-        user_id: user?.uid,
+        author_name: user?.displayName || supabaseUser.email || "Anonymous",
+        author_email: user?.email || supabaseUser.email || "",
+        user_id: supabaseUser.id,
       });
 
       toast({

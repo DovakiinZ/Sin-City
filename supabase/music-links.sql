@@ -18,10 +18,13 @@ CREATE INDEX IF NOT EXISTS idx_music_links_created_at ON music_links(created_at 
 -- Enable Row Level Security
 ALTER TABLE music_links ENABLE ROW LEVEL SECURITY;
 
--- Policy: Everyone can view active music links (for the "Hear This" button)
+-- Policy: Authenticated users can view all music links (for management)
+-- Anonymous users can only view active music links (for the "Hear This" button)
 CREATE POLICY "Music links are viewable by everyone"
   ON music_links FOR SELECT
-  USING (is_active = true);
+  USING (
+    is_active = true OR auth.role() = 'authenticated'
+  );
 
 -- Policy: Authenticated users can insert music links
 CREATE POLICY "Authenticated users can insert music links"
