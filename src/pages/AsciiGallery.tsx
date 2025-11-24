@@ -2,6 +2,7 @@ import { useState } from "react";
 import BackButton from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
+import ImageToAsciiConverter from "@/components/ImageToAsciiConverter";
 
 const asciiArtCollection = [
     {
@@ -87,6 +88,8 @@ export default function AsciiGallery() {
                     <BackButton />
                     <h1 className="ascii-highlight text-xl">ASCII Art Gallery</h1>
                 </div>
+
+                <ImageToAsciiConverter />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {asciiArtCollection.map((item, index) => (
