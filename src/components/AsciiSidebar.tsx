@@ -5,6 +5,7 @@ import TagCloud from "./tags/TagCloud";
 import PopularPosts from "./analytics/PopularPosts";
 import BackButton from "@/components/BackButton";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
+import HearThisButton from "@/components/HearThisButton";
 
 const AsciiSidebar = () => {
   const { user, logout } = useAuth();
@@ -15,6 +16,9 @@ const AsciiSidebar = () => {
       <div>
         <SearchBar />
       </div>
+
+      {/* Music Button */}
+      <HearThisButton />
 
       {/* Navigation */}
       <nav className="ascii-box p-4">
