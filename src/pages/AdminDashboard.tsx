@@ -6,7 +6,8 @@ import BackButton from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Shield, Users, FileText } from "lucide-react";
+import { Trash2, Shield, Users, FileText, Music } from "lucide-react";
+import MusicManager from "@/components/admin/MusicManager";
 
 export default function AdminDashboard() {
     const { user } = useAuth();
@@ -114,6 +115,9 @@ export default function AdminDashboard() {
                         <TabsTrigger value="users" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
                             <Users className="w-4 h-4 mr-2" /> Users
                         </TabsTrigger>
+                        <TabsTrigger value="music" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
+                            <Music className="w-4 h-4 mr-2" /> Music
+                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="posts" className="mt-4">
@@ -171,6 +175,10 @@ export default function AdminDashboard() {
                                 </tbody>
                             </table>
                         </div>
+                    </TabsContent>
+
+                    <TabsContent value="music" className="mt-4">
+                        <MusicManager />
                     </TabsContent>
                 </Tabs>
             </div>
