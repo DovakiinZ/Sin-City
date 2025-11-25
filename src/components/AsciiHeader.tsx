@@ -21,7 +21,7 @@ const AsciiHeader = () => {
           <img
             src="/images/moth-logo.png"
             alt="Sin City Moth Logo"
-            className="w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-lg shadow-lg shadow-ascii-highlight/20 hover:shadow-ascii-highlight/40 transition-shadow duration-300"
+            className="w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-lg transition-shadow duration-300"
           />
         </div>
       </div>
