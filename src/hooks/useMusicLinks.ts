@@ -22,7 +22,6 @@ export function useMusicLinks() {
         const { data, error } = await supabase
             .from("music_links")
             .select("*")
-            .eq("is_active", true)
             .order("created_at", { ascending: false });
 
         if (error) {
