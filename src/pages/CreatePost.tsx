@@ -43,6 +43,7 @@ export default function CreatePost() {
                 title,
                 content,
                 slug,
+                type: 'Text' as const,
                 user_id: user.id,
                 author_name: user.displayName || "Anonymous",
                 draft,
