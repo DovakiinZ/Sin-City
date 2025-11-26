@@ -3,15 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Upload, Copy, Check, Download } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-// @ts-ignore - asciify-image doesn't have TypeScript definitions
-import asciify from "asciify-image";
+import { convertImageToAscii } from "image-to-ascii-art";
+
+const ASCII_CHARS = "@%#*+=-:. ";
+const ASCII_CHARS_BW = "█▓▒░ ";
 
 export default function ImageToAsciiConverter() {
     const [asciiArt, setAsciiArt] = useState<string>("");
     const [isProcessing, setIsProcessing] = useState(false);
     const [width, setWidth] = useState(100);
     const [copied, setCopied] = useState(false);
-    const [blackAndWhite, setBlackAndWhite] = useState(true); // Default to B&W
+    const [blackAndWhite, setBlackAndWhite] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [imageSrc, setImageSrc] = useState<string | null>(null);
     const [bwImageSrc, setBwImageSrc] = useState<string | null>(null);
@@ -29,8 +31,8 @@ export default function ImageToAsciiConverter() {
         }
     };
 
-    const generateBWImage = (imgSrc: string) => {
-        return new Promise<string>((resolve) => {
+    const generateBWImage = (imgSrc: string): Promise<string> => {
+        return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement("canvas");
@@ -52,9 +54,9 @@ export default function ImageToAsciiConverter() {
                 // Convert to grayscale
                 for (let i = 0; i < data.length; i += 4) {
                     const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                    data[i] = gray;     // R
-                    data[i + 1] = gray; // G
-                    data[i + 2] = gray; // B
+                    data[i] = gray;
+                    data[i + 1] = gray;
+                    data[i + 2] = gray;
                 }
 
                 ctx.putImageData(imageData, 0, 0);
@@ -75,17 +77,22 @@ export default function ImageToAsciiConverter() {
                 setBwImageSrc(null);
             }
 
-            // Configure asciify-image options
-            const options = {
-                fit: 'box',
-                width: width,
-                format: 'string',
-                c_ratio: 2, // Character aspect ratio
-                color: !blackAndWhite, // Use color only if not in B&W mode
-            };
+            // Create image element
+            const img = new Image();
+            img.crossOrigin = "anonymous";
 
-            // Convert image to ASCII using asciify-image
-            const ascii = await asciify(imgSrc, options);
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = imgSrc;
+            });
+
+            // Convert using image-to-ascii-art
+            const ascii = await convertImageToAscii(img, {
+                width: width,
+                chars: blackAndWhite ? ASCII_CHARS_BW : ASCII_CHARS,
+            });
+
             setAsciiArt(ascii);
         } catch (error) {
             console.error('Error converting to ASCII:', error);
@@ -95,7 +102,6 @@ export default function ImageToAsciiConverter() {
         }
     };
 
-    // Re-process when settings change
     const handleSettingsChange = async () => {
         if (imageSrc) {
             await convertToAscii(imageSrc);
@@ -179,7 +185,7 @@ export default function ImageToAsciiConverter() {
                             </label>
                         </div>
                         {blackAndWhite && (
-                            <span className="text-xs ascii-dim">Using jp2a-style conversion</span>
+                            <span className="text-xs ascii-dim">Optimized for monochrome</span>
                         )}
                     </div>
 
@@ -291,7 +297,7 @@ export default function ImageToAsciiConverter() {
                         {isProcessing ? "Processing..." : "Drop an image here or click to upload"}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                        Supports JPG, PNG, GIF • Powered by asciify-image
+                        Supports JPG, PNG, GIF
                     </div>
                 </div>
             )}
