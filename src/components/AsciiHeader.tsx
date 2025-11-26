@@ -1,4 +1,9 @@
+import NotificationBell from "@/components/notifications/NotificationBell";
+import { useAuth } from "@/context/AuthContext";
+
 const AsciiHeader = () => {
+  const { user } = useAuth();
+
   return (
     <header className="ascii-text mb-6">
       <div className="relative flex items-center justify-center gap-6">
@@ -24,6 +29,13 @@ const AsciiHeader = () => {
             className="w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-lg transition-shadow duration-300"
           />
         </div>
+
+        {/* Notification Bell - Top Right */}
+        {user && (
+          <div className="absolute top-0 right-0">
+            <NotificationBell />
+          </div>
+        )}
       </div>
       {/* Tagline removed per request */}
     </header>
