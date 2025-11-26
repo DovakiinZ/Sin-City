@@ -1,9 +1,11 @@
 import { useState, useRef, ChangeEvent, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Copy, Check } from "lucide-react";
+import { Upload, Copy, Check, Download } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 
 const ASCII_CHARS = "@%#*+=-:. ";
+const ASCII_CHARS_BW = "█▓▒░ "; // Better for black & white
 
 export default function ImageToAsciiConverter() {
     const [asciiArt, setAsciiArt] = useState<string>("");
@@ -11,8 +13,10 @@ export default function ImageToAsciiConverter() {
     const [width, setWidth] = useState(100);
     const [contrast, setContrast] = useState(1);
     const [copied, setCopied] = useState(false);
+    const [blackAndWhite, setBlackAndWhite] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [imageSrc, setImageSrc] = useState<string | null>(null);
+    const [bwImageSrc, setBwImageSrc] = useState<string | null>(null);
 
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -33,13 +37,43 @@ export default function ImageToAsciiConverter() {
             const img = new Image();
             img.onload = () => {
                 convertToAscii(img);
+                if (blackAndWhite) {
+                    generateBWImage(img);
+                }
                 setIsProcessing(false);
             };
             img.src = imageSrc;
         } else {
             setAsciiArt("");
+            setBwImageSrc(null);
         }
-    }, [imageSrc, width, contrast]);
+    }, [imageSrc, width, contrast, blackAndWhite]);
+
+    const generateBWImage = (img: HTMLImageElement) => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) return;
+
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        ctx.drawImage(img, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // Convert to grayscale
+        for (let i = 0; i < data.length; i += 4) {
+            const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            data[i] = gray;     // R
+            data[i + 1] = gray; // G
+            data[i + 2] = gray; // B
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        setBwImageSrc(canvas.toDataURL());
+    };
 
     const convertToAscii = (img: HTMLImageElement) => {
         const canvas = document.createElement("canvas");
@@ -62,6 +96,7 @@ export default function ImageToAsciiConverter() {
         const data = imageData.data;
 
         let asciiStr = "";
+        const chars = blackAndWhite ? ASCII_CHARS_BW : ASCII_CHARS;
 
         for (let i = 0; i < finalHeight; i++) {
             for (let j = 0; j < finalWidth; j++) {
@@ -79,8 +114,8 @@ export default function ImageToAsciiConverter() {
                 const clamped = Math.max(0, Math.min(255, contrasted));
 
                 // Map to char
-                const charIndex = Math.floor((clamped / 255) * (ASCII_CHARS.length - 1));
-                asciiStr += ASCII_CHARS[ASCII_CHARS.length - 1 - charIndex];
+                const charIndex = Math.floor((clamped / 255) * (chars.length - 1));
+                asciiStr += chars[chars.length - 1 - charIndex];
             }
             asciiStr += "\n";
         }
@@ -92,6 +127,29 @@ export default function ImageToAsciiConverter() {
         navigator.clipboard.writeText(asciiArt);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const downloadAsciiArt = () => {
+        const blob = new Blob([asciiArt], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ascii-art-${Date.now()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const downloadBWImage = () => {
+        if (!bwImageSrc) return;
+
+        const a = document.createElement('a');
+        a.href = bwImageSrc;
+        a.download = `bw-image-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     };
 
     const triggerFileInput = () => {
@@ -123,6 +181,24 @@ export default function ImageToAsciiConverter() {
 
             {imageSrc && (
                 <div className="space-y-4">
+                    {/* Black & White Toggle */}
+                    <div className="flex items-center justify-between bg-black/20 p-4 rounded border border-ascii-border">
+                        <div className="flex items-center gap-3">
+                            <Switch
+                                checked={blackAndWhite}
+                                onCheckedChange={setBlackAndWhite}
+                                className="data-[state=checked]:bg-ascii-highlight"
+                            />
+                            <label className="text-sm ascii-text cursor-pointer" onClick={() => setBlackAndWhite(!blackAndWhite)}>
+                                Black & White Mode
+                            </label>
+                        </div>
+                        {blackAndWhite && (
+                            <span className="text-xs ascii-dim">Using optimized B&W characters</span>
+                        )}
+                    </div>
+
+                    {/* Settings */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-black/20 p-4 rounded border border-ascii-border">
                         <div className="space-y-2">
                             <div className="flex justify-between">
@@ -154,19 +230,83 @@ export default function ImageToAsciiConverter() {
                         </div>
                     </div>
 
-                    <div className="relative group">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={copyToClipboard}
-                            className="absolute top-2 right-2 opacity-50 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-ascii-highlight hover:text-black z-10"
-                        >
-                            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                        </Button>
-                        <pre className="ascii-text text-[8px] leading-[8px] overflow-x-auto p-4 bg-black/40 border border-ascii-border min-h-[200px] flex justify-center">
-                            {asciiArt}
-                        </pre>
-                    </div>
+                    {/* Preview Grid */}
+                    {blackAndWhite && bwImageSrc && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-xs ascii-highlight">B&W Preview</label>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={downloadBWImage}
+                                        className="h-7 text-xs hover:bg-ascii-highlight hover:text-black"
+                                    >
+                                        <Download className="w-3 h-3 mr-1" />
+                                        Download PNG
+                                    </Button>
+                                </div>
+                                <div className="border border-ascii-border bg-black/40 p-2 flex justify-center items-center min-h-[200px]">
+                                    <img src={bwImageSrc} alt="B&W Preview" className="max-w-full max-h-[300px] object-contain" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-xs ascii-highlight">ASCII Output</label>
+                                    <div className="flex gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={copyToClipboard}
+                                            className="h-7 text-xs hover:bg-ascii-highlight hover:text-black"
+                                        >
+                                            {copied ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                                            Copy
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={downloadAsciiArt}
+                                            className="h-7 text-xs hover:bg-ascii-highlight hover:text-black"
+                                        >
+                                            <Download className="w-3 h-3 mr-1" />
+                                            Download TXT
+                                        </Button>
+                                    </div>
+                                </div>
+                                <pre className="ascii-text text-[6px] leading-[6px] overflow-auto p-4 bg-black/40 border border-ascii-border min-h-[200px] max-h-[300px]">
+                                    {asciiArt}
+                                </pre>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ASCII Output (non-BW mode) */}
+                    {!blackAndWhite && (
+                        <div className="relative group">
+                            <div className="flex gap-2 absolute top-2 right-2 z-10">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={copyToClipboard}
+                                    className="opacity-50 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-ascii-highlight hover:text-black h-8 w-8"
+                                >
+                                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={downloadAsciiArt}
+                                    className="opacity-50 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-ascii-highlight hover:text-black h-8 w-8"
+                                >
+                                    <Download className="w-4 h-4" />
+                                </Button>
+                            </div>
+                            <pre className="ascii-text text-[8px] leading-[8px] overflow-x-auto p-4 bg-black/40 border border-ascii-border min-h-[200px] flex justify-center">
+                                {asciiArt}
+                            </pre>
+                        </div>
+                    )}
                 </div>
             )}
 
