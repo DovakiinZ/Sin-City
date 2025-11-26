@@ -1,5 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import SearchBar from "./search/SearchBar";
 import TagCloud from "./tags/TagCloud";
 import PopularPosts from "./analytics/PopularPosts";
@@ -9,6 +11,48 @@ import HearThisButton from "@/components/HearThisButton";
 
 const AsciiSidebar = () => {
   const { user, logout } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    checkAdminStatus();
+  }, [user]);
+
+  const checkAdminStatus = async () => {
+    if (!user) {
+      console.log('[Admin Check] No user logged in');
+      setIsAdmin(false);
+      return;
+    }
+
+    console.log('[Admin Check] Checking admin status for user:', user.id);
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      console.log('[Admin Check] Supabase response:', { data, error });
+
+      if (error) {
+        console.error('[Admin Check] Error fetching role:', error);
+        setIsAdmin(false);
+        return;
+      }
+
+      if (data?.role === 'admin') {
+        console.log('[Admin Check] ✅ User IS admin');
+        setIsAdmin(true);
+      } else {
+        console.log('[Admin Check] ❌ User is NOT admin. Role:', data?.role);
+        setIsAdmin(false);
+      }
+    } catch (error) {
+      console.error('[Admin Check] Exception:', error);
+      setIsAdmin(false);
+    }
+  };
 
   return (
     <aside className="space-y-6">
@@ -49,11 +93,13 @@ const AsciiSidebar = () => {
               → ASCII Gallery
             </Link>
           </li>
-          <li>
-            <Link to="/admin" className="ascii-nav-link hover:ascii-highlight text-yellow-500">
-              → Admin Console
-            </Link>
-          </li>
+          {isAdmin && (
+            <li>
+              <Link to="/admin" className="ascii-nav-link hover:ascii-highlight text-yellow-500">
+                → Admin Console
+              </Link>
+            </li>
+          )}
           <li>
             <Link to="/about" className="ascii-nav-link hover:ascii-highlight">
               → About

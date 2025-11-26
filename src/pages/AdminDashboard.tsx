@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, Shield, Users, FileText, Music } from "lucide-react";
 import MusicManager from "@/components/admin/MusicManager";
+import UserManagement from "@/components/admin/UserManagement";
 
 export default function AdminDashboard() {
     const { user } = useAuth();
@@ -29,16 +30,33 @@ export default function AdminDashboard() {
             return;
         }
 
-        // For this demo, we'll assume a specific email is admin, 
-        // or check a 'role' column if we added one. 
-        // Let's just allow access for now but in a real app we'd check roles.
-        // Ideally: const { data } = await supabase.from('profiles').select('role').eq('id', user.uid).single();
-        // For now, let's just say everyone is admin for the demo to work, 
-        // OR better, let's make the current user admin if they are the first user.
-        // Actually, let's just hardcode a check or allow all for demo purposes.
-        setIsAdmin(true);
-        loadStats();
-        setLoading(false);
+        try {
+            // Check if user has admin role in profiles table
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+
+            if (error) {
+                console.error('Error checking admin status:', error);
+                setIsAdmin(false);
+                setLoading(false);
+                return;
+            }
+
+            const hasAdminRole = data?.role === 'admin';
+            setIsAdmin(hasAdminRole);
+
+            if (hasAdminRole) {
+                loadStats();
+            }
+        } catch (error) {
+            console.error('Error in checkAdmin:', error);
+            setIsAdmin(false);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const loadStats = async () => {
@@ -115,6 +133,9 @@ export default function AdminDashboard() {
                         <TabsTrigger value="users" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
                             <Users className="w-4 h-4 mr-2" /> Users
                         </TabsTrigger>
+                        <TabsTrigger value="permissions" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
+                            <Shield className="w-4 h-4 mr-2" /> Permissions
+                        </TabsTrigger>
                         <TabsTrigger value="music" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
                             <Music className="w-4 h-4 mr-2" /> Music
                         </TabsTrigger>
@@ -175,6 +196,10 @@ export default function AdminDashboard() {
                                 </tbody>
                             </table>
                         </div>
+                    </TabsContent>
+
+                    <TabsContent value="permissions" className="mt-4">
+                        <UserManagement />
                     </TabsContent>
 
                     <TabsContent value="music" className="mt-4">
