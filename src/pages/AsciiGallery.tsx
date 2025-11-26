@@ -89,7 +89,8 @@ export default function AsciiGallery() {
                     <h1 className="ascii-highlight text-xl">ASCII Art Gallery</h1>
                 </div>
 
-                <ImageToAsciiConverter />
+                {/* Image to ASCII Converter temporarily disabled due to quality issues */}
+                {/* <ImageToAsciiConverter /> */}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {asciiArtCollection.map((item, index) => (
