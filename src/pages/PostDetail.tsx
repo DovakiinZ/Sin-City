@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 import matter from "gray-matter";
 import BackButton from "@/components/BackButton";
 import CommentList from "@/components/comments/CommentList";
-import ReactionButtons from "@/components/reactions/ReactionButtons";
+import ReactionBar from "@/components/reactions/ReactionBar";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import ShareButtons from "@/components/sharing/ShareButtons";
 import { listPostsFromDb } from "@/data/posts";
@@ -139,7 +139,7 @@ export default function PostDetail() {
 
                     {/* Reactions & Bookmark */}
                     <div className="mt-8 pt-6 border-t border-ascii-border flex items-center justify-between flex-wrap gap-4">
-                        <ReactionButtons postId={post.slug} />
+                        <ReactionBar postId={post.slug} />
                         <BookmarkButton postId={post.slug} />
                     </div>
 
