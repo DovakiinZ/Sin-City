@@ -2,11 +2,19 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
-import MarkdownEditor from "@/components/editor/MarkdownEditor";
+import RichTextEditor from "@/components/editor/RichTextEditor";
 import BackButton from "@/components/BackButton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { X } from "lucide-react";
 
 export default function CreatePost() {
     const { user } = useAuth();
@@ -16,6 +24,31 @@ export default function CreatePost() {
     const [content, setContent] = useState("");
     const [saving, setSaving] = useState(false);
     const [slug, setSlug] = useState("");
+    const [categoryId, setCategoryId] = useState<string>("");
+    const [tagInput, setTagInput] = useState("");
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [categories, setCategories] = useState<any[]>([]);
+    const [availableTags, setAvailableTags] = useState<any[]>([]);
+
+    // Load categories and tags
+    useEffect(() => {
+        const loadData = async () => {
+            const { data: cats } = await supabase
+                .from("categories")
+                .select("*")
+                .order("name");
+
+            const { data: tags } = await supabase
+                .from("tags")
+                .select("*")
+                .order("usage_count", { ascending: false })
+                .limit(50);
+
+            if (cats) setCategories(cats);
+            if (tags) setAvailableTags(tags);
+        };
+        loadData();
+    }, []);
 
     // Auto-generate slug from title
     useEffect(() => {
@@ -25,6 +58,18 @@ export default function CreatePost() {
             .replace(/(^-|-$)+/g, "");
         setSlug(generatedSlug);
     }, [title]);
+
+    const addTag = (tagName: string) => {
+        const trimmed = tagName.trim().toLowerCase();
+        if (trimmed && !selectedTags.includes(trimmed)) {
+            setSelectedTags([...selectedTags, trimmed]);
+            setTagInput("");
+        }
+    };
+
+    const removeTag = (tag: string) => {
+        setSelectedTags(selectedTags.filter(t => t !== tag));
+    };
 
     const handleSave = async (draft: boolean = true) => {
         if (!user) return;
@@ -47,14 +92,38 @@ export default function CreatePost() {
                 user_id: user.id,
                 author_name: user.displayName || "Anonymous",
                 draft,
+                category_id: categoryId || null,
                 updated_at: new Date().toISOString(),
             };
 
-            const { error } = await supabase
+            const { data: post, error } = await supabase
                 .from("posts")
-                .upsert(postData, { onConflict: "slug" });
+                .upsert(postData, { onConflict: "slug" })
+                .select()
+                .single();
 
             if (error) throw error;
+
+            // Add tags
+            if (selectedTags.length > 0 && post) {
+                for (const tagName of selectedTags) {
+                    const slug = tagName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+                    // Create or get tag
+                    const { data: tag } = await supabase
+                        .from("tags")
+                        .upsert({ name: tagName, slug }, { onConflict: "slug" })
+                        .select()
+                        .single();
+
+                    if (tag) {
+                        // Link tag to post
+                        await supabase
+                            .from("post_tags")
+                            .upsert({ post_id: post.id, tag_id: tag.id }, { onConflict: "post_id,tag_id" });
+                    }
+                }
+            }
 
             toast({
                 title: draft ? "Draft saved" : "Post published",
@@ -129,13 +198,74 @@ export default function CreatePost() {
                         <div className="ascii-text text-sm opacity-70">/post/{slug}</div>
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block ascii-dim text-xs mb-2">CATEGORY</label>
+                            <Select value={categoryId} onValueChange={setCategoryId}>
+                                <SelectTrigger className="ascii-box border-ascii-border">
+                                    <SelectValue placeholder="Select category..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories.map((cat) => (
+                                        <SelectItem key={cat.id} value={cat.id}>
+                                            {cat.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div>
+                            <label className="block ascii-dim text-xs mb-2">TAGS</label>
+                            <div className="flex gap-2">
+                                <Input
+                                    value={tagInput}
+                                    onChange={(e) => setTagInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            addTag(tagInput);
+                                        }
+                                    }}
+                                    placeholder="Add tags..."
+                                    className="ascii-box bg-transparent border-ascii-border"
+                                />
+                                <Button
+                                    type="button"
+                                    onClick={() => addTag(tagInput)}
+                                    variant="outline"
+                                    className="ascii-box"
+                                >
+                                    Add
+                                </Button>
+                            </div>
+                            {selectedTags.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {selectedTags.map((tag) => (
+                                        <span
+                                            key={tag}
+                                            className="ascii-box px-2 py-1 text-xs flex items-center gap-1"
+                                        >
+                                            #{tag}
+                                            <button
+                                                onClick={() => removeTag(tag)}
+                                                className="hover:text-red-400"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     <div>
                         <label className="block ascii-dim text-xs mb-2">CONTENT</label>
-                        <MarkdownEditor
-                            initialValue={content}
+                        <RichTextEditor
+                            content={content}
                             onChange={setContent}
-                            onSave={() => handleSave(true)}
-                            saving={saving}
+                            placeholder="Write your post content..."
                         />
                     </div>
                 </div>
