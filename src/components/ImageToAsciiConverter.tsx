@@ -274,7 +274,7 @@ export default function ImageToAsciiConverter() {
                                         </Button>
                                     </div>
                                 </div>
-                                <pre className="ascii-text text-[6px] leading-[6px] overflow-auto p-4 bg-black/40 border border-ascii-border min-h-[200px] max-h-[300px]">
+                                <pre className="text-black bg-white text-[6px] leading-[6px] overflow-auto p-4 border border-gray-300 min-h-[200px] max-h-[300px] font-mono">
                                     {asciiArt}
                                 </pre>
                             </div>
@@ -302,7 +302,7 @@ export default function ImageToAsciiConverter() {
                                     <Download className="w-4 h-4" />
                                 </Button>
                             </div>
-                            <pre className="ascii-text text-[8px] leading-[8px] overflow-x-auto p-4 bg-black/40 border border-ascii-border min-h-[200px] flex justify-center">
+                            <pre className="text-black bg-white text-[8px] leading-[8px] overflow-x-auto p-4 border border-gray-300 min-h-[200px] flex justify-center font-mono">
                                 {asciiArt}
                             </pre>
                         </div>
