@@ -21,6 +21,7 @@ import SearchResults from "./pages/SearchResults";
 import UserProfile from "./pages/UserProfile";
 import Bookmarks from "./pages/Bookmarks";
 import CreatePost from "./pages/CreatePost";
+import Drafts from "./pages/Drafts";
 import AdminDashboard from "./pages/AdminDashboard";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
@@ -71,6 +72,7 @@ const AppContent = () => {
         <Route path="/search" element={<SearchResults />} />
         <Route path="/user/:username" element={<UserProfile />} />
         <Route path="/bookmarks" element={<Bookmarks />} />
+        <Route path="/drafts" element={<Drafts />} />
         <Route path="/create" element={<CreatePost />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/about" element={<About />} />
