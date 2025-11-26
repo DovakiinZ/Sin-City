@@ -1,19 +1,17 @@
-import { useState, useRef, ChangeEvent, useEffect } from "react";
+import { useState, useRef, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Copy, Check, Download } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-
-const ASCII_CHARS = "@%#*+=-:. ";
-const ASCII_CHARS_BW = "█▓▒░ "; // Better for black & white
+// @ts-ignore - asciify-image doesn't have TypeScript definitions
+import asciify from "asciify-image";
 
 export default function ImageToAsciiConverter() {
     const [asciiArt, setAsciiArt] = useState<string>("");
     const [isProcessing, setIsProcessing] = useState(false);
     const [width, setWidth] = useState(100);
-    const [contrast, setContrast] = useState(1);
     const [copied, setCopied] = useState(false);
-    const [blackAndWhite, setBlackAndWhite] = useState(false);
+    const [blackAndWhite, setBlackAndWhite] = useState(true); // Default to B&W
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [imageSrc, setImageSrc] = useState<string | null>(null);
     const [bwImageSrc, setBwImageSrc] = useState<string | null>(null);
@@ -22,105 +20,86 @@ export default function ImageToAsciiConverter() {
         const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 const result = event.target?.result as string;
                 setImageSrc(result);
+                await convertToAscii(result);
             };
             reader.readAsDataURL(file);
         }
     };
 
-    // Re-process when image or settings change
-    useEffect(() => {
-        if (imageSrc) {
-            setIsProcessing(true);
+    const generateBWImage = (imgSrc: string) => {
+        return new Promise<string>((resolve) => {
             const img = new Image();
             img.onload = () => {
-                convertToAscii(img);
-                if (blackAndWhite) {
-                    generateBWImage(img);
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+
+                if (!ctx) {
+                    resolve(imgSrc);
+                    return;
                 }
-                setIsProcessing(false);
+
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                ctx.drawImage(img, 0, 0);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                // Convert to grayscale
+                for (let i = 0; i < data.length; i += 4) {
+                    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                    data[i] = gray;     // R
+                    data[i + 1] = gray; // G
+                    data[i + 2] = gray; // B
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+                resolve(canvas.toDataURL());
             };
-            img.src = imageSrc;
-        } else {
-            setAsciiArt("");
-            setBwImageSrc(null);
-        }
-    }, [imageSrc, width, contrast, blackAndWhite]);
-
-    const generateBWImage = (img: HTMLImageElement) => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        if (!ctx) return;
-
-        canvas.width = img.width;
-        canvas.height = img.height;
-
-        ctx.drawImage(img, 0, 0);
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-
-        // Convert to grayscale
-        for (let i = 0; i < data.length; i += 4) {
-            const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-            data[i] = gray;     // R
-            data[i + 1] = gray; // G
-            data[i + 2] = gray; // B
-        }
-
-        ctx.putImageData(imageData, 0, 0);
-        setBwImageSrc(canvas.toDataURL());
+            img.src = imgSrc;
+        });
     };
 
-    const convertToAscii = (img: HTMLImageElement) => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        if (!ctx) return;
-
-        // Calculate dimensions
-        const aspectRatio = img.height / img.width;
-        const finalWidth = width;
-        // Font aspect ratio correction (approx 0.55)
-        const finalHeight = Math.floor(finalWidth * aspectRatio * 0.55);
-
-        canvas.width = finalWidth;
-        canvas.height = finalHeight;
-
-        ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
-
-        const imageData = ctx.getImageData(0, 0, finalWidth, finalHeight);
-        const data = imageData.data;
-
-        let asciiStr = "";
-        const chars = blackAndWhite ? ASCII_CHARS_BW : ASCII_CHARS;
-
-        for (let i = 0; i < finalHeight; i++) {
-            for (let j = 0; j < finalWidth; j++) {
-                const offset = (i * finalWidth + j) * 4;
-                const r = data[offset];
-                const g = data[offset + 1];
-                const b = data[offset + 2];
-
-                // Calculate brightness
-                const brightness = (0.299 * r + 0.587 * g + 0.114 * b);
-
-                // Apply contrast
-                const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-                const contrasted = factor * (brightness - 128) + 128;
-                const clamped = Math.max(0, Math.min(255, contrasted));
-
-                // Map to char
-                const charIndex = Math.floor((clamped / 255) * (chars.length - 1));
-                asciiStr += chars[chars.length - 1 - charIndex];
+    const convertToAscii = async (imgSrc: string) => {
+        setIsProcessing(true);
+        try {
+            // Generate B&W image if needed
+            if (blackAndWhite) {
+                const bwImg = await generateBWImage(imgSrc);
+                setBwImageSrc(bwImg);
+            } else {
+                setBwImageSrc(null);
             }
-            asciiStr += "\n";
-        }
 
-        setAsciiArt(asciiStr);
+            // Configure asciify-image options
+            const options = {
+                fit: 'box',
+                width: width,
+                format: 'string',
+                c_ratio: 2, // Character aspect ratio
+                color: !blackAndWhite, // Use color only if not in B&W mode
+            };
+
+            // Convert image to ASCII using asciify-image
+            const ascii = await asciify(imgSrc, options);
+            setAsciiArt(ascii);
+        } catch (error) {
+            console.error('Error converting to ASCII:', error);
+            setAsciiArt('Error converting image. Please try another image.');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // Re-process when settings change
+    const handleSettingsChange = async () => {
+        if (imageSrc) {
+            await convertToAscii(imageSrc);
+        }
     };
 
     const copyToClipboard = () => {
@@ -186,20 +165,26 @@ export default function ImageToAsciiConverter() {
                         <div className="flex items-center gap-3">
                             <Switch
                                 checked={blackAndWhite}
-                                onCheckedChange={setBlackAndWhite}
+                                onCheckedChange={(checked) => {
+                                    setBlackAndWhite(checked);
+                                    setTimeout(() => handleSettingsChange(), 100);
+                                }}
                                 className="data-[state=checked]:bg-ascii-highlight"
                             />
-                            <label className="text-sm ascii-text cursor-pointer" onClick={() => setBlackAndWhite(!blackAndWhite)}>
+                            <label className="text-sm ascii-text cursor-pointer" onClick={() => {
+                                setBlackAndWhite(!blackAndWhite);
+                                setTimeout(() => handleSettingsChange(), 100);
+                            }}>
                                 Black & White Mode
                             </label>
                         </div>
                         {blackAndWhite && (
-                            <span className="text-xs ascii-dim">Using optimized B&W characters</span>
+                            <span className="text-xs ascii-dim">Using jp2a-style conversion</span>
                         )}
                     </div>
 
                     {/* Settings */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-black/20 p-4 rounded border border-ascii-border">
+                    <div className="bg-black/20 p-4 rounded border border-ascii-border">
                         <div className="space-y-2">
                             <div className="flex justify-between">
                                 <label className="text-xs ascii-dim">Width</label>
@@ -207,24 +192,11 @@ export default function ImageToAsciiConverter() {
                             </div>
                             <Slider
                                 value={[width]}
-                                min={20}
+                                min={40}
                                 max={200}
-                                step={1}
-                                onValueChange={(val) => setWidth(val[0])}
-                                className="w-full"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <label className="text-xs ascii-dim">Contrast</label>
-                                <span className="text-xs ascii-highlight">{contrast}</span>
-                            </div>
-                            <Slider
-                                value={[contrast]}
-                                min={-100}
-                                max={100}
                                 step={10}
-                                onValueChange={(val) => setContrast(val[0])}
+                                onValueChange={(val) => setWidth(val[0])}
+                                onValueCommit={() => handleSettingsChange()}
                                 className="w-full"
                             />
                         </div>
@@ -274,8 +246,8 @@ export default function ImageToAsciiConverter() {
                                         </Button>
                                     </div>
                                 </div>
-                                <pre className="text-black bg-white text-[6px] leading-[6px] overflow-auto p-4 border border-gray-300 min-h-[200px] max-h-[300px] font-mono">
-                                    {asciiArt}
+                                <pre className="text-black bg-white text-[6px] leading-[6px] overflow-auto p-4 border border-gray-300 min-h-[200px] max-h-[300px] font-mono whitespace-pre">
+                                    {isProcessing ? 'Converting...' : asciiArt}
                                 </pre>
                             </div>
                         </div>
@@ -302,8 +274,8 @@ export default function ImageToAsciiConverter() {
                                     <Download className="w-4 h-4" />
                                 </Button>
                             </div>
-                            <pre className="text-black bg-white text-[8px] leading-[8px] overflow-x-auto p-4 border border-gray-300 min-h-[200px] flex justify-center font-mono">
-                                {asciiArt}
+                            <pre className="text-black bg-white text-[8px] leading-[8px] overflow-x-auto p-4 border border-gray-300 min-h-[200px] flex justify-center font-mono whitespace-pre">
+                                {isProcessing ? 'Converting...' : asciiArt}
                             </pre>
                         </div>
                     )}
@@ -319,7 +291,7 @@ export default function ImageToAsciiConverter() {
                         {isProcessing ? "Processing..." : "Drop an image here or click to upload"}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                        Supports JPG, PNG, GIF
+                        Supports JPG, PNG, GIF • Powered by asciify-image
                     </div>
                 </div>
             )}
