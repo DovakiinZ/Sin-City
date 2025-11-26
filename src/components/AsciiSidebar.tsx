@@ -88,11 +88,6 @@ const AsciiSidebar = () => {
               → Manage Posts
             </Link>
           </li>
-          <li>
-            <Link to="/gallery" className="ascii-nav-link hover:ascii-highlight">
-              → ASCII Gallery
-            </Link>
-          </li>
           {isAdmin && (
             <li>
               <Link to="/admin" className="ascii-nav-link hover:ascii-highlight text-yellow-500">

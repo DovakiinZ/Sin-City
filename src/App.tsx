@@ -21,7 +21,6 @@ import SearchResults from "./pages/SearchResults";
 import UserProfile from "./pages/UserProfile";
 import Bookmarks from "./pages/Bookmarks";
 import CreatePost from "./pages/CreatePost";
-import AsciiGallery from "./pages/AsciiGallery";
 import AdminDashboard from "./pages/AdminDashboard";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
@@ -73,7 +72,6 @@ const AppContent = () => {
         <Route path="/user/:username" element={<UserProfile />} />
         <Route path="/bookmarks" element={<Bookmarks />} />
         <Route path="/create" element={<CreatePost />} />
-        <Route path="/gallery" element={<AsciiGallery />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
