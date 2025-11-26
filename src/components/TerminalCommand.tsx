@@ -41,16 +41,40 @@ const TerminalCommand = ({ onClose }: TerminalCommandProps) => {
         }
     };
 
-    const commands: Record<string, () => Promise<string> | string> = {
+    const commands: Record<string, (args?: string[]) => Promise<string> | string> = {
         help: () => {
             let helpText = `Available commands:
-  help     - Show this help message
-  about    - About Sin City
-  clear    - Clear terminal
-  posts    - List recent posts
-  whoami   - Display current user
-  date     - Show current date/time
-  exit     - Close terminal`;
+  help          - Show this help message
+  about         - About Sin City
+  clear         - Clear terminal
+  
+ Navigation:
+  goto <page>   - Navigate (home, posts, about, profile, admin)
+  open <slug>   - Open a specific post
+  random        - Open random post
+  search <q>    - Search posts
+  
+ Content:
+  posts         - List recent posts
+  trending      - Show trending posts
+  tags          - List all tags
+  categories    - List categories
+  
+ Social:
+  whoami        - Display current user
+  follow <user> - Follow a user
+  notifications - Show notifications
+  stats         - Your stats
+  
+ Fun:
+  hack          - Hacking animation
+  quote         - Random quote
+  matrix        - Matrix effect
+  
+ System:
+  date          - Show date/time
+  version       - Version info
+  exit          - Close terminal`;
 
             if (isAdmin) {
                 helpText += `
@@ -111,6 +135,235 @@ Built with: React + TypeScript + Vite`,
         exit: () => {
             onClose();
             return "Closing terminal...";
+        },
+
+        // Navigation commands
+        goto: (args?: string[]) => {
+            if (!args || args.length === 0) {
+                return "Usage: goto <page>\nPages: home, posts, about, profile, admin, create";
+            }
+            const page = args[0].toLowerCase();
+            const routes: Record<string, string> = {
+                home: "/",
+                posts: "/posts",
+                about: "/about",
+                profile: "/profile",
+                admin: "/admin",
+                create: "/create",
+                contact: "/contact",
+            };
+            if (routes[page]) {
+                window.location.href = routes[page];
+                return `Navigating to ${page}...`;
+            }
+            return `Unknown page: ${page}`;
+        },
+
+        open: async (args?: string[]) => {
+            if (!args || args.length === 0) {
+                return "Usage: open <post-slug>";
+            }
+            window.location.href = `/post/${args[0]}`;
+            return `Opening post: ${args[0]}...`;
+        },
+
+        random: async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('posts')
+                    .select('slug')
+                    .eq('draft', false)
+                    .limit(100);
+
+                if (error || !data || data.length === 0) {
+                    return "No posts available";
+                }
+
+                const randomPost = data[Math.floor(Math.random() * data.length)];
+                window.location.href = `/post/${randomPost.slug}`;
+                return `Opening random post...`;
+            } catch (error: any) {
+                return `Error: ${error.message}`;
+            }
+        },
+
+        search: async (args?: string[]) => {
+            if (!args || args.length === 0) {
+                return "Usage: search <query>";
+            }
+            const query = args.join(' ');
+            window.location.href = `/search?q=${encodeURIComponent(query)}`;
+            return `Searching for: ${query}...`;
+        },
+
+        // Content commands
+        trending: async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('posts')
+                    .select('title, slug, view_count')
+                    .eq('draft', false)
+                    .order('view_count', { ascending: false })
+                    .limit(5);
+
+                if (error || !data || data.length === 0) {
+                    return "No trending posts";
+                }
+
+                let output = "🔥 Trending Posts:\n";
+                data.forEach((post, i) => {
+                    output += `  ${i + 1}. ${post.title} (${post.view_count || 0} views)\n`;
+                });
+                return output;
+            } catch (error: any) {
+                return `Error: ${error.message}`;
+            }
+        },
+
+        tags: async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('tags')
+                    .select('name, usage_count')
+                    .order('usage_count', { ascending: false })
+                    .limit(15);
+
+                if (error || !data || data.length === 0) {
+                    return "No tags found";
+                }
+
+                let output = "📌 Popular Tags:\n";
+                data.forEach((tag, i) => {
+                    output += `  ${i + 1}. #${tag.name} (${tag.usage_count} posts)\n`;
+                });
+                return output;
+            } catch (error: any) {
+                return `Error: ${error.message}`;
+            }
+        },
+
+        categories: async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('categories')
+                    .select('name, description')
+                    .order('name');
+
+                if (error || !data || data.length === 0) {
+                    return "No categories found";
+                }
+
+                let output = "📁 Categories:\n";
+                data.forEach((cat, i) => {
+                    output += `  ${i + 1}. ${cat.name} - ${cat.description}\n`;
+                });
+                return output;
+            } catch (error: any) {
+                return `Error: ${error.message}`;
+            }
+        },
+
+        // Social commands
+        follow: async (args?: string[]) => {
+            if (!user) {
+                return "Please login to follow users";
+            }
+            if (!args || args.length === 0) {
+                return "Usage: follow <username>";
+            }
+            // This would need actual implementation
+            return `Following ${args[0]}... (Feature coming soon!)`;
+        },
+
+        notifications: async () => {
+            if (!user) {
+                return "Please login to view notifications";
+            }
+            try {
+                const { data, error } = await supabase
+                    .from('notifications')
+                    .select('type, content, created_at, read')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+
+                if (error || !data || data.length === 0) {
+                    return "No notifications";
+                }
+
+                let output = "🔔 Recent Notifications:\n";
+                data.forEach((notif, i) => {
+                    const badge = notif.read ? "" : "[NEW] ";
+                    output += `  ${i + 1}. ${badge}${notif.type}: ${JSON.stringify(notif.content).substring(0, 50)}...\n`;
+                });
+                return output;
+            } catch (error: any) {
+                return `Error: ${error.message}`;
+            }
+        },
+
+        stats: async () => {
+            if (!user) {
+                return "Please login to view stats";
+            }
+            try {
+                const { count: postsCount } = await supabase
+                    .from('posts')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', user.id);
+
+                const { count: followersCount } = await supabase
+                    .from('follows')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('following_id', user.id);
+
+                const { count: followingCount } = await supabase
+                    .from('follows')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('follower_id', user.id);
+
+                return `📊 Your Stats:
+  Posts: ${postsCount || 0}
+  Followers: ${followersCount || 0}
+  Following: ${followingCount || 0}`;
+            } catch (error: any) {
+                return `Error: ${error.message}`;
+            }
+        },
+
+        // Fun commands
+        hack: () => {
+            let output = "Initializing hack sequence...\n";
+            output += "[████████████████████] 100%\n";
+            output += "Access granted. Welcome to the mainframe.\n";
+            output += "⚠️  WARNING: Unauthorized access detected\n";
+            output += "Just kidding! This is just for fun 😄";
+            return output;
+        },
+
+        quote: () => {
+            const quotes = [
+                "The future is already here – it's just not evenly distributed. - William Gibson",
+                "Any sufficiently advanced technology is indistinguishable from magic. - Arthur C. Clarke",
+                "In cyberspace, no one can hear you scream. - Anonymous",
+                "The street finds its own uses for things. - William Gibson",
+                "We are stuck with technology when what we really want is just stuff that works. - Douglas Adams",
+                "The best way to predict the future is to invent it. - Alan Kay",
+                "Code is poetry. - WordPress",
+                "Talk is cheap. Show me the code. - Linus Torvalds",
+            ];
+            return quotes[Math.floor(Math.random() * quotes.length)];
+        },
+
+        matrix: () => {
+            return "Wake up, Neo... The Matrix has you...\nFollow the white rabbit. 🐰";
+        },
+
+        version: () => {
+            return `SIN CITY Terminal v2.0
+Build: ${new Date().toISOString().split('T')[0]}
+Platform: Web
+Engine: React + Vite`;
         },
     };
 
