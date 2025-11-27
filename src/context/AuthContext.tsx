@@ -92,7 +92,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { displayName, avatarDataUrl } },
+          options: { 
+            data: { displayName, avatarDataUrl },
+            emailRedirectTo: window.location.origin
+          },
         });
         if (error) throw error;
         if (data.session && data.user) {
