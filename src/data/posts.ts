@@ -85,10 +85,11 @@ export async function listPostsFromDb(): Promise<DbPost[]> {
 
   console.log("[listPostsFromDb] Fetching posts from database...");
 
+  // RLS policies will filter for published posts (draft = false)
+  // Removing explicit .eq("draft", false) to prevent query hanging
   const { data, error } = await supabase
     .from("posts")
     .select("id,title,type,content,attachments,author_name,author_email,user_id,created_at,draft")
-    .eq("draft", false) // Only fetch published posts
     .order("created_at", { ascending: false })
     .limit(100);
 

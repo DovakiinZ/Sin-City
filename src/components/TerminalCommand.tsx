@@ -105,10 +105,10 @@ Built with: React + TypeScript + Vite`,
 
         posts: async () => {
             try {
+                // RLS policies will filter for published posts
                 const { data, error } = await supabase
                     .from('posts')
                     .select('title, slug, created_at')
-                    .eq('draft', false) // Only show published posts
                     .order('created_at', { ascending: false })
                     .limit(5);
 
@@ -118,7 +118,7 @@ Built with: React + TypeScript + Vite`,
                 }
 
                 if (!data || data.length === 0) {
-                    return "No published posts found. Create your first post at /create";
+                    return "No posts found. Create your first post at /create";
                 }
 
                 let output = "Recent Posts:\n";
@@ -175,10 +175,10 @@ Built with: React + TypeScript + Vite`,
         random: async () => {
             try {
                 console.log('[Terminal:random] Fetching random post...');
+                // RLS policies will filter for published posts
                 const { data, error } = await supabase
                     .from('posts')
                     .select('slug, title')
-                    .eq('draft', false)
                     .limit(100);
 
                 if (error) {
@@ -187,8 +187,8 @@ Built with: React + TypeScript + Vite`,
                 }
 
                 if (!data || data.length === 0) {
-                    console.log('[Terminal:random] No published posts found');
-                    return "No published posts available. Create your first post at /create";
+                    console.log('[Terminal:random] No posts found');
+                    return "No posts available. Create your first post at /create";
                 }
 
                 const randomPost = data[Math.floor(Math.random() * data.length)];
