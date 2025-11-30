@@ -127,8 +127,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(CURRENT_KEY, newUser.id);
       setUser(newUser);
     },
-    async login(email, password) {
+    async login(emailOrUsername, password) {
       if (supabase) {
+        let email = emailOrUsername;
+
+        // Check if input is a username (doesn't contain @)
+        if (!emailOrUsername.includes('@')) {
+          // Use RPC function to get email from username
+          const { data: userEmail, error: rpcError } = await supabase
+            .rpc('get_email_from_username', { input_username: emailOrUsername });
+
+          if (rpcError || !userEmail) {
+            throw new Error("Invalid credentials");
+          }
+
+          email = userEmail;
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         const mapped = mapSupabaseUser(data.user);
@@ -137,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       const users = loadUsers();
-      const found = users.find((u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+      const found = users.find((u) => u.email.toLowerCase() === emailOrUsername.toLowerCase() && u.password === password);
       if (!found) throw new Error("Invalid credentials");
       localStorage.setItem(CURRENT_KEY, found.id);
       setUser(found);

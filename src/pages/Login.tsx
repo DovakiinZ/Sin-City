@@ -30,8 +30,8 @@ export default function Login() {
         {error && <div className="text-red-400 mb-3">{error}</div>}
         <form onSubmit={onSubmit} className="space-y-3">
           <label className="block">
-            <div className="ascii-dim text-xs mb-1">Email</div>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black text-green-400 border border-green-700 px-2 py-1 outline-none" required type="email" />
+            <div className="ascii-dim text-xs mb-1">Email or Username</div>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black text-green-400 border border-green-700 px-2 py-1 outline-none" required type="text" />
           </label>
           <label className="block">
             <div className="ascii-dim text-xs mb-1">Password</div>
