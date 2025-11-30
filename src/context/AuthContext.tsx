@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { 
+          options: {
             data: { displayName, avatarDataUrl },
             emailRedirectTo: window.location.origin
           },
@@ -146,6 +146,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await supabase.auth.signOut({ scope: 'local' });
         // Immediately set user to null to update UI
         setUser(null);
+
+        // Clear all Supabase session keys from localStorage
+        // Supabase stores session data with keys like 'sb-<project-ref>-auth-token'
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('sb-')) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+
         // Clear auth-related localStorage keys
         localStorage.removeItem(USERS_KEY);
         localStorage.removeItem(CURRENT_KEY);
