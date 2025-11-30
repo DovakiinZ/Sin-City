@@ -370,7 +370,7 @@ Built with: React + TypeScript + Vite`,
         },
 
         matrix: () => {
-            return "Wake up, Neo... The Matrix has you...\nFollow the white rabbit. 🐰";
+            return "Wake up, Bassam... The Matrix has you...\nFollow the white rabbit. 🐰";
         },
 
         version: () => {
