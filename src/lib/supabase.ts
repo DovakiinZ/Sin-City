@@ -33,10 +33,9 @@ console.log('Supabase client config:', {
 
 export const supabase: SupabaseClient = createClient(supabaseUrl, anon, {
     auth: {
-        // Use session storage instead of localStorage to reduce header size
-        storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
-        persistSession: true,
-        autoRefreshToken: false, // Disable auto-refresh to reduce header size
+        // Disable session persistence to fix data loading issues when authenticated
+        persistSession: false,
+        autoRefreshToken: false,
         detectSessionInUrl: true,
     },
 });
