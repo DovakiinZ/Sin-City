@@ -20,4 +20,23 @@ if (!anon) {
     throw new Error("VITE_SUPABASE_ANON_KEY is not defined. Please check your environment variables.");
 }
 
-export const supabase: SupabaseClient = createClient(url, anon);
+// Use proxy in development to bypass CORS
+const isDevelopment = import.meta.env.DEV;
+const supabaseUrl = isDevelopment ? '/supabase-api' : url;
+
+console.log('Supabase client config:', {
+    mode: import.meta.env.MODE,
+    isDev: isDevelopment,
+    url: supabaseUrl,
+    originalUrl: url
+});
+
+export const supabase: SupabaseClient = createClient(supabaseUrl, anon, {
+    auth: {
+        // Use session storage instead of localStorage to reduce header size
+        storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
+        persistSession: true,
+        autoRefreshToken: false, // Disable auto-refresh to reduce header size
+        detectSessionInUrl: true,
+    },
+});
