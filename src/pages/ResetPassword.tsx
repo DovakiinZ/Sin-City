@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import BackButton from "@/components/BackButton";
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,11 +13,21 @@ export default function ResetPassword() {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [hasValidSession, setHasValidSession] = useState<boolean | null>(null);
 
     // Check if we have a valid session (user clicked the email link)
     useEffect(() => {
-        // Supabase automatically handles the token from the URL
-        // and updates the session
+        const checkSession = async () => {
+            if (!supabase) {
+                setHasValidSession(false);
+                return;
+            }
+
+            const { data: { session } } = await supabase.auth.getSession();
+            setHasValidSession(!!session);
+        };
+
+        checkSession();
     }, []);
 
     async function onSubmit(e: React.FormEvent) {
@@ -57,6 +68,52 @@ export default function ResetPassword() {
         } finally {
             setLoading(false);
         }
+    }
+
+    // Show loading while checking session
+    if (hasValidSession === null) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
+                <div className="w-full max-w-md mx-auto font-mono border border-green-700 p-4 bg-black/70">
+                    <div className="ascii-dim text-center">Checking session...</div>
+                </div>
+            </div>
+        );
+    }
+
+    // Show error if no valid session
+    if (!hasValidSession) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
+                <div className="w-full max-w-md mx-auto font-mono border border-green-700 p-4 bg-black/70">
+                    <div className="mb-2"><BackButton /></div>
+                    <div className="ascii-highlight mb-4 text-xl">+-- Auth Session Missing --+</div>
+                    <div className="space-y-3">
+                        <div className="text-red-400">
+                            This page can only be accessed via the password reset link sent to your email.
+                        </div>
+                        <div className="ascii-dim text-sm">
+                            To reset your password:
+                        </div>
+                        <ol className="ascii-dim text-sm list-decimal list-inside space-y-1">
+                            <li>Go to the login page</li>
+                            <li>Click "Forgot Password?"</li>
+                            <li>Enter your email</li>
+                            <li>Check your inbox for the reset link</li>
+                            <li>Click the link in the email</li>
+                        </ol>
+                        <div className="pt-2 flex gap-2">
+                            <Link to="/login" className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1">
+                                Go to Login
+                            </Link>
+                            <Link to="/forgot-password" className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1">
+                                Forgot Password
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (
