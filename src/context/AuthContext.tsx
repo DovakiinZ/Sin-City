@@ -139,8 +139,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     async logout() {
       if (supabase) {
-        await supabase.auth.signOut();
+        // Sign out with 'local' scope to clear the session from this device
+        await supabase.auth.signOut({ scope: 'local' });
+        // Immediately set user to null to update UI
         setUser(null);
+        // Clear auth-related localStorage keys
+        localStorage.removeItem(USERS_KEY);
+        localStorage.removeItem(CURRENT_KEY);
         return;
       }
       localStorage.removeItem(CURRENT_KEY);
