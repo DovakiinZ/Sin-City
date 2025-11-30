@@ -108,13 +108,17 @@ Built with: React + TypeScript + Vite`,
                 const { data, error } = await supabase
                     .from('posts')
                     .select('title, slug, created_at')
+                    .eq('draft', false) // Only show published posts
                     .order('created_at', { ascending: false })
                     .limit(5);
 
-                if (error) throw error;
+                if (error) {
+                    console.error('[Terminal:posts] Error:', error);
+                    throw error;
+                }
 
                 if (!data || data.length === 0) {
-                    return "No posts found.";
+                    return "No published posts found. Create your first post at /create";
                 }
 
                 let output = "Recent Posts:\n";
@@ -124,7 +128,8 @@ Built with: React + TypeScript + Vite`,
                 output += "\nUse '/posts' route to view all";
                 return output;
             } catch (error: any) {
-                return `Error fetching posts: ${error.message}`;
+                console.error('[Terminal:posts] Exception:', error);
+                return `Error fetching posts: ${error.message || 'Unknown error'}`;
             }
         },
 
@@ -169,21 +174,30 @@ Built with: React + TypeScript + Vite`,
 
         random: async () => {
             try {
+                console.log('[Terminal:random] Fetching random post...');
                 const { data, error } = await supabase
                     .from('posts')
-                    .select('slug')
+                    .select('slug, title')
                     .eq('draft', false)
                     .limit(100);
 
-                if (error || !data || data.length === 0) {
-                    return "No posts available";
+                if (error) {
+                    console.error('[Terminal:random] Database error:', error);
+                    return `Error loading posts: ${error.message}`;
+                }
+
+                if (!data || data.length === 0) {
+                    console.log('[Terminal:random] No published posts found');
+                    return "No published posts available. Create your first post at /create";
                 }
 
                 const randomPost = data[Math.floor(Math.random() * data.length)];
+                console.log(`[Terminal:random] Opening post: ${randomPost.title}`);
                 window.location.href = `/post/${randomPost.slug}`;
-                return `Opening random post...`;
+                return `Opening random post: ${randomPost.title}...`;
             } catch (error: any) {
-                return `Error: ${error.message}`;
+                console.error('[Terminal:random] Exception:', error);
+                return `Failed to load random post: ${error.message || 'Unknown error'}`;
             }
         },
 

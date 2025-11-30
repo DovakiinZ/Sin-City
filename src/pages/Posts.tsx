@@ -85,7 +85,9 @@ export default function Posts() {
       // Fetch posts from Supabase database only
       let dbPosts: Post[] = [];
       try {
+        console.log("[Posts] Fetching posts from database...");
         const fromDb = await listPostsFromDb();
+        console.log(`[Posts] Fetched ${fromDb.length} posts from database`);
         dbPosts = fromDb.map((p) => ({
           title: p.title,
           date: p.created_at ? new Date(p.created_at).toISOString().split("T")[0] : "",
@@ -95,13 +97,14 @@ export default function Posts() {
           draft: p.draft || false,
         }));
       } catch (error) {
-        console.error("Error loading posts from database:", error);
-        // Show error to user instead of falling back to localStorage
+        console.error("[Posts] Error loading posts from database:", error);
+        // Continue with empty dbPosts array - will show "No posts yet" message
       }
 
       const showDrafts = import.meta.env.VITE_SHOW_DRAFTS === "true";
       const all = [...dbPosts, ...loaded].filter((p) => (showDrafts ? true : !p.draft));
       all.sort((a, b) => (a.date < b.date ? 1 : -1));
+      console.log(`[Posts] Total posts to display: ${all.length}`);
       setPosts(all);
       setIsLoading(false);
     })();
@@ -292,7 +295,21 @@ export default function Posts() {
 
             {filtered.length === 0 && !isLoading && (
               <AsciiBox>
-                <div>No posts yet. Drop markdown files in <code>/public/posts</code>.</div>
+                <div className="text-center space-y-2">
+                  <div className="text-lg">No posts found</div>
+                  <div className="ascii-dim text-sm">
+                    {posts.length === 0
+                      ? "No published posts yet. Create your first post!"
+                      : "No posts match your search criteria."}
+                  </div>
+                  {posts.length === 0 && (
+                    <div className="pt-2">
+                      <Link to="/create" className="ascii-nav-link hover:ascii-highlight border border-green-600 px-3 py-1 inline-block">
+                        → Create Post
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </AsciiBox>
             )}
           </>

@@ -38,7 +38,7 @@ const normalizeAttachments = (value: unknown): AttachmentMetadata[] | null => {
       const type = typeof record.type === "string" ? record.type : "";
       const url = typeof record.url === "string" ? record.url : null;
       if (!name || size === null || Number.isNaN(size)) return null;
-      return { name, size, type, url };
+      return { name, size, type, url } as AttachmentMetadata;
     })
     .filter((item): item is AttachmentMetadata => item !== null);
   return normalized.length > 0 ? normalized : null;
@@ -79,16 +79,25 @@ export async function addPostToDb(post: DbPost): Promise<DbPost | null> {
  */
 export async function listPostsFromDb(): Promise<DbPost[]> {
   if (!supabase) {
+    console.error("[listPostsFromDb] Supabase is not configured");
     throw new Error("Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file");
   }
+
+  console.log("[listPostsFromDb] Fetching posts from database...");
 
   const { data, error } = await supabase
     .from("posts")
     .select("id,title,type,content,attachments,author_name,author_email,user_id,created_at,draft")
+    .eq("draft", false) // Only fetch published posts
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (error) throw error;
+  if (error) {
+    console.error("[listPostsFromDb] Error fetching posts:", error);
+    throw error;
+  }
+
+  console.log(`[listPostsFromDb] Successfully fetched ${data?.length || 0} posts`);
 
   return (data || []).map(
     (p) =>
