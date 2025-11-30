@@ -37,6 +37,11 @@ export default function Login() {
             <div className="ascii-dim text-xs mb-1">Password</div>
             <input value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black text-green-400 border border-green-700 px-2 py-1 outline-none" required type="password" />
           </label>
+          <div className="text-right">
+            <Link to="/forgot-password" className="ascii-dim text-xs hover:ascii-highlight">
+              Forgot Password?
+            </Link>
+          </div>
           <div className="flex items-center gap-2">
             <button className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1" type="submit">Log in</button>
             <span className="ascii-dim text-xs">or</span>

@@ -6,38 +6,38 @@ const AsciiHeader = () => {
 
   return (
     <header className="ascii-text mb-6">
-      <div className="relative flex items-center justify-center gap-6">
-        {/* ASCII Title */}
-        <pre className="text-center ascii-highlight font-mono leading-[0.85] text-[18px] sm:text-[22px] md:text-[26px] lg:text-[30px]">
-          {`╔══════════════════════════════════════════════════════════════════════════════╗
-║                                                                                ║
-║     ███████╗██╗███╗   ██╗     ██████╗██╗████████╗██╗   ██╗                     ║
-║     ██╔════╝██║████╗  ██║    ██╔════╝██║╚══██╔══╝╚██╗ ██╔╝                     ║
-║     ███████╗██║██╔██╗ ██║    ██║     ██║   ██║    ╚████╔╝                      ║
-║     ╚════██║██║██║╚██╗██║    ██║     ██║   ██║     ╚██╔╝                       ║
-║     ███████║██║██║ ╚████║    ╚██████╗██║   ██║      ██║                        ║
-║     ╚══════╝╚═╝╚═╝  ╚═══╝     ╚═════╝╚═╝   ╚═╝      ╚═╝                        ║
-║                                                                                ║
-╚══════════════════════════════════════════════════════════════════════════════╝`}
-        </pre>
+      <div className="relative">
+        {/* Main horizontal layout container */}
+        <div className="ascii-box p-6 flex items-center justify-between gap-4">
+          {/* ASCII Title - Left side */}
+          <div className="flex-1">
+            <pre className="ascii-highlight font-mono leading-[0.9] text-[24px] sm:text-[32px] md:text-[40px] lg:text-[48px]">
+              {`███████╗██╗███╗   ██╗     ██████╗██╗████████╗██╗   ██╗
+██╔════╝██║████╗  ██║    ██╔════╝██║╚══██╔══╝╚██╗ ██╔╝
+███████╗██║██╔██╗ ██║    ██║     ██║   ██║    ╚████╔╝ 
+╚════██║██║██║╚██╗██║    ██║     ██║   ██║     ╚██╔╝  
+███████║██║██║ ╚████║    ╚██████╗██║   ██║      ██║   
+╚══════╝╚═╝╚═╝  ╚═══╝     ╚═════╝╚═╝   ╚═╝      ╚═╝`}
+            </pre>
+          </div>
 
-        {/* Moth/Cicada Logo Image */}
-        <div className="hidden sm:block flex-shrink-0">
-          <img
-            src="/images/moth-logo.png"
-            alt="Sin City Moth Logo"
-            className="w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-lg transition-shadow duration-300"
-          />
+          {/* Cicada Logo - Right side */}
+          <div className="flex items-center justify-center">
+            <img
+              src="/images/cicada.png?v=3"
+              alt="Sin City Cicada Logo"
+              className="w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 object-contain opacity-90 hover:opacity-100 transition-opacity duration-300"
+            />
+          </div>
         </div>
 
         {/* Notification Bell - Top Right */}
         {user && (
-          <div className="absolute top-0 right-0">
+          <div className="absolute top-2 right-2">
             <NotificationBell />
           </div>
         )}
       </div>
-      {/* Tagline removed per request */}
     </header>
   );
 };

@@ -11,6 +11,7 @@ import HearThisButton from "@/components/HearThisButton";
 
 const AsciiSidebar = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -51,6 +52,15 @@ const AsciiSidebar = () => {
     } catch (error) {
       console.error('[Admin Check] Exception:', error);
       setIsAdmin(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
     }
   };
 
@@ -118,7 +128,7 @@ const AsciiSidebar = () => {
                 </Link>
               </li>
               <li className="pt-2 border-t border-ascii-border mt-2">
-                <button onClick={logout} className="ascii-nav-link hover:ascii-highlight text-red-400">
+                <button onClick={handleLogout} className="ascii-nav-link hover:ascii-highlight text-red-400">
                   → Logout
                 </button>
               </li>

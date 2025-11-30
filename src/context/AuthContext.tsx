@@ -17,6 +17,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (changes: Partial<Pick<User, "displayName" | "avatarDataUrl">>) => void;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -192,6 +194,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           saveUsers(users);
         }
         localStorage.setItem(CURRENT_KEY, updated.id);
+        return updated;
+      });
+    },
+    async resetPassword(email) {
+      if (supabase) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        return;
+      }
+      // Fallback: local demo auth (just simulate success)
+      console.log("Password reset email would be sent to:", email);
+    },
+    async updatePassword(newPassword) {
+      if (supabase) {
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword,
+        });
+        if (error) throw error;
+        return;
+      }
+      // Fallback: local demo auth
+      setUser((prev) => {
+        if (!prev) return prev;
+        const updated = { ...prev, password: newPassword } as User;
+        const users = loadUsers();
+        const idx = users.findIndex((u) => u.id === updated.id);
+        if (idx >= 0) {
+          users[idx] = updated;
+          saveUsers(users);
+        }
         return updated;
       });
     },
