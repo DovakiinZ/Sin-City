@@ -98,11 +98,14 @@ export default function CreatePost() {
 
             const { data: post, error } = await supabase
                 .from("posts")
-                .upsert(postData, { onConflict: "slug" })
+                .insert(postData)
                 .select()
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error("Error saving post:", error);
+                throw error;
+            }
 
             // Add tags
             if (selectedTags.length > 0 && post) {
