@@ -1,16 +1,17 @@
 import { useState } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import BackButton from "@/components/BackButton";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ResetPassword() {
-    const { user, updatePassword } = useAuth();
+    const { user, loading, updatePassword } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     async function onSubmit(e: React.FormEvent) {
@@ -29,7 +30,7 @@ export default function ResetPassword() {
             return;
         }
 
-        setLoading(true);
+        setSubmitting(true);
         try {
             await updatePassword(newPassword);
             toast({
@@ -49,8 +50,19 @@ export default function ResetPassword() {
                 variant: "destructive",
             });
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
+    }
+
+    // Show loading while auth context initializes
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
+                <div className="w-full max-w-md mx-auto font-mono border border-green-700 p-4 bg-black/70">
+                    <div className="ascii-dim text-center">Loading...</div>
+                </div>
+            </div>
+        );
     }
 
     // Show error if not authenticated
@@ -104,7 +116,7 @@ export default function ResetPassword() {
                             className="w-full bg-black text-green-400 border border-green-700 px-2 py-1 outline-none"
                             required
                             type="password"
-                            disabled={loading}
+                            disabled={submitting}
                             minLength={6}
                         />
                     </label>
@@ -116,16 +128,16 @@ export default function ResetPassword() {
                             className="w-full bg-black text-green-400 border border-green-700 px-2 py-1 outline-none"
                             required
                             type="password"
-                            disabled={loading}
+                            disabled={submitting}
                             minLength={6}
                         />
                     </label>
                     <button
                         className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1 disabled:opacity-50 w-full"
                         type="submit"
-                        disabled={loading}
+                        disabled={submitting}
                     >
-                        {loading ? "Updating..." : "Update Password"}
+                        {submitting ? "Updating..." : "Update Password"}
                     </button>
                 </form>
             </div>
