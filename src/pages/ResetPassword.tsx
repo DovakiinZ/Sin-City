@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import BackButton from "@/components/BackButton";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 export default function ResetPassword() {
     const { user, loading, updatePassword } = useAuth();
@@ -13,6 +13,36 @@ export default function ResetPassword() {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isRecoverySession, setIsRecoverySession] = useState(false);
+    const [checkingSession, setCheckingSession] = useState(true);
+
+    // Check if this is a password recovery session
+    useEffect(() => {
+        async function checkRecoverySession() {
+            try {
+                // Check if there's a recovery token in the URL
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                const accessToken = hashParams.get('access_token');
+                const type = hashParams.get('type');
+
+                if (type === 'recovery' && accessToken) {
+                    setIsRecoverySession(true);
+                } else if (supabase) {
+                    // Check if current session is a recovery session
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (session?.user) {
+                        setIsRecoverySession(true);
+                    }
+                }
+            } catch (err) {
+                console.error("Error checking recovery session:", err);
+            } finally {
+                setCheckingSession(false);
+            }
+        }
+
+        checkRecoverySession();
+    }, []);
 
     async function onSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -54,8 +84,8 @@ export default function ResetPassword() {
         }
     }
 
-    // Show loading while auth context initializes
-    if (loading) {
+    // Show loading while auth context initializes or checking recovery session
+    if (loading || checkingSession) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center p-4">
                 <div className="w-full max-w-md mx-auto font-mono border border-green-700 p-4 bg-black/70">
@@ -65,8 +95,8 @@ export default function ResetPassword() {
         );
     }
 
-    // Show error if not authenticated
-    if (!user) {
+    // Show error if not authenticated and not a recovery session
+    if (!user && !isRecoverySession) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center p-4">
                 <div className="w-full max-w-md mx-auto font-mono border border-green-700 p-4 bg-black/70">
@@ -105,7 +135,11 @@ export default function ResetPassword() {
             <div className="w-full max-w-md mx-auto font-mono border border-green-700 p-4 bg-black/70">
                 <div className="mb-2"><BackButton /></div>
                 <div className="ascii-highlight mb-4 text-xl">+-- Set New Password --+</div>
-                <div className="ascii-dim text-xs mb-3">Logged in as: {user.email}</div>
+                {user ? (
+                    <div className="ascii-dim text-xs mb-3">Logged in as: {user.email}</div>
+                ) : isRecoverySession ? (
+                    <div className="ascii-dim text-xs mb-3">Password recovery session active</div>
+                ) : null}
                 {error && <div className="text-red-400 mb-3">{error}</div>}
                 <form onSubmit={onSubmit} className="space-y-3">
                     <label className="block">
