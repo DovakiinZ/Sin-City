@@ -134,9 +134,12 @@ export default function PostDetail() {
                     )}
 
                     <div className="prose prose-invert max-w-none mb-8">
-                        {/* Check if content contains HTML tags (from RichTextEditor) */}
-                        {post.content.includes('<') ? (
-                            <div dangerouslySetInnerHTML={{ __html: post.content }} />
+                        {/* Render HTML content from RichTextEditor */}
+                        {post.content.trim().startsWith('<') || post.content.includes('<img') || post.content.includes('<p>') ? (
+                            <div
+                                className="rich-content"
+                                dangerouslySetInnerHTML={{ __html: post.content }}
+                            />
                         ) : (
                             <ReactMarkdown>{post.content}</ReactMarkdown>
                         )}
