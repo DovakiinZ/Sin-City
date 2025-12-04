@@ -128,24 +128,45 @@ export default function PostDetail() {
                             {post.tags.map((tag) => (
                                 <span key={tag} className="ascii-box px-2 py-1 text-xs">
                                     #{tag}
-                                </div>
+                                </span>
+                            ))}
+                        </div>
+                    )}
 
-                    {/* Sharing */ }
-                                < ShareButtons title = { post.title } slug = { post.slug } content = { post.content } />
+                    <div className="prose prose-invert max-w-none mb-8">
+                        {/* Render HTML content from RichTextEditor */}
+                        {post.content.trim().startsWith('<') || post.content.includes('<img') || post.content.includes('<p>') ? (
+                            <div
+                                className="rich-content"
+                                dangerouslySetInnerHTML={{ __html: post.content }}
+                            />
+                        ) : (
+                            <ReactMarkdown>{post.content}</ReactMarkdown>
+                        )}
+                    </div>
+
+                    {/* Reactions & Bookmark */}
+                    <div className="mt-8 pt-6 border-t border-ascii-border flex items-center justify-between flex-wrap gap-4">
+                        <ReactionBar postId={post.slug} />
+                        <BookmarkButton postId={post.slug} />
+                    </div>
+
+                    {/* Sharing */}
+                    <ShareButtons title={post.title} slug={post.slug} content={post.content} />
                 </div>
 
                 {/* Comments */}
-                    <CommentList postId={post.slug} />
+                <CommentList postId={post.slug} />
 
-                    <div className="text-center">
-                        <button
-                            onClick={() => navigate("/posts")}
-                            className="ascii-nav-link hover:ascii-highlight"
-                        >
-                            ← Back to all posts
-                        </button>
-                    </div>
+                <div className="text-center">
+                    <button
+                        onClick={() => navigate("/posts")}
+                        className="ascii-nav-link hover:ascii-highlight"
+                    >
+                        ← Back to all posts
+                    </button>
                 </div>
             </div>
-            );
+        </div>
+    );
 }
