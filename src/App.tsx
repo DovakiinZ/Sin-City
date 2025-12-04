@@ -40,6 +40,17 @@ const AppContent = () => {
   const location = useLocation();
   const showMatrix = useKonamiCode();
 
+  // Handle password recovery redirect
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      // If we're not already on the reset-password page, redirect there
+      if (location.pathname !== '/reset-password') {
+        window.location.href = `/reset-password${hash}`;
+      }
+    }
+  }, [location.pathname]);
+
   useKeyboardShortcuts({
     onHelp: () => {
       console.log("Help triggered");
@@ -98,9 +109,16 @@ const App = () => {
   useEffect(() => {
     // Check if user has already seen boot sequence in this session
     const booted = sessionStorage.getItem("hasBooted");
-    if (booted) {
+    // Skip boot sequence if there's a password recovery token
+    const hash = window.location.hash;
+    const isRecovery = hash && hash.includes('type=recovery');
+
+    if (booted || isRecovery) {
       setShowBoot(false);
       setHasBooted(true);
+      if (isRecovery) {
+        sessionStorage.setItem("hasBooted", "true");
+      }
     }
   }, []);
 
