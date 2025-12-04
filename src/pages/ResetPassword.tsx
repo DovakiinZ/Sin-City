@@ -25,11 +25,22 @@ export default function ResetPassword() {
                 const accessToken = hashParams.get('access_token');
                 const type = hashParams.get('type');
 
+                console.log('Recovery check:', {
+                    hash: window.location.hash,
+                    type,
+                    hasToken: !!accessToken
+                });
+
                 if (type === 'recovery' && accessToken) {
+                    console.log('✅ Recovery session detected from URL');
                     setIsRecoverySession(true);
                 } else if (supabase) {
                     // Check if current session is a recovery session
                     const { data: { session } } = await supabase.auth.getSession();
+                    console.log('Session check:', {
+                        hasSession: !!session,
+                        hasUser: !!session?.user
+                    });
                     if (session?.user) {
                         setIsRecoverySession(true);
                     }
@@ -96,6 +107,13 @@ export default function ResetPassword() {
     }
 
     // Show error if not authenticated and not a recovery session
+    console.log('Auth check:', {
+        hasUser: !!user,
+        isRecoverySession,
+        loading,
+        checkingSession
+    });
+
     if (!user && !isRecoverySession) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center p-4">
