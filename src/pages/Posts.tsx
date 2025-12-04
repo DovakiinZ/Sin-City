@@ -273,21 +273,26 @@ export default function Posts() {
                   )}
 
                   <div className="prose prose-invert max-w-none">
-                    <ReactMarkdown
-                      components={{
-                        h1: ({ children, ...props }) => (
-                          <h1 id={slugify(String(children))} {...props}>{children}</h1>
-                        ),
-                        h2: ({ children, ...props }) => (
-                          <h2 id={slugify(String(children))} {...props}>{children}</h2>
-                        ),
-                        h3: ({ children, ...props }) => (
-                          <h3 id={slugify(String(children))} {...props}>{children}</h3>
-                        ),
-                      }}
-                    >
-                      {post.content}
-                    </ReactMarkdown>
+                    {/* Check if content contains HTML tags (from RichTextEditor) */}
+                    {post.content.includes('<') ? (
+                      <div dangerouslySetInnerHTML={{ __html: post.content }} />
+                    ) : (
+                      <ReactMarkdown
+                        components={{
+                          h1: ({ children, ...props }) => (
+                            <h1 id={slugify(String(children))} {...props}>{children}</h1>
+                          ),
+                          h2: ({ children, ...props }) => (
+                            <h2 id={slugify(String(children))} {...props}>{children}</h2>
+                          ),
+                          h3: ({ children, ...props }) => (
+                            <h3 id={slugify(String(children))} {...props}>{children}</h3>
+                          ),
+                        }}
+                      >
+                        {post.content}
+                      </ReactMarkdown>
+                    )}
                   </div>
                 </AsciiBox>
               );

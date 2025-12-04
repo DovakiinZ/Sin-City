@@ -134,7 +134,12 @@ export default function PostDetail() {
                     )}
 
                     <div className="prose prose-invert max-w-none mb-8">
-                        <ReactMarkdown>{post.content}</ReactMarkdown>
+                        {/* Check if content contains HTML tags (from RichTextEditor) */}
+                        {post.content.includes('<') ? (
+                            <div dangerouslySetInnerHTML={{ __html: post.content }} />
+                        ) : (
+                            <ReactMarkdown>{post.content}</ReactMarkdown>
+                        )}
                     </div>
 
                     {/* Reactions & Bookmark */}
