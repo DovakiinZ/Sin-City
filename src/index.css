@@ -131,6 +131,17 @@
     color: hsl(var(--ascii-highlight));
   }
 
+  /* Override hardcoded green borders to use theme color */
+  .border-green-600,
+  .border-green-700 {
+    border-color: hsl(var(--ascii-border)) !important;
+  }
+
+  /* Override hardcoded green text to use theme color */
+  .text-green-400 {
+    color: hsl(var(--ascii-text)) !important;
+  }
+
   /* CRT Scanline Effect */
   .scanlines {
     background: linear-gradient(to bottom,
