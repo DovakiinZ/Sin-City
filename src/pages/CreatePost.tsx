@@ -72,7 +72,6 @@ export default function CreatePost() {
     };
 
     const handleSave = async (draft: boolean = true) => {
-        if (!user) return;
         if (!title.trim()) {
             toast({
                 title: "Title required",
@@ -89,8 +88,8 @@ export default function CreatePost() {
                 content,
                 slug,
                 type: 'Text' as const,
-                user_id: user.id,
-                author_name: user.displayName || "Anonymous",
+                user_id: user?.id || null, // Allow null for guest posts
+                author_name: user?.displayName || "Anonymous",
                 draft,
                 category_id: categoryId || null,
                 updated_at: new Date().toISOString(),
@@ -147,19 +146,6 @@ export default function CreatePost() {
             setSaving(false);
         }
     };
-
-    if (!user) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center p-4">
-                <div className="ascii-box p-8 text-center">
-                    <div className="text-red-400 mb-4">Access Denied</div>
-                    <Button onClick={() => navigate("/login")} className="ascii-box">
-                        Login to Create
-                    </Button>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen bg-background p-4">
