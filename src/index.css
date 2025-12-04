@@ -30,6 +30,7 @@
     --ascii-amber: #ffb000;
     --ascii-cyan: #00ffff;
     --ascii-c64: #9d9dff;
+    --ascii-purple: #c77dff;
     --ascii-bg: #0d0208;
 
     --ascii-border: 142 76% 36%;
@@ -77,6 +78,17 @@
     --ascii-border: 240 100% 80%;
     --ascii-text: 240 100% 80%;
     --ascii-dim: 240 100% 60%;
+  }
+
+  .theme-purple {
+    --background: 270 50% 10%;
+    --foreground: 270 100% 75%;
+    --primary: 270 100% 75%;
+    --border: 270 100% 75%;
+    --ascii-highlight: 270 100% 75%;
+    --ascii-border: 270 100% 75%;
+    --ascii-text: 270 100% 75%;
+    --ascii-dim: 270 100% 50%;
   }
 
   * {

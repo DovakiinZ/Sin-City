@@ -36,6 +36,10 @@ export default function ThemeSwitcher() {
                     <span className="w-4 h-4 rounded-full bg-[#9d9dff] mr-2 border border-white/20"></span>
                     C64 Blue
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("purple")} className="ascii-text hover:bg-ascii-highlight hover:text-black cursor-pointer">
+                    <span className="w-4 h-4 rounded-full bg-[#c77dff] mr-2 border border-white/20"></span>
+                    Terminal Purple
+                </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
     );
