@@ -15,6 +15,7 @@ export default function ResetPassword() {
     const [error, setError] = useState<string | null>(null);
     const [isRecoverySession, setIsRecoverySession] = useState(false);
     const [checkingSession, setCheckingSession] = useState(true);
+    const [linkError, setLinkError] = useState<string | null>(null);
 
     // Check if this is a password recovery session
     useEffect(() => {
@@ -24,12 +25,32 @@ export default function ResetPassword() {
                 const hashParams = new URLSearchParams(window.location.hash.substring(1));
                 const accessToken = hashParams.get('access_token');
                 const type = hashParams.get('type');
+                const error = hashParams.get('error');
+                const errorCode = hashParams.get('error_code');
+                const errorDescription = hashParams.get('error_description');
 
                 console.log('Recovery check:', {
                     hash: window.location.hash,
                     type,
-                    hasToken: !!accessToken
+                    hasToken: !!accessToken,
+                    error,
+                    errorCode
                 });
+
+                // Check for errors in the URL (expired link, etc.)
+                if (error || errorCode) {
+                    let errorMessage = 'The password reset link is invalid.';
+
+                    if (errorCode === 'otp_expired') {
+                        errorMessage = 'This password reset link has expired. Please request a new one.';
+                    } else if (errorDescription) {
+                        errorMessage = decodeURIComponent(errorDescription.replace(/\+/g, ' '));
+                    }
+
+                    setLinkError(errorMessage);
+                    setCheckingSession(false);
+                    return;
+                }
 
                 if (type === 'recovery' && accessToken) {
                     console.log('✅ Recovery session detected from URL');
@@ -101,6 +122,34 @@ export default function ResetPassword() {
             <div className="min-h-screen bg-background flex items-center justify-center p-4">
                 <div className="w-full max-w-md mx-auto font-mono border border-green-700 p-4 bg-black/70">
                     <div className="ascii-dim text-center">Loading...</div>
+                </div>
+            </div>
+        );
+    }
+
+    // Show error if link is expired or invalid
+    if (linkError) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
+                <div className="w-full max-w-md mx-auto font-mono border border-red-700 p-4 bg-black/70">
+                    <div className="mb-2"><BackButton /></div>
+                    <div className="ascii-highlight mb-4 text-xl text-red-400">+-- Link Error --+</div>
+                    <div className="space-y-3">
+                        <div className="text-red-400">
+                            {linkError}
+                        </div>
+                        <div className="ascii-dim text-sm">
+                            Password reset links expire quickly for security. Please request a new one.
+                        </div>
+                        <div className="pt-2 flex gap-2">
+                            <Link to="/forgot-password" className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1">
+                                Request New Link
+                            </Link>
+                            <Link to="/login" className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1">
+                                Go to Login
+                            </Link>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
