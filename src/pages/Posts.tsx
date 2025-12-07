@@ -63,41 +63,14 @@ export default function Posts() {
   useEffect(() => {
     (async () => {
       setIsLoading(true);
-      const loaded = await Promise.all(
-        FILES.map(async (file) => {
-          const res = await fetch(`/posts/${file}`);
-          const text = await res.text();
-          const { data, content } = matter(text);
-          const frontmatter = data as FrontMatterData;
-          return {
-            title: String(frontmatter.title || file),
-            date: String(frontmatter.date || ""),
-            content,
-            slug: file.replace(/\.md$/, ""),
-            author: frontmatter.author ? String(frontmatter.author) : undefined,
-            tags: Array.isArray(frontmatter.tags)
-              ? (frontmatter.tags as unknown[]).map(String)
-              : undefined,
-            draft: Boolean(frontmatter.draft) || false,
-          };
-        })
-      );
+      console.log("[Posts] Starting to fetch posts...");
 
-      // Fetch posts from Supabase database with timeout
-      let dbPosts: Post[] = [];
+      // Fetch posts directly from Supabase (like admin does)
+      let allPosts: Post[] = [];
       try {
-        console.log("[Posts] Fetching posts from database...");
-
-        // Add timeout to prevent infinite loading
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout')), 5000)
-        );
-
-        const fetchPromise = listPostsFromDb();
-        const fromDb = await Promise.race([fetchPromise, timeoutPromise]) as any;
-
+        const fromDb = await listPostsFromDb();
         console.log(`[Posts] Fetched ${fromDb?.length || 0} posts from database`);
-        dbPosts = (fromDb || []).map((p: any) => ({
+        allPosts = (fromDb || []).map((p: any) => ({
           title: p.title,
           date: p.created_at ? new Date(p.created_at).toISOString().split("T")[0] : "",
           content: p.content || "",
@@ -108,17 +81,16 @@ export default function Posts() {
         }));
       } catch (error) {
         console.error("[Posts] Error loading posts from database:", error);
-        // Continue with empty dbPosts array - will show posts from markdown files
       }
 
       const showDrafts = import.meta.env.VITE_SHOW_DRAFTS === "true";
-      const all = [...dbPosts, ...loaded].filter((p) => (showDrafts ? true : !p.draft));
-      all.sort((a, b) => (a.date < b.date ? 1 : -1));
-      console.log(`[Posts] Total posts to display: ${all.length}`);
-      setPosts(all);
+      const filtered = allPosts.filter((p) => (showDrafts ? true : !p.draft));
+      filtered.sort((a, b) => (a.date < b.date ? 1 : -1));
+      console.log(`[Posts] Total posts to display: ${filtered.length}`);
+      setPosts(filtered);
       setIsLoading(false);
     })();
-  }, [user?.displayName]);
+  }, []); // No dependencies - run once on mount
 
   const uniqueTags = useMemo(() => {
     const s = new Set<string>();
