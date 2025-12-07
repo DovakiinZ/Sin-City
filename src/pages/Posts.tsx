@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, forwardRef } from "react";
 import { useAuth } from "@/context/AuthContext";
+import ReactMarkdown from "react-markdown";
 import matter from "gray-matter";
 import { cn } from "@/lib/utils";
 import BackButton from "@/components/BackButton";
@@ -267,6 +268,18 @@ export default function Posts() {
                           {"".padStart(Math.max(0, h.depth - 2) * 2, " ")}
                           {h.text}
                         </a>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="prose prose-invert max-w-none">
+                    <div dangerouslySetInnerHTML={{ __html: post.content }} />
+                  </div>
+                </AsciiBox>
+              );
+            })}
+
+            {filtered.length === 0 && !isLoading && (
               <AsciiBox>
                 <div className="text-center space-y-2">
                   <div className="text-lg">No posts found</div>
@@ -284,10 +297,10 @@ export default function Posts() {
                   )}
                 </div>
               </AsciiBox>
-                      )}
-                    </>
-                  )}
-                </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
-        );
+  );
 }
