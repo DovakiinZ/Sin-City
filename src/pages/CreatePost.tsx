@@ -83,18 +83,16 @@ export default function CreatePost() {
 
         setSaving(true);
         try {
+            // Simplified post data - only essential fields
             const postData = {
                 title,
                 content,
-                slug,
-                type: 'Text' as const,
-                user_id: user?.id || null, // Allow null for guest posts
-                author_name: user?.displayName || "Anonymous",
-                author_avatar: user?.avatarDataUrl || null, // Include profile picture
-                draft,
-                category_id: categoryId || null,
-                updated_at: new Date().toISOString(),
+                type: 'Text',
+                author_name: user?.displayName || "Admin",
+                draft: draft,
             };
+
+            console.log('Saving post:', postData);
 
             const { data: post, error } = await supabase
                 .from("posts")
