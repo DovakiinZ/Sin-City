@@ -365,9 +365,10 @@ export default function Posts() {
                     </div>
                   )}
 
-                  <div className="prose prose-invert max-w-none text-green-400/80 whitespace-pre-wrap">
-                    {stripHtml(post.content)}
-                  </div>
+                  <div
+                    className="prose prose-invert max-w-none text-green-400/80 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_p]:mb-2"
+                    dangerouslySetInnerHTML={{ __html: post.content }}
+                  />
 
                   {/* Comment Button */}
                   <div className="mt-4 pt-3 border-t border-green-600/30">
