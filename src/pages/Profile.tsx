@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import AvatarUploader from "@/components/AvatarUploader";
 import BackButton from "@/components/BackButton";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 export default function Profile() {
   const { user, updateProfile, logout, updatePassword } = useAuth();
@@ -11,6 +12,35 @@ export default function Profile() {
   const { toast } = useToast();
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [avatar, setAvatar] = useState<string | undefined>(user?.avatarDataUrl);
+  const [loadingAvatar, setLoadingAvatar] = useState(true);
+
+  // Load avatar from Supabase profiles table on mount
+  useEffect(() => {
+    async function loadAvatar() {
+      if (!user?.id || !supabase) {
+        setLoadingAvatar(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("avatar_url")
+          .eq("id", user.id)
+          .single();
+
+        if (!error && data?.avatar_url) {
+          setAvatar(data.avatar_url);
+        }
+      } catch (err) {
+        console.error("[Profile] Error loading avatar:", err);
+      } finally {
+        setLoadingAvatar(false);
+      }
+    }
+
+    loadAvatar();
+  }, [user?.id]);
 
   // Password change state
   const [newPassword, setNewPassword] = useState("");
