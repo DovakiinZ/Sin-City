@@ -23,6 +23,15 @@
 
 <body>
   <div id="root"></div>
+  <!-- Buffer polyfill for gray-matter library -->
+  <script>
+    if (typeof window.Buffer === 'undefined') {
+      window.Buffer = {
+        isBuffer: function () { return false; },
+        from: function (data) { return new Uint8Array(data); }
+      };
+    }
+  </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 
