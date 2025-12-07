@@ -1,8 +1,5 @@
-import { Buffer } from 'buffer';
-
-// Polyfill Buffer for browser compatibility
+// Polyfill global for browser compatibility (required by gray-matter)
 if (typeof window !== 'undefined') {
-    window.Buffer = Buffer;
     (window as any).global = window;
 }
 
