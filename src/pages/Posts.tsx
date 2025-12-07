@@ -15,6 +15,7 @@ import { supabase } from "@/lib/supabase";
 type Post = {
   title: string;
   date: string;
+  rawDate: string;
   content: string;
   slug: string;
   author?: string;
@@ -89,17 +90,31 @@ export default function Posts() {
       try {
         const fromDb = await listPostsFromDb();
         console.log(`[Posts] Fetched ${fromDb?.length || 0} posts from database`);
-        allPosts = (fromDb || []).map((p: any) => ({
-          title: p.title,
-          date: p.created_at ? new Date(p.created_at).toISOString().split("T")[0] : "",
-          content: p.content || "",
-          slug: p.slug || p.id || slugify(p.title),
-          author: p.author_name || undefined,
-          authorAvatar: p.author_avatar || undefined,
-          userId: p.user_id || undefined,
-          isAdmin: p.user_id ? adminUserIds.has(p.user_id) : false,
-          draft: p.draft || false,
-        }));
+        allPosts = (fromDb || []).map((p: any) => {
+          const createdDate = p.created_at ? new Date(p.created_at) : null;
+          const formattedDate = createdDate
+            ? createdDate.toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            })
+            : '';
+          return {
+            title: p.title,
+            date: formattedDate,
+            rawDate: p.created_at || '',
+            content: p.content || "",
+            slug: p.slug || p.id || slugify(p.title),
+            author: p.author_name || undefined,
+            authorAvatar: p.author_avatar || undefined,
+            userId: p.user_id || undefined,
+            isAdmin: p.user_id ? adminUserIds.has(p.user_id) : false,
+            draft: p.draft || false,
+          };
+        });
       } catch (error) {
         console.error("[Posts] Error loading posts from database:", error);
       }
@@ -134,10 +149,10 @@ export default function Posts() {
     // Apply sorting
     switch (sortBy) {
       case "recent":
-        result.sort((a, b) => (a.date < b.date ? 1 : -1));
+        result.sort((a, b) => (a.rawDate < b.rawDate ? 1 : -1));
         break;
       case "oldest":
-        result.sort((a, b) => (a.date > b.date ? 1 : -1));
+        result.sort((a, b) => (a.rawDate > b.rawDate ? 1 : -1));
         break;
       case "title":
         result.sort((a, b) => a.title.localeCompare(b.title));
@@ -266,7 +281,10 @@ export default function Posts() {
 
             {filtered.map((post, i) => {
               const headings = extractHeadings(post.content);
-              const readMins = estimateReadTime(post.content);
+              // Calculate read time based on word count (strip HTML first)
+              const textContent = stripHtml(post.content);
+              const wordCount = textContent.split(/\s+/).filter(Boolean).length;
+              const readMins = Math.max(1, Math.ceil(wordCount / 200));
               return (
                 <AsciiBox
                   key={post.slug}
