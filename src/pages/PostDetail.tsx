@@ -1,6 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import ReactMarkdown from "react-markdown";
 import matter from "gray-matter";
 import BackButton from "@/components/BackButton";
 import CommentList from "@/components/comments/CommentList";
@@ -134,15 +133,7 @@ export default function PostDetail() {
                     )}
 
                     <div className="prose prose-invert max-w-none mb-8">
-                        {/* Render HTML content from RichTextEditor */}
-                        {post.content.trim().startsWith('<') || post.content.includes('<img') || post.content.includes('<p>') ? (
-                            <div
-                                className="rich-content"
-                                dangerouslySetInnerHTML={{ __html: post.content }}
-                            />
-                        ) : (
-                            <ReactMarkdown>{post.content}</ReactMarkdown>
-                        )}
+                        <div dangerouslySetInnerHTML={{ __html: post.content }} />
                     </div>
 
                     {/* Reactions & Bookmark */}
