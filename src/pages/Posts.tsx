@@ -9,6 +9,7 @@ import { estimateReadTime, extractHeadings, slugify } from "@/lib/markdown";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import CommentList from "@/components/comments/CommentList";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 type Post = {
   title: string;
@@ -16,6 +17,7 @@ type Post = {
   content: string;
   slug: string;
   author?: string;
+  authorAvatar?: string;
   tags?: string[];
   draft?: boolean;
 };
@@ -94,6 +96,7 @@ export default function Posts() {
           content: p.content || "",
           slug: p.id || slugify(p.title),
           author: p.author_name || undefined,
+          authorAvatar: p.author_avatar || undefined,
           draft: p.draft || false,
         }));
       } catch (error) {
@@ -235,8 +238,17 @@ export default function Posts() {
                     <div className="text-xs opacity-70 flex flex-wrap gap-3 items-center">
                       <span>{post.date}</span>
                       {post.author && (
-                        <span>
-                          » by <span className="ascii-highlight">{post.author}</span>
+                        <span className="flex items-center gap-2">
+                          » by
+                          {post.authorAvatar && (
+                            <Avatar className="w-5 h-5 inline-block">
+                              <AvatarImage src={post.authorAvatar} alt={post.author} />
+                              <AvatarFallback className="text-[8px] bg-green-900 text-green-400">
+                                {post.author.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                          <span className="ascii-highlight">{post.author}</span>
                         </span>
                       )}
                       <span className="ascii-dim">{readMins} min read</span>

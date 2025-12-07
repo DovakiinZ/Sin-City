@@ -16,6 +16,7 @@ export type DbPost = {
   attachments?: AttachmentMetadata[] | null;
   author_name?: string | null;
   author_email?: string | null;
+  author_avatar?: string | null;
   user_id?: string | null;
   created_at?: string;
   draft?: boolean;
@@ -89,7 +90,7 @@ export async function listPostsFromDb(): Promise<DbPost[]> {
   // Removing explicit .eq("draft", false) to prevent query hanging
   const { data, error } = await supabase
     .from("posts")
-    .select("id,title,type,content,attachments,author_name,author_email,user_id,created_at,draft")
+    .select("id,title,type,content,attachments,author_name,author_email,author_avatar,user_id,created_at,draft")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -132,5 +133,6 @@ export function toDbPost(input: {
         : null,
     author_name: user?.displayName || null,
     author_email: user?.email || null,
+    author_avatar: user?.avatarDataUrl || null,
   } satisfies DbPost;
 }
