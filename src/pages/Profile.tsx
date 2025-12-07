@@ -37,12 +37,26 @@ export default function Profile() {
       if (user?.id) {
         const { supabase } = await import("@/lib/supabase");
         if (supabase) {
-          await supabase
+          console.log("[Profile] Saving avatar to profiles table for user:", user.id);
+          console.log("[Profile] Avatar length:", avatar?.length || 0);
+
+          const { error } = await supabase
             .from("profiles")
             .upsert({
               id: user.id,
               avatar_url: avatar || null,
             }, { onConflict: 'id' });
+
+          if (error) {
+            console.error("[Profile] Error saving avatar:", error);
+            toast({
+              title: "Warning",
+              description: `Profile saved but avatar may not have saved: ${error.message}`,
+              variant: "destructive",
+            });
+            return;
+          }
+          console.log("[Profile] Avatar saved successfully!");
         }
       }
 
@@ -51,9 +65,10 @@ export default function Profile() {
         description: "Profile updated successfully",
       });
     } catch (error) {
+      console.error("[Profile] Save error:", error);
       toast({
         title: "Error",
-        description: "Failed to save profile",
+        description: error instanceof Error ? error.message : "Failed to save profile",
         variant: "destructive",
       });
     }
