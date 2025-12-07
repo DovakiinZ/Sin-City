@@ -95,6 +95,7 @@ export default function CreatePost() {
                 user_id: user?.id, // Required for RLS policies
                 author_name: user?.displayName || user?.email || "Admin",
                 author_email: user?.email,
+                author_avatar: user?.avatarDataUrl || null,
                 draft: draft,
             };
 

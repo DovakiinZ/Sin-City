@@ -28,12 +28,35 @@ export default function Profile() {
     );
   }
 
-  function save() {
-    updateProfile({ displayName, avatarDataUrl: avatar });
-    toast({
-      title: "Success",
-      description: "Profile updated successfully",
-    });
+  async function save() {
+    try {
+      // Save displayName to auth metadata
+      await updateProfile({ displayName, avatarDataUrl: avatar });
+
+      // Also save avatar to Supabase profiles table (more reliable than auth metadata)
+      if (user?.id) {
+        const { supabase } = await import("@/lib/supabase");
+        if (supabase) {
+          await supabase
+            .from("profiles")
+            .upsert({
+              id: user.id,
+              avatar_url: avatar || null,
+            }, { onConflict: 'id' });
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save profile",
+        variant: "destructive",
+      });
+    }
   }
 
   async function handleChangePassword(e: React.FormEvent) {
