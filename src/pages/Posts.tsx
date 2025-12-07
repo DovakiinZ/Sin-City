@@ -11,6 +11,7 @@ import ReactionButtons from "@/components/reactions/ReactionButtons";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AdminBadge from "@/components/AdminBadge";
 import { supabase } from "@/lib/supabase";
+import { MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
 
 type Post = {
   title: string;
@@ -57,6 +58,7 @@ export default function Posts() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "title">("recent");
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -65,6 +67,18 @@ export default function Posts() {
   const tagParam = params.get("tag") || "";
   const [query, setQuery] = useState(qParam);
   const selectedRef = useRef<HTMLDivElement | null>(null);
+
+  const toggleComments = (slug: string) => {
+    setExpandedComments(prev => {
+      const next = new Set(prev);
+      if (next.has(slug)) {
+        next.delete(slug);
+      } else {
+        next.add(slug);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     (async () => {
@@ -354,6 +368,33 @@ export default function Posts() {
                   <div className="prose prose-invert max-w-none text-green-400/80 whitespace-pre-wrap">
                     {stripHtml(post.content)}
                   </div>
+
+                  {/* Comment Button */}
+                  <div className="mt-4 pt-3 border-t border-green-600/30">
+                    <button
+                      onClick={() => toggleComments(post.slug)}
+                      className={cn(
+                        "flex items-center gap-2 text-xs px-3 py-1.5 border border-green-600 transition-colors",
+                        expandedComments.has(post.slug)
+                          ? "bg-green-600 text-black"
+                          : "hover:bg-green-600/20"
+                      )}
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      {expandedComments.has(post.slug) ? (
+                        <><ChevronUp className="w-3 h-3" /> Hide Comments</>
+                      ) : (
+                        <><ChevronDown className="w-3 h-3" /> Show Comments</>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Inline Comments */}
+                  {expandedComments.has(post.slug) && (
+                    <div className="mt-4">
+                      <CommentList postId={post.slug} />
+                    </div>
+                  )}
                 </AsciiBox>
               );
             })}
