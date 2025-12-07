@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, forwardRef } from "react";
 import { useAuth } from "@/context/AuthContext";
+import ReactMarkdown from "react-markdown";
 import matter from "gray-matter";
 import { cn } from "@/lib/utils";
 import BackButton from "@/components/BackButton";
