@@ -91,11 +91,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     async register({ email, password, displayName, avatarDataUrl }) {
       if (supabase) {
+        // Note: avatarDataUrl should be stored in profiles table, NOT in user_metadata
+        // Storing large base64 images in metadata causes 431 (Request Header Too Large) errors
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { displayName, avatarDataUrl },
+            data: { displayName }, // Don't store avatarDataUrl here - it's too large!
             emailRedirectTo: window.location.origin
           },
         });
@@ -187,10 +189,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (supabase) {
         const current = user;
         if (!current) return;
+        // Only store displayName in metadata, not avatarDataUrl (too large for JWT)
         const { data, error } = await supabase.auth.updateUser({
           data: {
             displayName: changes.displayName ?? current.displayName,
-            avatarDataUrl: changes.avatarDataUrl ?? current.avatarDataUrl,
+            // avatarDataUrl should be stored in profiles table, not here
           },
         });
         if (error) throw error;
