@@ -8,6 +8,10 @@ DROP POLICY IF EXISTS "Users can delete their own posts" ON posts;
 DROP POLICY IF EXISTS "Anyone can view published posts" ON posts;
 DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON posts;
 DROP POLICY IF EXISTS "Enable read access for all users" ON posts;
+DROP POLICY IF EXISTS "Allow public inserts" ON posts;
+DROP POLICY IF EXISTS "Allow public reads" ON posts;
+DROP POLICY IF EXISTS "Allow users to update own posts" ON posts;
+DROP POLICY IF EXISTS "Allow users to delete own posts" ON posts;
 
 -- Allow anyone (including guests) to insert posts
 CREATE POLICY "Allow public inserts"

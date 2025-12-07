@@ -33,9 +33,8 @@ console.log('Supabase client config:', {
 
 export const supabase: SupabaseClient = createClient(supabaseUrl, anon, {
     auth: {
-        // Disable session persistence to fix data loading issues when authenticated
-        persistSession: false,
-        autoRefreshToken: false,
+        persistSession: true,
+        autoRefreshToken: true,
         detectSessionInUrl: true,
     },
 });
