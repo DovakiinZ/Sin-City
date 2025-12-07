@@ -31,7 +31,7 @@ export default function PostDetail() {
 
                 // Try to load from database
                 const dbPosts = await listPostsFromDb();
-                const dbPost = dbPosts.find((p) => p.id === slug || p.title === slug);
+                const dbPost = dbPosts.find((p) => p.slug === slug || p.id === slug || p.title === slug);
 
                 if (dbPost) {
                     setPost({

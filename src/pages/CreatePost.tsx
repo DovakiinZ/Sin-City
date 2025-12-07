@@ -88,7 +88,10 @@ export default function CreatePost() {
                 title,
                 content,
                 type: 'Text',
-                author_name: user?.displayName || "Admin",
+                slug,
+                user_id: user?.id, // Required for RLS policies
+                author_name: user?.displayName || user?.email || "Admin",
+                author_email: user?.email,
                 draft: draft,
             };
 

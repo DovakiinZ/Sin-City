@@ -66,3 +66,19 @@ export function estimateReadTime(md: string, wpm = 200): number {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.ceil(words / wpm));
 }
+
+/**
+ * Strip HTML tags from a string for plain text display
+ */
+export function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+    .replace(/&amp;/g, '&')  // Replace &amp; with &
+    .replace(/&lt;/g, '<')   // Replace &lt; with <
+    .replace(/&gt;/g, '>')   // Replace &gt; with >
+    .replace(/&quot;/g, '"') // Replace &quot; with "
+    .replace(/\s+/g, ' ')    // Collapse multiple spaces
+    .trim();
+}
+

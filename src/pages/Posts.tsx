@@ -4,11 +4,13 @@ import matter from "gray-matter";
 import { cn } from "@/lib/utils";
 import BackButton from "@/components/BackButton";
 import { listPostsFromDb } from "@/data/posts";
-import { estimateReadTime, extractHeadings, slugify } from "@/lib/markdown";
+import { estimateReadTime, extractHeadings, slugify, stripHtml } from "@/lib/markdown";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import CommentList from "@/components/comments/CommentList";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import AdminBadge from "@/components/AdminBadge";
+import { supabase } from "@/lib/supabase";
 
 type Post = {
   title: string;
@@ -17,6 +19,8 @@ type Post = {
   slug: string;
   author?: string;
   authorAvatar?: string;
+  userId?: string;
+  isAdmin?: boolean;
   tags?: string[];
   draft?: boolean;
 };
@@ -51,6 +55,7 @@ AsciiBox.displayName = "AsciiBox";
 export default function Posts() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<"recent" | "oldest" | "title">("recent");
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -65,6 +70,20 @@ export default function Posts() {
       setIsLoading(true);
       console.log("[Posts] Starting to fetch posts...");
 
+      // Fetch admin user IDs from profiles table
+      let adminUserIds: Set<string> = new Set();
+      try {
+        const { data: adminProfiles } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('role', 'admin');
+        if (adminProfiles) {
+          adminUserIds = new Set(adminProfiles.map(p => p.id));
+        }
+      } catch (error) {
+        console.error("[Posts] Error fetching admin profiles:", error);
+      }
+
       // Fetch posts directly from Supabase (like admin does)
       let allPosts: Post[] = [];
       try {
@@ -74,9 +93,11 @@ export default function Posts() {
           title: p.title,
           date: p.created_at ? new Date(p.created_at).toISOString().split("T")[0] : "",
           content: p.content || "",
-          slug: p.id || slugify(p.title),
+          slug: p.slug || p.id || slugify(p.title),
           author: p.author_name || undefined,
           authorAvatar: p.author_avatar || undefined,
+          userId: p.user_id || undefined,
+          isAdmin: p.user_id ? adminUserIds.has(p.user_id) : false,
           draft: p.draft || false,
         }));
       } catch (error) {
@@ -100,7 +121,7 @@ export default function Posts() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return posts.filter((p) => {
+    let result = posts.filter((p) => {
       const tagOk = tagParam ? p.tags?.map((t) => t.toLowerCase()).includes(tagParam.toLowerCase()) : true;
       const qOk = q
         ? [p.title, p.author, p.content, ...(p.tags || [])]
@@ -109,7 +130,22 @@ export default function Posts() {
         : true;
       return tagOk && qOk;
     });
-  }, [posts, query, tagParam]);
+
+    // Apply sorting
+    switch (sortBy) {
+      case "recent":
+        result.sort((a, b) => (a.date < b.date ? 1 : -1));
+        break;
+      case "oldest":
+        result.sort((a, b) => (a.date > b.date ? 1 : -1));
+        break;
+      case "title":
+        result.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+    }
+
+    return result;
+  }, [posts, query, tagParam, sortBy]);
 
   // Keyboard nav j/k across boxes
   useEffect(() => {
@@ -169,6 +205,39 @@ export default function Posts() {
                     aria-label="Search posts"
                   />
                 </div>
+
+                {/* Sort Options */}
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="ascii-dim">Sort:</span>
+                  <button
+                    onClick={() => setSortBy("recent")}
+                    className={cn(
+                      "px-2 py-0.5 border border-green-600 transition-colors",
+                      sortBy === "recent" ? "bg-green-600 text-black" : "hover:bg-green-600/20"
+                    )}
+                  >
+                    ⏰ Recent
+                  </button>
+                  <button
+                    onClick={() => setSortBy("oldest")}
+                    className={cn(
+                      "px-2 py-0.5 border border-green-600 transition-colors",
+                      sortBy === "oldest" ? "bg-green-600 text-black" : "hover:bg-green-600/20"
+                    )}
+                  >
+                    📜 Oldest
+                  </button>
+                  <button
+                    onClick={() => setSortBy("title")}
+                    className={cn(
+                      "px-2 py-0.5 border border-green-600 transition-colors",
+                      sortBy === "title" ? "bg-green-600 text-black" : "hover:bg-green-600/20"
+                    )}
+                  >
+                    🔤 A-Z
+                  </button>
+                </div>
+
                 {uniqueTags.length > 0 && (
                   <div className="text-xs flex flex-wrap gap-2">
                     <span className="ascii-dim">Tags:</span>
@@ -228,6 +297,7 @@ export default function Posts() {
                             </Avatar>
                           )}
                           <span className="ascii-highlight">{post.author}</span>
+                          {post.isAdmin && <AdminBadge variant="glitch" />}
                         </span>
                       )}
                       <span className="ascii-dim">{readMins} min read</span>
@@ -263,8 +333,8 @@ export default function Posts() {
                     </div>
                   )}
 
-                  <div className="prose prose-invert max-w-none">
-                    <div dangerouslySetInnerHTML={{ __html: post.content }} />
+                  <div className="prose prose-invert max-w-none text-green-400/80 whitespace-pre-wrap">
+                    {stripHtml(post.content)}
                   </div>
                 </AsciiBox>
               );
