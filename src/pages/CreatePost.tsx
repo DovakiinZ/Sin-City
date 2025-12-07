@@ -90,6 +90,7 @@ export default function CreatePost() {
                 type: 'Text' as const,
                 user_id: user?.id || null, // Allow null for guest posts
                 author_name: user?.displayName || "Anonymous",
+                author_avatar: user?.avatarDataUrl || null, // Include profile picture
                 draft,
                 category_id: categoryId || null,
                 updated_at: new Date().toISOString(),
