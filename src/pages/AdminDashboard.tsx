@@ -127,7 +127,7 @@ export default function AdminDashboard() {
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    onClick={() => handleDeletePost(post.slug)}
+                                                    onClick={() => handleDeletePost(post.id)}
                                                     className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
                                                 >
                                                     <Trash2 className="w-4 h-4" />

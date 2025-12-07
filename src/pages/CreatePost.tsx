@@ -83,12 +83,15 @@ export default function CreatePost() {
 
         setSaving(true);
         try {
+            // Generate unique slug with timestamp to prevent conflicts
+            const uniqueSlug = `${slug}-${Date.now().toString(36)}`;
+
             // Simplified post data - only essential fields
             const postData = {
                 title,
                 content,
                 type: 'Text',
-                slug,
+                slug: uniqueSlug,
                 user_id: user?.id, // Required for RLS policies
                 author_name: user?.displayName || user?.email || "Admin",
                 author_email: user?.email,
@@ -134,8 +137,8 @@ export default function CreatePost() {
                 description: draft ? "Your draft has been saved" : "Your post is now live!",
             });
 
-            if (!draft) {
-                navigate(`/post/${slug}`);
+            if (!draft && post) {
+                navigate(`/post/${post.slug}`);
             }
         } catch (error) {
             console.error("Error saving post:", error);
