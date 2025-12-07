@@ -83,13 +83,21 @@ export default function Posts() {
         })
       );
 
-      // Fetch posts from Supabase database only
+      // Fetch posts from Supabase database with timeout
       let dbPosts: Post[] = [];
       try {
         console.log("[Posts] Fetching posts from database...");
-        const fromDb = await listPostsFromDb();
-        console.log(`[Posts] Fetched ${fromDb.length} posts from database`);
-        dbPosts = fromDb.map((p) => ({
+
+        // Add timeout to prevent infinite loading
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Timeout')), 5000)
+        );
+
+        const fetchPromise = listPostsFromDb();
+        const fromDb = await Promise.race([fetchPromise, timeoutPromise]) as any;
+
+        console.log(`[Posts] Fetched ${fromDb?.length || 0} posts from database`);
+        dbPosts = (fromDb || []).map((p: any) => ({
           title: p.title,
           date: p.created_at ? new Date(p.created_at).toISOString().split("T")[0] : "",
           content: p.content || "",
@@ -100,7 +108,7 @@ export default function Posts() {
         }));
       } catch (error) {
         console.error("[Posts] Error loading posts from database:", error);
-        // Continue with empty dbPosts array - will show "No posts yet" message
+        // Continue with empty dbPosts array - will show posts from markdown files
       }
 
       const showDrafts = import.meta.env.VITE_SHOW_DRAFTS === "true";
