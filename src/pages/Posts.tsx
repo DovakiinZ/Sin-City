@@ -84,18 +84,25 @@ export default function Posts() {
       setIsLoading(true);
       console.log("[Posts] Starting to fetch posts...");
 
-      // Fetch admin user IDs from profiles table
+      // Fetch profiles for admin status AND avatars
       let adminUserIds: Set<string> = new Set();
+      let userAvatars: Map<string, string> = new Map();
       try {
-        const { data: adminProfiles } = await supabase
+        const { data: profiles } = await supabase
           .from('profiles')
-          .select('id')
-          .eq('role', 'admin');
-        if (adminProfiles) {
-          adminUserIds = new Set(adminProfiles.map(p => p.id));
+          .select('id, role, avatar_url');
+        if (profiles) {
+          profiles.forEach(p => {
+            if (p.role === 'admin') {
+              adminUserIds.add(p.id);
+            }
+            if (p.avatar_url) {
+              userAvatars.set(p.id, p.avatar_url);
+            }
+          });
         }
       } catch (error) {
-        console.error("[Posts] Error fetching admin profiles:", error);
+        console.error("[Posts] Error fetching profiles:", error);
       }
 
       // Fetch posts directly from Supabase (like admin does)
@@ -122,7 +129,7 @@ export default function Posts() {
             content: p.content || "",
             slug: p.slug || p.id || slugify(p.title),
             author: p.author_name || undefined,
-            authorAvatar: p.author_avatar || undefined,
+            authorAvatar: p.author_avatar || (p.user_id ? userAvatars.get(p.user_id) : undefined) || undefined,
             userId: p.user_id || undefined,
             isAdmin: p.user_id ? adminUserIds.has(p.user_id) : false,
             draft: p.draft || false,
