@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import matter from "gray-matter";
 import { Link } from "react-router-dom";
 import AsciiNewPostForm, { NewPost } from "./AsciiNewPostForm";
@@ -8,6 +8,7 @@ import { useSupabasePosts, createPost } from "@/hooks/useSupabasePosts";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { decodeHtml, stripHtml } from "@/lib/markdown";
+import { cn } from "@/lib/utils";
 
 type Post = { title: string; date: string; content: string; slug: string; author?: string };
 
@@ -23,6 +24,7 @@ const AsciiMainContent = () => {
   const [markdownPosts, setMarkdownPosts] = useState<Post[]>([]);
   const { posts: dbPosts, loading } = useSupabasePosts();
   const [showForm, setShowForm] = useState(false);
+  const [sortBy, setSortBy] = useState<"recent" | "oldest" | "title">("recent");
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -72,8 +74,25 @@ const AsciiMainContent = () => {
         isHtml: true, // Database posts are HTML
       };
     }),
-    ...markdownPosts
-  ].sort((a, b) => (a.date < b.date ? 1 : -1));
+    ...markdownPosts.map(p => ({ ...p, rawDate: p.date, isHtml: false }))
+  ];
+
+  // Sort posts based on sortBy
+  const sortedPosts = useMemo(() => {
+    const result = [...allPosts];
+    switch (sortBy) {
+      case "recent":
+        result.sort((a, b) => ((a as any).rawDate < (b as any).rawDate ? 1 : -1));
+        break;
+      case "oldest":
+        result.sort((a, b) => ((a as any).rawDate > (b as any).rawDate ? 1 : -1));
+        break;
+      case "title":
+        result.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+    }
+    return result;
+  }, [allPosts, sortBy]);
 
 
   async function handleAdd(p: NewPost) {
@@ -111,14 +130,32 @@ const AsciiMainContent = () => {
 
   return (
     <main className="ascii-text flex-1">
-      <div className="flex items-center justify-between mb-4 gap-4">
+      <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
         <h2 className="ascii-highlight text-2xl">Recent Posts</h2>
-        <button
-          className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1"
-          onClick={() => setShowForm((s) => !s)}
-        >
-          {showForm ? "Close" : "Add Post"}
-        </button>
+        <div className="flex gap-2 items-center flex-wrap">
+          {/* Sorting buttons */}
+          <div className="flex gap-1 text-xs">
+            <span className="ascii-dim">Sort:</span>
+            {(["recent", "oldest", "title"] as const).map((option) => (
+              <button
+                key={option}
+                onClick={() => setSortBy(option)}
+                className={cn(
+                  "px-2 py-0.5 border border-green-600 transition-colors",
+                  sortBy === option ? "bg-green-600 text-black" : "hover:bg-green-600/20"
+                )}
+              >
+                {option === "recent" ? "Recent" : option === "oldest" ? "Oldest" : "A-Z"}
+              </button>
+            ))}
+          </div>
+          <button
+            className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1"
+            onClick={() => setShowForm((s) => !s)}
+          >
+            {showForm ? "Close" : "Add Post"}
+          </button>
+        </div>
       </div>
       <div className="mb-6">
         <UserPanel />
@@ -134,7 +171,7 @@ const AsciiMainContent = () => {
         ) : allPosts.length === 0 ? (
           <div className="ascii-dim">No posts yet. Add markdown files to /public/posts or create a post above.</div>
         ) : (
-          allPosts.map((post) => (
+          sortedPosts.map((post) => (
             <article key={post.slug} className="border border-green-600 bg-black/60 p-4">
               <h3 className="ascii-highlight text-xl mb-1">{post.title}</h3>
               <div className="ascii-dim text-xs mb-3">
