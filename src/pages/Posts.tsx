@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import BackButton from "@/components/BackButton";
 import { listPostsFromDb } from "@/data/posts";
-import { estimateReadTime, extractHeadings, slugify, stripHtml } from "@/lib/markdown";
+import { estimateReadTime, extractHeadings, slugify, stripHtml, decodeHtml } from "@/lib/markdown";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import CommentList from "@/components/comments/CommentList";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
@@ -374,7 +374,7 @@ export default function Posts() {
 
                   <div
                     className="prose prose-invert max-w-none text-green-400/80 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_p]:mb-2"
-                    dangerouslySetInnerHTML={{ __html: post.content }}
+                    dangerouslySetInnerHTML={{ __html: decodeHtml(post.content) }}
                   />
 
                   {/* Comment Button */}
