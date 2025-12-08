@@ -51,30 +51,32 @@ const AsciiMainContent = () => {
     })();
   }, []);
 
-  // Combine markdown posts with database posts
+  // Combine markdown posts with database posts (filter out hidden)
   const allPosts = [
-    ...dbPosts.map(p => {
-      const createdDate = p.created_at ? new Date(p.created_at) : null;
-      const formattedDate = createdDate
-        ? createdDate.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        })
-        : '';
-      return {
-        title: p.title,
-        date: formattedDate,
-        rawDate: p.created_at || '',
-        content: p.content || "",
-        slug: p.id || p.title,
-        author: p.author_name || undefined,
-        isHtml: true, // Database posts are HTML
-      };
-    }),
+    ...dbPosts
+      .filter(p => !p.hidden) // Filter hidden posts
+      .map(p => {
+        const createdDate = p.created_at ? new Date(p.created_at) : null;
+        const formattedDate = createdDate
+          ? createdDate.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          })
+          : '';
+        return {
+          title: p.title,
+          date: formattedDate,
+          rawDate: p.created_at || '',
+          content: p.content || "",
+          slug: p.id || p.title,
+          author: p.author_name || undefined,
+          isHtml: true, // Database posts are HTML
+        };
+      }),
     ...markdownPosts.map(p => ({ ...p, rawDate: p.date, isHtml: false }))
   ];
 

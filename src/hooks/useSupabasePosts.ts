@@ -12,6 +12,7 @@ export interface Post {
     attachments?: unknown;
     tags?: string[];
     draft?: boolean;
+    hidden?: boolean;
     author_name?: string;
     author_email?: string;
     view_count?: number;
