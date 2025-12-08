@@ -33,6 +33,7 @@ export function useSupabasePosts() {
                 const { data, error: fetchError } = await supabase
                     .from("posts")
                     .select("*")
+                    .or("hidden.is.null,hidden.eq.false") // Filter out hidden posts
                     .order("created_at", { ascending: false });
 
                 if (fetchError) throw fetchError;
