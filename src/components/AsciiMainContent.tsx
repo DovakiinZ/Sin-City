@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import matter from "gray-matter";
-import ReactMarkdown from "react-markdown";
 import { Link } from "react-router-dom";
 import AsciiNewPostForm, { NewPost } from "./AsciiNewPostForm";
 import UserPanel from "./UserPanel";
@@ -8,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useSupabasePosts, createPost } from "@/hooks/useSupabasePosts";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { decodeHtml, stripHtml } from "@/lib/markdown";
 
 type Post = { title: string; date: string; content: string; slug: string; author?: string };
 
@@ -50,13 +50,28 @@ const AsciiMainContent = () => {
 
   // Combine markdown posts with database posts
   const allPosts = [
-    ...dbPosts.map(p => ({
-      title: p.title,
-      date: p.created_at ? new Date(p.created_at).toISOString().split('T')[0] : "",
-      content: p.content || "",
-      slug: p.id || p.title,
-      author: p.author_name || undefined,
-    })),
+    ...dbPosts.map(p => {
+      const createdDate = p.created_at ? new Date(p.created_at) : null;
+      const formattedDate = createdDate
+        ? createdDate.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        })
+        : '';
+      return {
+        title: p.title,
+        date: formattedDate,
+        rawDate: p.created_at || '',
+        content: p.content || "",
+        slug: p.id || p.title,
+        author: p.author_name || undefined,
+        isHtml: true, // Database posts are HTML
+      };
+    }),
     ...markdownPosts
   ].sort((a, b) => (a.date < b.date ? 1 : -1));
 
@@ -126,10 +141,18 @@ const AsciiMainContent = () => {
                 {post.date}
                 {post.author && <> • by <span className="ascii-highlight">{post.author}</span></>}
               </div>
-              <div className="prose prose-invert max-w-none">
-                <ReactMarkdown>
-                  {post.content.length > 400 ? post.content.slice(0, 400) + "..." : post.content}
-                </ReactMarkdown>
+              <div className="prose prose-invert max-w-none text-green-400/80">
+                {(post as any).isHtml ? (
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: decodeHtml(post.content.length > 400
+                        ? stripHtml(post.content).slice(0, 400) + '...'
+                        : post.content)
+                    }}
+                  />
+                ) : (
+                  <div>{post.content.length > 400 ? post.content.slice(0, 400) + '...' : post.content}</div>
+                )}
               </div>
             </article>
           ))
