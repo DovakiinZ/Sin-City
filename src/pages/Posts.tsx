@@ -58,6 +58,7 @@ export default function Posts() {
   const [isLoading, setIsLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "title">("recent");
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+  const [visibleCount, setVisibleCount] = useState(5); // Pagination: show 5 posts at a time
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -299,7 +300,7 @@ export default function Posts() {
               </div>
             </AsciiBox>
 
-            {filtered.map((post, i) => {
+            {filtered.slice(0, visibleCount).map((post, i) => {
               const headings = extractHeadings(post.content);
               // Calculate read time based on word count (strip HTML first)
               const textContent = stripHtml(post.content);
@@ -405,6 +406,24 @@ export default function Posts() {
                 </AsciiBox>
               );
             })}
+
+            {/* Show More Button */}
+            {filtered.length > visibleCount && (
+              <div className="text-center py-4">
+                <button
+                  onClick={() => setVisibleCount(prev => prev + 5)}
+                  className="ascii-nav-link hover:ascii-highlight border border-green-600 px-6 py-2 text-sm"
+                >
+                  Show More ({visibleCount} of {filtered.length} posts)
+                </button>
+              </div>
+            )}
+
+            {filtered.length > 0 && visibleCount >= filtered.length && (
+              <div className="text-center py-4 ascii-dim text-xs">
+                Showing all {filtered.length} posts
+              </div>
+            )}
 
             {filtered.length === 0 && !isLoading && (
               <AsciiBox>
