@@ -3,6 +3,7 @@ import { useProfile, getUserStats } from "@/hooks/useProfile";
 import { useEffect, useState } from "react";
 import BackButton from "@/components/BackButton";
 import { listPostsFromDb } from "@/data/posts";
+import { supabase } from "@/lib/supabase";
 
 export default function UserProfile() {
     const { username } = useParams<{ username: string }>();
@@ -10,11 +11,39 @@ export default function UserProfile() {
     const { profile, loading } = useProfile(userId);
     const [stats, setStats] = useState({ posts: 0, comments: 0 });
     const [userPosts, setUserPosts] = useState<any[]>([]);
+    const [lookingUp, setLookingUp] = useState(true);
+
+    // Look up user ID by username
+    useEffect(() => {
+        const lookupUser = async () => {
+            if (!username) {
+                setLookingUp(false);
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .or(`username.ilike.${username},display_name.ilike.${username}`)
+                    .limit(1)
+                    .single();
+
+                if (!error && data) {
+                    setUserId(data.id);
+                }
+            } catch (err) {
+                console.log('[UserProfile] Error looking up user:', err);
+            } finally {
+                setLookingUp(false);
+            }
+        };
+
+        lookupUser();
+    }, [username]);
 
     useEffect(() => {
-        // In a real app, you'd look up user ID by username
-        // For now, we'll use the current user's ID
-        const loadUser = async () => {
+        const loadUserData = async () => {
             if (profile?.id) {
                 const userStats = await getUserStats(profile.id);
                 setStats(userStats);
@@ -25,10 +54,10 @@ export default function UserProfile() {
                 setUserPosts(filtered);
             }
         };
-        loadUser();
+        loadUserData();
     }, [profile]);
 
-    if (loading) {
+    if (loading || lookingUp) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center p-4">
                 <div className="ascii-dim">Loading profile...</div>

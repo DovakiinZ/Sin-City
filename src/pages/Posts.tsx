@@ -24,6 +24,7 @@ type Post = {
   isAdmin?: boolean;
   tags?: string[];
   draft?: boolean;
+  viewCount?: number;
 };
 
 interface FrontMatterData {
@@ -134,6 +135,7 @@ export default function Posts() {
             userId: p.user_id || undefined,
             isAdmin: p.user_id ? adminUserIds.has(p.user_id) : false,
             draft: p.draft || false,
+            viewCount: p.view_count || 0,
           };
         });
       } catch (error) {
@@ -324,6 +326,8 @@ export default function Posts() {
                   {(post.date || post.author) && (
                     <div className="text-xs opacity-70 flex flex-wrap gap-3 items-center">
                       <span>{post.date}</span>
+                      <span>{readMins} min read</span>
+                      <span>👁 {post.viewCount || 0}</span>
                       {post.author && (
                         <span className="flex items-center gap-2">
                           » by

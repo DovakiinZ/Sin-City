@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import BackButton from "@/components/BackButton";
 import CommentList from "@/components/comments/CommentList";
 import ReactionBar from "@/components/reactions/ReactionBar";
@@ -7,6 +7,7 @@ import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import ShareButtons from "@/components/sharing/ShareButtons";
 import { listPostsFromDb } from "@/data/posts";
 import { estimateReadTime } from "@/lib/markdown";
+import { supabase } from "@/lib/supabase";
 
 type Post = {
     title: string;
@@ -15,6 +16,7 @@ type Post = {
     slug: string;
     author?: string;
     tags?: string[];
+    viewCount?: number;
 };
 
 export default function PostDetail() {
@@ -22,6 +24,7 @@ export default function PostDetail() {
     const navigate = useNavigate();
     const [post, setPost] = useState<Post | null>(null);
     const [loading, setLoading] = useState(true);
+    const hasIncrementedView = useRef(false);
 
     useEffect(() => {
         const loadPost = async () => {
@@ -39,7 +42,16 @@ export default function PostDetail() {
                         content: dbPost.content || "",
                         slug: dbPost.id || slug || "",
                         author: dbPost.author_name || undefined,
+                        viewCount: (dbPost.view_count || 0) + 1, // Show incremented count
                     });
+
+                    // Increment view count (only once per page load)
+                    if (!hasIncrementedView.current && dbPost.id) {
+                        hasIncrementedView.current = true;
+                        supabase.rpc('increment_post_views', { post_uuid: dbPost.id }).catch(err => {
+                            console.log('[PostDetail] Error incrementing views:', err);
+                        });
+                    }
                     return;
                 }
 
@@ -119,6 +131,7 @@ export default function PostDetail() {
                         {post.date && <span>{post.date}</span>}
                         {post.author && <span>by {post.author}</span>}
                         <span>{readTime} min read</span>
+                        {post.viewCount !== undefined && <span>👁 {post.viewCount} views</span>}
                     </div>
 
                     {post.tags && post.tags.length > 0 && (

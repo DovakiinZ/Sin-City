@@ -1,0 +1,29 @@
+{
+    "name": "Cicada City",
+    "short_name": "Cicada",
+    "description": "A terminal-style blog and community platform",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a0a0a",
+    "theme_color": "#22c55e",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/icon-192.svg",
+            "sizes": "192x192",
+            "type": "image/svg+xml"
+        },
+        {
+            "src": "/icon-512.svg",
+            "sizes": "512x512",
+            "type": "image/svg+xml"
+        }
+    ],
+    "categories": [
+        "social",
+        "lifestyle",
+        "news"
+    ],
+    "lang": "en",
+    "dir": "ltr"
+}
