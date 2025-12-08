@@ -88,10 +88,11 @@ export async function listPostsFromDb(): Promise<DbPost[]> {
   console.log("[listPostsFromDb] Fetching posts from database...");
 
   // RLS policies will filter for published posts (draft = false)
-  // Removing explicit .eq("draft", false) to prevent query hanging
+  // Filter out hidden posts for public view
   const { data, error } = await supabase
     .from("posts")
-    .select("id,slug,title,type,content,attachments,author_name,author_email,author_avatar,user_id,created_at,draft")
+    .select("id,slug,title,type,content,attachments,author_name,author_email,author_avatar,user_id,view_count,created_at,draft,hidden")
+    .or("hidden.is.null,hidden.eq.false") // Only show non-hidden posts
     .order("created_at", { ascending: false })
     .limit(100);
 

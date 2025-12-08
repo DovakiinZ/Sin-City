@@ -6,7 +6,7 @@ import BackButton from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Shield, Users, FileText, Music } from "lucide-react";
+import { Trash2, Shield, Users, FileText, Music, Eye, EyeOff } from "lucide-react";
 import MusicManager from "@/components/admin/MusicManager";
 import UserManagement from "@/components/admin/UserManagement";
 
@@ -58,6 +58,20 @@ export default function AdminDashboard() {
             toast({ title: "Error", description: "Failed to delete post", variant: "destructive" });
         } else {
             toast({ title: "Success", description: "Post deleted" });
+            loadStats();
+        }
+    };
+
+    const handleToggleHidden = async (id: string, currentHidden: boolean) => {
+        const { error } = await supabase
+            .from("posts")
+            .update({ hidden: !currentHidden })
+            .eq("id", id);
+
+        if (error) {
+            toast({ title: "Error", description: "Failed to update post visibility", variant: "destructive" });
+        } else {
+            toast({ title: "Success", description: currentHidden ? "Post is now visible" : "Post is now hidden" });
             loadStats();
         }
     };
@@ -114,6 +128,7 @@ export default function AdminDashboard() {
                                         <th className="p-2">Title</th>
                                         <th className="p-2">Author</th>
                                         <th className="p-2">Date</th>
+                                        <th className="p-2">Status</th>
                                         <th className="p-2">Actions</th>
                                     </tr>
                                 </thead>
@@ -124,6 +139,22 @@ export default function AdminDashboard() {
                                             <td className="p-2">{post.author_name}</td>
                                             <td className="p-2">{new Date(post.created_at).toLocaleDateString()}</td>
                                             <td className="p-2">
+                                                {post.hidden ? (
+                                                    <span className="text-yellow-400 text-xs">Hidden</span>
+                                                ) : (
+                                                    <span className="text-green-400 text-xs">Visible</span>
+                                                )}
+                                            </td>
+                                            <td className="p-2 flex gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleToggleHidden(post.id, post.hidden || false)}
+                                                    className={post.hidden ? "text-green-400 hover:text-green-300" : "text-yellow-400 hover:text-yellow-300"}
+                                                    title={post.hidden ? "Show post" : "Hide post"}
+                                                >
+                                                    {post.hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                                </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
