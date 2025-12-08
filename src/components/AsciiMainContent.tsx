@@ -25,6 +25,7 @@ const AsciiMainContent = () => {
   const { posts: dbPosts, loading } = useSupabasePosts();
   const [showForm, setShowForm] = useState(false);
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "title">("recent");
+  const [visibleCount, setVisibleCount] = useState(5); // Show 5 posts at a time
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -171,7 +172,7 @@ const AsciiMainContent = () => {
         ) : allPosts.length === 0 ? (
           <div className="ascii-dim">No posts yet. Add markdown files to /public/posts or create a post above.</div>
         ) : (
-          sortedPosts.map((post) => (
+          sortedPosts.slice(0, visibleCount).map((post) => (
             <article key={post.slug} className="border border-green-600 bg-black/60 p-4">
               <h3 className="ascii-highlight text-xl mb-1">{post.title}</h3>
               <div className="ascii-dim text-xs mb-3">
@@ -193,6 +194,24 @@ const AsciiMainContent = () => {
               </div>
             </article>
           ))
+        )}
+
+        {/* Show More Button */}
+        {sortedPosts.length > visibleCount && (
+          <div className="text-center py-4">
+            <button
+              onClick={() => setVisibleCount(prev => prev + 5)}
+              className="ascii-nav-link hover:ascii-highlight border border-green-600 px-6 py-2 text-sm"
+            >
+              Show More ({visibleCount} of {sortedPosts.length} posts)
+            </button>
+          </div>
+        )}
+
+        {sortedPosts.length > 0 && visibleCount >= sortedPosts.length && (
+          <div className="text-center py-2 ascii-dim text-xs">
+            Showing all {sortedPosts.length} posts
+          </div>
         )}
       </div>
       <div className="mt-6">

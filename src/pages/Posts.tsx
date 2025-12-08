@@ -330,20 +330,18 @@ export default function Posts() {
                       <span>👁 {post.viewCount || 0}</span>
                       {post.author && (
                         <span className="flex items-center gap-2">
-                          » by
                           {post.authorAvatar && (
-                            <Avatar className="w-5 h-5 inline-block">
+                            <Avatar className="w-8 h-8 inline-block">
                               <AvatarImage src={post.authorAvatar} alt={post.author} />
-                              <AvatarFallback className="text-[8px] bg-green-900 text-green-400">
+                              <AvatarFallback className="text-sm bg-green-900 text-green-400">
                                 {post.author.charAt(0).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                           )}
-                          <span className="ascii-highlight">{post.author}</span>
+                          by <span className="ascii-highlight">{post.author}</span>
                           {post.isAdmin && <AdminBadge variant="glitch" />}
                         </span>
                       )}
-                      <span className="ascii-dim">{readMins} min read</span>
                       {post.tags && post.tags.length > 0 && (
                         <span className="flex gap-1 items-center">
                           {post.tags.map((t) => (
