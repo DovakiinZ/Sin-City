@@ -5,19 +5,13 @@
             "destination": "/api/og/[slug]"
         },
         {
-            "source": "/((?!api/).*)",
+            "source": "/(.*)",
             "destination": "/index.html"
         }
     ],
-    "headers": [
-        {
-            "source": "/api/(.*)",
-            "headers": [
-                {
-                    "key": "Cache-Control",
-                    "value": "public, max-age=3600"
-                }
-            ]
+    "functions": {
+        "api/**/*.ts": {
+            "runtime": "@vercel/node@3"
         }
-    ]
+    }
 }
