@@ -59,6 +59,7 @@ export default function Posts() {
   const [isLoading, setIsLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "title">("recent");
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+  const [commentCounts, setCommentCounts] = useState<Map<string, number>>(new Map());
   const [visibleCount, setVisibleCount] = useState(5); // Pagination: show 5 posts at a time
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -140,6 +141,28 @@ export default function Posts() {
         });
       } catch (error) {
         console.error("[Posts] Error loading posts from database:", error);
+      }
+
+      // Fetch comment counts for all posts
+      try {
+        const { data: comments } = await supabase
+          .from('comments')
+          .select('post_id');
+        if (comments) {
+          const counts = new Map<string, number>();
+          comments.forEach(c => {
+            counts.set(c.post_id, (counts.get(c.post_id) || 0) + 1);
+          });
+          setCommentCounts(counts);
+          // Auto-expand posts that have comments
+          const postsWithComments = new Set<string>();
+          counts.forEach((count, postId) => {
+            if (count > 0) postsWithComments.add(postId);
+          });
+          setExpandedComments(postsWithComments);
+        }
+      } catch (error) {
+        console.error("[Posts] Error fetching comment counts:", error);
       }
 
       const showDrafts = import.meta.env.VITE_SHOW_DRAFTS === "true";
@@ -379,32 +402,58 @@ export default function Posts() {
                     dangerouslySetInnerHTML={{ __html: decodeHtml(post.content) }}
                   />
 
-                  {/* Comment Button */}
+                  {/* Comments Section */}
                   <div className="mt-4 pt-3 border-t border-green-600/30">
-                    <button
-                      onClick={() => toggleComments(post.slug)}
-                      className={cn(
-                        "flex items-center gap-2 text-xs px-3 py-1.5 border border-green-600 transition-colors",
-                        expandedComments.has(post.slug)
-                          ? "bg-green-600 text-black"
-                          : "hover:bg-green-600/20"
-                      )}
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      {expandedComments.has(post.slug) ? (
-                        <><ChevronUp className="w-3 h-3" /> Hide Comments</>
-                      ) : (
-                        <><ChevronDown className="w-3 h-3" /> Show Comments</>
-                      )}
-                    </button>
+                    {(commentCounts.get(post.slug) || 0) > 0 ? (
+                      // If there are comments, show them directly with toggle option
+                      <>
+                        <button
+                          onClick={() => toggleComments(post.slug)}
+                          className={cn(
+                            "flex items-center gap-2 text-xs px-3 py-1.5 border border-green-600 transition-colors mb-3",
+                            expandedComments.has(post.slug)
+                              ? "bg-green-600 text-black"
+                              : "hover:bg-green-600/20"
+                          )}
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          {expandedComments.has(post.slug) ? (
+                            <><ChevronUp className="w-3 h-3" /> Hide {commentCounts.get(post.slug)} Comments</>
+                          ) : (
+                            <><ChevronDown className="w-3 h-3" /> Show {commentCounts.get(post.slug)} Comments</>
+                          )}
+                        </button>
+                        {expandedComments.has(post.slug) && (
+                          <CommentList postId={post.slug} />
+                        )}
+                      </>
+                    ) : (
+                      // If no comments, show collapsed button
+                      <>
+                        <button
+                          onClick={() => toggleComments(post.slug)}
+                          className={cn(
+                            "flex items-center gap-2 text-xs px-3 py-1.5 border border-green-600 transition-colors",
+                            expandedComments.has(post.slug)
+                              ? "bg-green-600 text-black"
+                              : "hover:bg-green-600/20"
+                          )}
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          {expandedComments.has(post.slug) ? (
+                            <><ChevronUp className="w-3 h-3" /> Hide Comments</>
+                          ) : (
+                            <><ChevronDown className="w-3 h-3" /> Add Comment</>
+                          )}
+                        </button>
+                        {expandedComments.has(post.slug) && (
+                          <div className="mt-3">
+                            <CommentList postId={post.slug} />
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
-
-                  {/* Inline Comments */}
-                  {expandedComments.has(post.slug) && (
-                    <div className="mt-4">
-                      <CommentList postId={post.slug} />
-                    </div>
-                  )}
                 </AsciiBox>
               );
             })}
