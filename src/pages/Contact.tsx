@@ -19,7 +19,17 @@ const Contact = () => {
             <p className="mb-2">
               Reach me at <span className="ascii-highlight">v4xd@outlook.sa</span> or ping me on socials.
             </p>
-            <p>Responses are handled by a friendly terminal daemon.</p>
+            <p className="mb-4">
+              <a
+                href="https://www.instagram.com/074423611/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ascii-highlight hover:underline"
+              >
+                ► Instagram: @074423611
+              </a>
+            </p>
+            <p>Responses are handled by a friendly terminal buddy.</p>
           </main>
         </div>
 
