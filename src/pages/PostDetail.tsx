@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
+import matter from "gray-matter";
 import BackButton from "@/components/BackButton";
 import CommentList from "@/components/comments/CommentList";
 import ReactionBar from "@/components/reactions/ReactionBar";
@@ -48,8 +49,8 @@ export default function PostDetail() {
                     // Increment view count (only once per page load)
                     if (!hasIncrementedView.current && dbPost.id) {
                         hasIncrementedView.current = true;
-                        supabase.rpc('increment_post_views', { post_id_param: dbPost.id }).catch(err => {
-                            console.log('[PostDetail] Error incrementing views:', err);
+                        supabase.rpc('increment_post_views', { post_id_param: dbPost.id }).then(({ error }) => {
+                            if (error) console.log('[PostDetail] Error incrementing views:', error);
                         });
                     }
                     return;

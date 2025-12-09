@@ -21,6 +21,7 @@ export type DbPost = {
   user_id?: string | null;
   created_at?: string;
   draft?: boolean;
+  view_count?: number;
 };
 
 const normalizeAttachments = (value: unknown): AttachmentMetadata[] | null => {
