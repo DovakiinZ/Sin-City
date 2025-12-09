@@ -1,6 +1,6 @@
 {
-    "name": "Cicada City",
-    "short_name": "Cicada",
+    "name": "Sin City",
+    "short_name": "Sin City",
     "description": "A terminal-style blog and community platform",
     "start_url": "/",
     "display": "standalone",
