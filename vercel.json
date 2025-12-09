@@ -1,8 +1,23 @@
 {
     "rewrites": [
         {
-            "source": "/(.*)",
+            "source": "/api/og/:slug",
+            "destination": "/api/og/[slug]"
+        },
+        {
+            "source": "/((?!api/).*)",
             "destination": "/index.html"
+        }
+    ],
+    "headers": [
+        {
+            "source": "/api/(.*)",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=3600"
+                }
+            ]
         }
     ]
 }
