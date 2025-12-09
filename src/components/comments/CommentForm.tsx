@@ -39,7 +39,7 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
         try {
             await createComment({
                 post_id: postId,
-                user_id: user.uid,
+                user_id: user.id,
                 author_name: user.displayName || "Anonymous",
                 content: content.trim(),
             });
