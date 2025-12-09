@@ -48,7 +48,7 @@ export default function PostDetail() {
                     // Increment view count (only once per page load)
                     if (!hasIncrementedView.current && dbPost.id) {
                         hasIncrementedView.current = true;
-                        supabase.rpc('increment_post_views', { post_uuid: dbPost.id }).catch(err => {
+                        supabase.rpc('increment_post_views', { post_id_param: dbPost.id }).catch(err => {
                             console.log('[PostDetail] Error incrementing views:', err);
                         });
                     }
