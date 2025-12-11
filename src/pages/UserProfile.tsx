@@ -193,19 +193,20 @@ export default function UserProfile() {
                     </pre>
 
                     <div className="flex items-start gap-6">
-                        {/* ASCII Avatar */}
-                        <div className="ascii-box p-4 bg-secondary/20">
-                            {profile.ascii_avatar ? (
-                                <pre className="ascii-text text-xs">{profile.ascii_avatar}</pre>
+                        {/* Profile Avatar */}
+                        <div className="flex-shrink-0">
+                            {profile.avatar_url ? (
+                                <img
+                                    src={profile.avatar_url}
+                                    alt={profile.username || "User"}
+                                    className="w-24 h-24 rounded-lg border-2 border-green-700 object-cover"
+                                />
                             ) : (
-                                <pre className="ascii-dim text-xs">
-                                    {`  ___
- /   \\
-|  o  |
- \\___/
-  | |
- /   \\`}
-                                </pre>
+                                <div className="w-24 h-24 rounded-lg border-2 border-green-700 bg-secondary/20 flex items-center justify-center">
+                                    <span className="text-4xl text-green-500">
+                                        {(profile.username || "?")[0]?.toUpperCase()}
+                                    </span>
+                                </div>
                             )}
                         </div>
 
