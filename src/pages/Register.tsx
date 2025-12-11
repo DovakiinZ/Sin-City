@@ -22,7 +22,7 @@ export default function Register() {
     setError(null);
     setLoading(true);
     try {
-      const user = await register({
+      await register({
         email,
         password,
         displayName: displayName || email.split("@")[0],
@@ -30,11 +30,23 @@ export default function Register() {
       });
 
       // Save phone number to profiles table if provided
-      if (phone && user?.id) {
-        await supabase
-          .from("profiles")
-          .update({ phone, mfa_enabled: true })
-          .eq("id", user.id);
+      if (phone) {
+        // Small delay to ensure profile is created
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Get the current user from Supabase auth
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+
+        if (authUser?.id) {
+          const { error: phoneError } = await supabase
+            .from("profiles")
+            .update({ phone, mfa_enabled: true })
+            .eq("id", authUser.id);
+
+          if (phoneError) {
+            console.error("Failed to save phone:", phoneError);
+          }
+        }
       }
 
       nav("/profile");
