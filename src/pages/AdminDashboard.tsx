@@ -42,7 +42,9 @@ export default function AdminDashboard() {
             // Try to use database function for emails, fallback to profiles only
             let usersData = null;
             const { data: rpcData, error: rpcError } = await supabase.rpc('get_users_with_emails');
-            if (rpcError || !rpcData) {
+            console.log('RPC result:', { rpcData, rpcError });
+            if (rpcError) {
+                console.log('Falling back to profiles table');
                 // Fallback to profiles table if function doesn't exist
                 const { data: profilesData } = await supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(50);
                 usersData = profilesData;
