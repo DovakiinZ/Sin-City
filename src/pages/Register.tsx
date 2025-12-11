@@ -20,6 +20,12 @@ export default function Register() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!avatar) {
+      setError("Profile picture is required");
+      return;
+    }
+
     setLoading(true);
     try {
       await register({
@@ -91,7 +97,7 @@ export default function Register() {
             />
           </label>
           <div>
-            <div className="ascii-dim text-xs mb-1">Profile picture</div>
+            <div className="ascii-dim text-xs mb-1">Profile picture <span className="text-red-400">*</span></div>
             <AvatarUploader value={avatar} onChange={setAvatar} />
           </div>
           <div className="flex gap-2">

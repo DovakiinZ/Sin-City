@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import matter from "gray-matter";
 import BackButton from "@/components/BackButton";
@@ -16,6 +16,7 @@ type Post = {
     content: string;
     slug: string;
     author?: string;
+    authorId?: string;
     tags?: string[];
     viewCount?: number;
 };
@@ -26,6 +27,7 @@ export default function PostDetail() {
     const [post, setPost] = useState<Post | null>(null);
     const [loading, setLoading] = useState(true);
     const hasIncrementedView = useRef(false);
+    const [authorUsername, setAuthorUsername] = useState<string | null>(null);
 
     useEffect(() => {
         const loadPost = async () => {
@@ -43,8 +45,21 @@ export default function PostDetail() {
                         content: dbPost.content || "",
                         slug: dbPost.id || slug || "",
                         author: dbPost.author_name || undefined,
+                        authorId: dbPost.user_id || undefined,
                         viewCount: (dbPost.view_count || 0) + 1, // Show incremented count
                     });
+
+                    // Get the author's username for the profile link
+                    if (dbPost.user_id) {
+                        const { data } = await supabase
+                            .from('profiles')
+                            .select('username')
+                            .eq('id', dbPost.user_id)
+                            .single();
+                        if (data?.username) {
+                            setAuthorUsername(data.username);
+                        }
+                    }
 
                     // Increment view count (only once per page load)
                     if (!hasIncrementedView.current && dbPost.id) {
@@ -130,7 +145,17 @@ export default function PostDetail() {
 
                     <div className="ascii-dim text-xs mb-6 flex flex-wrap gap-3">
                         {post.date && <span>{post.date}</span>}
-                        {post.author && <span>by {post.author}</span>}
+                        {post.author && (
+                            <span>
+                                by{" "}
+                                <Link
+                                    to={`/user/${authorUsername || post.author}`}
+                                    className="text-blue-400 hover:underline"
+                                >
+                                    {post.author}
+                                </Link>
+                            </span>
+                        )}
                         <span>{readTime} min read</span>
                         {post.viewCount !== undefined && <span>👁 {post.viewCount} views</span>}
                     </div>

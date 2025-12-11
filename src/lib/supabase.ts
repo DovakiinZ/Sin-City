@@ -20,15 +20,12 @@ if (!anon) {
     throw new Error("VITE_SUPABASE_ANON_KEY is not defined. Please check your environment variables.");
 }
 
-// Use proxy in development to bypass CORS
-const isDevelopment = import.meta.env.DEV;
-const supabaseUrl = isDevelopment ? '/supabase-api' : url;
+// Use the actual URL - proxy approach causes validation issues
+const supabaseUrl = url;
 
 console.log('Supabase client config:', {
     mode: import.meta.env.MODE,
-    isDev: isDevelopment,
-    url: supabaseUrl,
-    originalUrl: url
+    url: supabaseUrl
 });
 
 export const supabase: SupabaseClient = createClient(supabaseUrl, anon, {

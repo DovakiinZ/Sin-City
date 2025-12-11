@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { deleteComment, updateComment, type Comment } from "@/hooks/useComments";
 import { useToast } from "@/hooks/use-toast";
+import { parseMentions } from "@/lib/mentions";
 
 interface CommentItemProps {
     comment: Comment;
@@ -106,7 +107,7 @@ export default function CommentItem({ comment }: CommentItemProps) {
                     </div>
                 </div>
             ) : (
-                <pre className="ascii-text text-sm whitespace-pre-wrap">{comment.content}</pre>
+                <pre className="ascii-text text-sm whitespace-pre-wrap">{parseMentions(comment.content)}</pre>
             )}
         </div>
     );

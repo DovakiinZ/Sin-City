@@ -14,6 +14,7 @@ export default function Profile() {
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [avatar, setAvatar] = useState<string | undefined>(user?.avatarDataUrl);
   const [loadingAvatar, setLoadingAvatar] = useState(true);
+  const [bio, setBio] = useState("");
 
   // 2FA / Phone state
   const [phone, setPhone] = useState("");
@@ -31,7 +32,7 @@ export default function Profile() {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("avatar_url, phone, mfa_enabled")
+          .select("avatar_url, phone, mfa_enabled, bio")
           .eq("id", user.id)
           .single();
 
@@ -39,6 +40,7 @@ export default function Profile() {
           if (data.avatar_url) setAvatar(data.avatar_url);
           if (data.phone) setPhone(data.phone);
           if (data.mfa_enabled) setMfaEnabled(data.mfa_enabled);
+          if (data.bio) setBio(data.bio);
         }
       } catch (err) {
         console.error("[Profile] Error loading profile:", err);
@@ -83,6 +85,7 @@ export default function Profile() {
             .upsert({
               id: user.id,
               avatar_url: avatar || null,
+              bio: bio || null,
             }, { onConflict: 'id' });
 
           if (error) {
@@ -243,6 +246,18 @@ export default function Profile() {
             <div className="ascii-dim text-xs mb-1">Profile picture</div>
             <AvatarUploader value={avatar} onChange={setAvatar} />
           </div>
+          <label className="block">
+            <div className="ascii-dim text-xs mb-1">Bio</div>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              className="w-full bg-black text-green-400 border border-green-700 px-2 py-1 outline-none resize-none"
+              placeholder="Tell us about yourself..."
+              rows={3}
+              maxLength={300}
+            />
+            <div className="ascii-dim text-xs text-right">{bio.length}/300</div>
+          </label>
           <button className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1" onClick={save}>Save Profile</button>
         </div>
 
