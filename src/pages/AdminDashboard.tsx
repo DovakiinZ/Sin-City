@@ -39,7 +39,8 @@ export default function AdminDashboard() {
                 comments: commentsCount || 0
             });
 
-            const { data: usersData } = await supabase.from("profiles").select("*").limit(20);
+            // Use database function to get users with emails from auth.users
+            const { data: usersData } = await supabase.rpc('get_users_with_emails');
             if (usersData) setUsers(usersData);
 
             const { data: postsData } = await supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(20);
@@ -177,6 +178,7 @@ export default function AdminDashboard() {
                                 <thead className="ascii-dim border-b border-ascii-border">
                                     <tr>
                                         <th className="p-2">Username</th>
+                                        <th className="p-2">Email</th>
                                         <th className="p-2">Joined</th>
                                         <th className="p-2">ID</th>
                                     </tr>
@@ -184,7 +186,8 @@ export default function AdminDashboard() {
                                 <tbody>
                                     {users.map((u) => (
                                         <tr key={u.id} className="border-b border-ascii-border/50 hover:bg-white/5">
-                                            <td className="p-2 font-mono">{u.username}</td>
+                                            <td className="p-2 font-mono">{u.username || 'N/A'}</td>
+                                            <td className="p-2">{u.email || 'N/A'}</td>
                                             <td className="p-2">{new Date(u.created_at).toLocaleDateString()}</td>
                                             <td className="p-2 ascii-dim text-xs">{u.id}</td>
                                         </tr>
