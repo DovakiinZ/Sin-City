@@ -39,8 +39,16 @@ export default function AdminDashboard() {
                 comments: commentsCount || 0
             });
 
-            // Use database function to get users with emails from auth.users
-            const { data: usersData } = await supabase.rpc('get_users_with_emails');
+            // Try to use database function for emails, fallback to profiles only
+            let usersData = null;
+            const { data: rpcData, error: rpcError } = await supabase.rpc('get_users_with_emails');
+            if (rpcError || !rpcData) {
+                // Fallback to profiles table if function doesn't exist
+                const { data: profilesData } = await supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(50);
+                usersData = profilesData;
+            } else {
+                usersData = rpcData;
+            }
             if (usersData) setUsers(usersData);
 
             const { data: postsData } = await supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(20);
