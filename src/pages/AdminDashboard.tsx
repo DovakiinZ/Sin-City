@@ -189,6 +189,7 @@ export default function AdminDashboard() {
                                     <tr>
                                         <th className="p-2">Username</th>
                                         <th className="p-2">Email</th>
+                                        <th className="p-2">Phone</th>
                                         <th className="p-2">Joined</th>
                                         <th className="p-2">ID</th>
                                     </tr>
@@ -198,6 +199,7 @@ export default function AdminDashboard() {
                                         <tr key={u.id} className="border-b border-ascii-border/50 hover:bg-white/5">
                                             <td className="p-2 font-mono">{u.username || 'N/A'}</td>
                                             <td className="p-2">{u.email || 'N/A'}</td>
+                                            <td className="p-2">{u.phone || 'N/A'}</td>
                                             <td className="p-2">{new Date(u.created_at).toLocaleDateString()}</td>
                                             <td className="p-2 ascii-dim text-xs">{u.id}</td>
                                         </tr>

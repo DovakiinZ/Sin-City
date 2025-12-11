@@ -5,6 +5,7 @@ import AvatarUploader from "@/components/AvatarUploader";
 import BackButton from "@/components/BackButton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { Shield, Phone } from "lucide-react";
 
 export default function Profile() {
   const { user, updateProfile, logout, updatePassword } = useAuth();
@@ -14,9 +15,14 @@ export default function Profile() {
   const [avatar, setAvatar] = useState<string | undefined>(user?.avatarDataUrl);
   const [loadingAvatar, setLoadingAvatar] = useState(true);
 
-  // Load avatar from Supabase profiles table on mount
+  // 2FA / Phone state
+  const [phone, setPhone] = useState("");
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [savingPhone, setSavingPhone] = useState(false);
+
+  // Load avatar and phone from Supabase profiles table on mount
   useEffect(() => {
-    async function loadAvatar() {
+    async function loadProfile() {
       if (!user?.id || !supabase) {
         setLoadingAvatar(false);
         return;
@@ -25,21 +31,23 @@ export default function Profile() {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("avatar_url")
+          .select("avatar_url, phone, mfa_enabled")
           .eq("id", user.id)
           .single();
 
-        if (!error && data?.avatar_url) {
-          setAvatar(data.avatar_url);
+        if (!error && data) {
+          if (data.avatar_url) setAvatar(data.avatar_url);
+          if (data.phone) setPhone(data.phone);
+          if (data.mfa_enabled) setMfaEnabled(data.mfa_enabled);
         }
       } catch (err) {
-        console.error("[Profile] Error loading avatar:", err);
+        console.error("[Profile] Error loading profile:", err);
       } finally {
         setLoadingAvatar(false);
       }
     }
 
-    loadAvatar();
+    loadProfile();
   }, [user?.id]);
 
   // Password change state
@@ -145,6 +153,70 @@ export default function Profile() {
     }
   }
 
+  async function handleSavePhone() {
+    if (!phone || phone.length < 10) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingPhone(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          phone: phone,
+          mfa_enabled: true
+        })
+        .eq("id", user?.id);
+
+      if (error) throw error;
+
+      setMfaEnabled(true);
+      toast({
+        title: "2FA Enabled",
+        description: "Your phone has been saved for secure verification",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save phone",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPhone(false);
+    }
+  }
+
+  async function handleDisable2FA() {
+    setSavingPhone(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ mfa_enabled: false })
+        .eq("id", user?.id);
+
+      if (error) throw error;
+
+      setMfaEnabled(false);
+      toast({
+        title: "2FA Disabled",
+        description: "Two-factor authentication has been disabled",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to disable 2FA",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPhone(false);
+    }
+  }
+
   async function handleLogout() {
     try {
       await logout();
@@ -208,6 +280,59 @@ export default function Profile() {
               {changingPassword ? "Updating..." : "Change Password"}
             </button>
           </form>
+        </div>
+
+        {/* Two-Factor Authentication Section */}
+        <div className="border-t border-green-700 pt-4">
+          <div className="ascii-highlight text-lg mb-3 flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            +-- Two-Factor Authentication --+
+          </div>
+
+          {mfaEnabled ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-green-400">
+                <Shield className="w-4 h-4" />
+                <span>2FA is enabled</span>
+              </div>
+              <div className="ascii-dim text-xs">
+                Phone: {phone}
+              </div>
+              <button
+                className="ascii-dim border border-red-700 text-red-400 px-3 py-1 hover:bg-red-900/20 disabled:opacity-50"
+                onClick={handleDisable2FA}
+                disabled={savingPhone}
+              >
+                {savingPhone ? "Disabling..." : "Disable 2FA"}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="ascii-dim text-xs">
+                Add your phone number for secure login verification
+              </div>
+              <label className="block">
+                <div className="ascii-dim text-xs mb-1 flex items-center gap-1">
+                  <Phone className="w-3 h-3" /> Phone Number
+                </div>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full bg-black text-green-400 border border-green-700 px-2 py-1 outline-none"
+                  type="tel"
+                  placeholder="+1234567890"
+                  disabled={savingPhone}
+                />
+              </label>
+              <button
+                className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1 disabled:opacity-50"
+                onClick={handleSavePhone}
+                disabled={savingPhone || !phone}
+              >
+                {savingPhone ? "Enabling..." : "Enable 2FA"}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Logout */}
