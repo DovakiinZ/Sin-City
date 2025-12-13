@@ -13,8 +13,11 @@ export interface Post {
     tags?: string[];
     draft?: boolean;
     hidden?: boolean;
+    is_pinned?: boolean;
     author_name?: string;
     author_email?: string;
+    author_avatar?: string;
+    author_username?: string;
     view_count?: number;
     created_at: string;
     updated_at: string;
@@ -31,14 +34,24 @@ export function useSupabasePosts() {
         const fetchPosts = async () => {
             try {
                 setLoading(true);
+                // Fetch posts with author avatar and username from profiles
                 const { data, error: fetchError } = await supabase
                     .from("posts")
-                    .select("*")
+                    .select("*, profiles:user_id(avatar_url, username)")
                     .or("hidden.is.null,hidden.eq.false") // Filter out hidden posts
+                    .order("is_pinned", { ascending: false, nullsFirst: false })
                     .order("created_at", { ascending: false });
 
                 if (fetchError) throw fetchError;
-                setPosts(data || []);
+
+                // Map the joined data to include author_avatar and author_username
+                const postsWithAvatars = (data || []).map((post: any) => ({
+                    ...post,
+                    author_avatar: post.profiles?.avatar_url || post.author_avatar || null,
+                    author_username: post.profiles?.username || null,
+                }));
+
+                setPosts(postsWithAvatars);
                 setError(null);
             } catch (err) {
                 console.error("Error fetching posts:", err);

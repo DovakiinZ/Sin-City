@@ -5,7 +5,7 @@ import AvatarUploader from "@/components/AvatarUploader";
 import BackButton from "@/components/BackButton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { Shield, Phone } from "lucide-react";
+import { Shield, Phone, Twitter, Instagram } from "lucide-react";
 
 export default function Profile() {
   const { user, updateProfile, logout, updatePassword } = useAuth();
@@ -15,6 +15,10 @@ export default function Profile() {
   const [avatar, setAvatar] = useState<string | undefined>(user?.avatarDataUrl);
   const [loadingAvatar, setLoadingAvatar] = useState(true);
   const [bio, setBio] = useState("");
+
+  // Social media state
+  const [twitterUsername, setTwitterUsername] = useState("");
+  const [instagramUsername, setInstagramUsername] = useState("");
 
   // Username change state
   const [username, setUsername] = useState("");
@@ -39,21 +43,28 @@ export default function Profile() {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("avatar_url, phone, mfa_enabled, bio, username, username_changes_this_year, username_changed_at")
+          .select("*")
           .eq("id", user.id)
           .single();
 
         if (!error && data) {
-          if (data.avatar_url) setAvatar(data.avatar_url);
+          console.log("[Profile] Loaded data:", data);
+          // Set all values, even if empty
+          setAvatar(data.avatar_url || undefined);
           if (data.phone) setPhone(data.phone);
           if (data.mfa_enabled) setMfaEnabled(data.mfa_enabled);
-          if (data.bio) setBio(data.bio);
+          setBio(data.bio || "");
           if (data.username) {
             setUsername(data.username);
             setOriginalUsername(data.username);
           }
           setUsernameChangesThisYear(data.username_changes_this_year || 0);
           if (data.username_changed_at) setUsernameChangedAt(data.username_changed_at);
+          setTwitterUsername(data.twitter_username || "");
+          setInstagramUsername(data.instagram_username || "");
+          setDisplayName(data.display_name || "");
+        } else if (error) {
+          console.error("[Profile] Error fetching profile:", error);
         }
       } catch (err) {
         console.error("[Profile] Error loading profile:", err);
@@ -99,6 +110,9 @@ export default function Profile() {
               id: user.id,
               avatar_url: avatar || null,
               bio: bio || null,
+              display_name: displayName || null,
+              twitter_username: twitterUsername || null,
+              instagram_username: instagramUsername || null,
             }, { onConflict: 'id' });
 
           if (error) {
@@ -381,7 +395,31 @@ export default function Profile() {
             />
             <div className="ascii-dim text-xs text-right">{bio.length}/300</div>
           </label>
-          <button className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1" onClick={save}>Save Profile</button>
+
+          {/* Social Media Links */}
+          <div className="space-y-3 pt-2">
+            <div className="ascii-dim text-xs">Social Media Links</div>
+            <label className="flex items-center gap-2">
+              <Twitter className="w-4 h-4 text-blue-400" />
+              <input
+                value={twitterUsername}
+                onChange={(e) => setTwitterUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                className="flex-1 bg-black text-green-400 border border-green-700 px-2 py-1 outline-none"
+                placeholder="Twitter/X username"
+                maxLength={15}
+              />
+            </label>
+            <label className="flex items-center gap-2">
+              <Instagram className="w-4 h-4 text-pink-400" />
+              <input
+                value={instagramUsername}
+                onChange={(e) => setInstagramUsername(e.target.value.replace(/[^a-zA-Z0-9_.]/g, ''))}
+                className="flex-1 bg-black text-green-400 border border-green-700 px-2 py-1 outline-none"
+                placeholder="Instagram username"
+                maxLength={30}
+              />
+            </label>
+          </div>
         </div>
 
         {/* Username Change Section */}
@@ -504,9 +542,10 @@ export default function Profile() {
           )}
         </div>
 
-        {/* Logout */}
-        <div className="border-t border-green-700 pt-4">
-          <button className="ascii-dim border border-green-700 px-3 py-1 hover:ascii-highlight" onClick={handleLogout}>Logout</button>
+        {/* Save & Logout */}
+        <div className="border-t border-green-700 pt-4 flex gap-3">
+          <button className="ascii-nav-link hover:ascii-highlight border border-green-700 px-4 py-2" onClick={save}>Save Profile</button>
+          <button className="ascii-dim border border-green-700 px-4 py-2 hover:text-red-400 hover:border-red-600" onClick={handleLogout}>Logout</button>
         </div>
       </div>
     </div>

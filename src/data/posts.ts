@@ -22,6 +22,7 @@ export type DbPost = {
   created_at?: string;
   draft?: boolean;
   view_count?: number;
+  is_pinned?: boolean;
 };
 
 const normalizeAttachments = (value: unknown): AttachmentMetadata[] | null => {
@@ -30,6 +31,20 @@ const normalizeAttachments = (value: unknown): AttachmentMetadata[] | null => {
     .map((item) => {
       if (!item || typeof item !== "object") return null;
       const record = item as Record<string, unknown>;
+
+      // Support new format with just url and type (from media uploads)
+      const url = typeof record.url === "string" ? record.url : null;
+      const type = typeof record.type === "string" ? record.type : "";
+
+      // If we have a URL, that's enough for the new media format
+      if (url) {
+        const name = typeof record.name === "string" ? record.name : url.split('/').pop() || 'media';
+        const rawSize = record.size;
+        const size = typeof rawSize === "number" ? rawSize : 0;
+        return { name, size, type, url } as AttachmentMetadata;
+      }
+
+      // Legacy format requires name and size
       const name = typeof record.name === "string" ? record.name : null;
       const rawSize = record.size;
       const size =
@@ -38,8 +53,6 @@ const normalizeAttachments = (value: unknown): AttachmentMetadata[] | null => {
           : typeof rawSize === "string" && rawSize.trim().length > 0
             ? Number.parseInt(rawSize, 10)
             : null;
-      const type = typeof record.type === "string" ? record.type : "";
-      const url = typeof record.url === "string" ? record.url : null;
       if (!name || size === null || Number.isNaN(size)) return null;
       return { name, size, type, url } as AttachmentMetadata;
     })
@@ -92,8 +105,9 @@ export async function listPostsFromDb(): Promise<DbPost[]> {
   // Filter out hidden posts for public view
   const { data, error } = await supabase
     .from("posts")
-    .select("id,slug,title,type,content,attachments,author_name,author_email,author_avatar,user_id,view_count,created_at,draft,hidden")
+    .select("id,slug,title,type,content,attachments,author_name,author_email,author_avatar,user_id,view_count,created_at,draft,hidden,is_pinned")
     .or("hidden.is.null,hidden.eq.false") // Only show non-hidden posts
+    .order("is_pinned", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(100);
 

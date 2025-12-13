@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import BackButton from "@/components/BackButton";
 import { listPostsFromDb } from "@/data/posts";
 import { supabase } from "@/lib/supabase";
-import { UserPlus, UserMinus } from "lucide-react";
+import { UserPlus, UserMinus, Twitter, Instagram } from "lucide-react";
 
 export default function UserProfile() {
     const { username } = useParams<{ username: string }>();
@@ -30,29 +30,63 @@ export default function UserProfile() {
                 return;
             }
 
+            console.log('[UserProfile] Looking up user:', username);
+
             try {
                 // First try exact match on username
+                // Use limit(1) instead of maybeSingle/single to avoid 406 errors
                 let { data, error } = await supabase
                     .from('profiles')
-                    .select('id')
+                    .select('id, username, display_name')
                     .ilike('username', username)
-                    .limit(1)
-                    .single();
+                    .limit(1);
 
-                // If not found, try display_name
-                if (error || !data) {
-                    const result = await supabase
+                let foundUser = data && data.length > 0 ? data[0] : null;
+
+                // If not found, try matching with potential trailing whitespace (common data issue)
+                if (!foundUser) {
+                    const { data: looseData } = await supabase
                         .from('profiles')
-                        .select('id')
-                        .ilike('display_name', username)
-                        .limit(1)
-                        .single();
-                    data = result.data;
-                    error = result.error;
+                        .select('id, username, display_name')
+                        .ilike('username', `${username}%`) // Match "TESTER " when searching "TESTER"
+                        .limit(5); // Get a few to check
+
+                    if (looseData && looseData.length > 0) {
+                        // Find specifically the one that matches when trimmed
+                        foundUser = looseData.find(u => u.username?.trim().toLowerCase() === username.toLowerCase()) || looseData[0];
+                    }
                 }
 
-                if (!error && data) {
-                    setUserId(data.id);
+                // If still not found, try display_name
+                if (!foundUser) {
+                    const result = await supabase
+                        .from('profiles')
+                        .select('id, username, display_name')
+                        .ilike('display_name', username)
+                        .limit(1);
+
+                    if (result.data && result.data.length > 0) {
+                        foundUser = result.data[0];
+                    }
+
+                    // Try loose display_name if exact failed
+                    if (!foundUser) {
+                        const { data: looseData } = await supabase
+                            .from('profiles')
+                            .select('id, username, display_name')
+                            .ilike('display_name', `${username}%`)
+                            .limit(5);
+
+                        if (looseData && looseData.length > 0) {
+                            foundUser = looseData.find(u => u.display_name?.trim().toLowerCase() === username.toLowerCase()) || looseData[0];
+                        }
+                    }
+                }
+
+                if (foundUser) {
+                    setUserId(foundUser.id);
+                } else {
+                    console.log('[UserProfile] User not found');
                 }
             } catch (err) {
                 console.log('[UserProfile] Error looking up user:', err);
@@ -125,6 +159,36 @@ export default function UserProfile() {
             if (!error) {
                 setIsFollowing(true);
                 setFollowerCount(prev => prev + 1);
+
+                // Send notification
+                try {
+                    // Get follower's profile name (current user)
+                    const { data: followerProfile } = await supabase
+                        .from('profiles')
+                        .select('username, display_name')
+                        .eq('id', user.id)
+                        .single();
+
+                    const followerName = followerProfile?.display_name || followerProfile?.username || "Someone";
+
+                    console.log('[handleFollow] Creating notification for user:', profile.id, 'from follower:', user.id);
+                    const { error: notifError } = await supabase.from("notifications").insert([{
+                        user_id: profile.id,
+                        type: "follow",
+                        content: {
+                            follower: followerName,
+                            followerId: user.id,
+                            followerUsername: followerProfile?.username
+                        },
+                        read: false,
+                    }]);
+
+                    if (notifError) {
+                        console.error('[handleFollow] Notification insert error:', notifError);
+                    }
+                } catch (notifErr) {
+                    console.error("Error creating follow notification:", notifErr);
+                }
             }
         } catch (err) {
             console.error('Follow error:', err);
@@ -218,6 +282,36 @@ export default function UserProfile() {
 
                             {profile.bio && (
                                 <div className="ascii-text mb-4">{profile.bio}</div>
+                            )}
+
+                            {/* Social Media Links */}
+                            {(profile.twitter_username || profile.instagram_username) && (
+                                <div className="flex gap-4 mb-4">
+                                    {profile.twitter_username && (
+                                        <a
+                                            href={`https://x.com/${profile.twitter_username}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
+                                            title={`@${profile.twitter_username} on X/Twitter`}
+                                        >
+                                            <Twitter className="w-5 h-5" />
+                                            <span className="text-sm">@{profile.twitter_username}</span>
+                                        </a>
+                                    )}
+                                    {profile.instagram_username && (
+                                        <a
+                                            href={`https://instagram.com/${profile.instagram_username}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-2 text-pink-400 hover:text-pink-300 transition-colors"
+                                            title={`@${profile.instagram_username} on Instagram`}
+                                        >
+                                            <Instagram className="w-5 h-5" />
+                                            <span className="text-sm">@{profile.instagram_username}</span>
+                                        </a>
+                                    )}
+                                </div>
                             )}
 
                             <div className="ascii-dim text-sm space-y-1">
