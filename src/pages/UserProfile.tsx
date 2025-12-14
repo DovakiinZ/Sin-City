@@ -22,7 +22,7 @@ export default function UserProfile() {
     const [followingCount, setFollowingCount] = useState(0);
     const [followLoading, setFollowLoading] = useState(false);
 
-    // Look up user ID by username
+    // Look up user ID by username or display_name
     useEffect(() => {
         const lookupUser = async () => {
             if (!username) {
@@ -30,32 +30,46 @@ export default function UserProfile() {
                 return;
             }
 
+            console.log('[UserProfile] Looking up user:', username);
+
             try {
                 // First try exact match on username
-                let { data, error } = await supabase
+                let { data } = await supabase
                     .from('profiles')
-                    .select('id')
+                    .select('id, username, display_name')
                     .ilike('username', username)
-                    .limit(1)
-                    .single();
+                    .limit(1);
+
+                let foundUser = data && data.length > 0 ? data[0] : null;
 
                 // If not found, try display_name
-                if (error || !data) {
+                if (!foundUser) {
                     const result = await supabase
                         .from('profiles')
-                        .select('id')
+                        .select('id, username, display_name')
                         .ilike('display_name', username)
-                        .limit(1)
-                        .single();
-                    data = result.data;
-                    error = result.error;
+                        .limit(1);
+                    foundUser = result.data && result.data.length > 0 ? result.data[0] : null;
                 }
 
-                if (!error && data) {
-                    setUserId(data.id);
+                // If still not found, try partial match on username
+                if (!foundUser) {
+                    const result = await supabase
+                        .from('profiles')
+                        .select('id, username, display_name')
+                        .ilike('username', `%${username}%`)
+                        .limit(1);
+                    foundUser = result.data && result.data.length > 0 ? result.data[0] : null;
+                }
+
+                if (foundUser) {
+                    console.log('[UserProfile] Found user:', foundUser);
+                    setUserId(foundUser.id);
+                } else {
+                    console.log('[UserProfile] User not found for:', username);
                 }
             } catch (err) {
-                console.log('[UserProfile] Error looking up user:', err);
+                console.error('[UserProfile] Error looking up user:', err);
             } finally {
                 setLookingUp(false);
             }
