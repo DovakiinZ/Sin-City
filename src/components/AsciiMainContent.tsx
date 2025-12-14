@@ -84,7 +84,7 @@ const AsciiMainContent = () => {
           authorUsername: p.author_username || undefined,
           isHtml: true, // Database posts are HTML
           isPinned: p.is_pinned || false,
-          attachments: p.attachments?.map(a => ({ url: a.url || '', type: (a.type?.startsWith('video') ? 'video' : 'image') as 'image' | 'video' })).filter(a => a.url) || undefined,
+          attachments: Array.isArray(p.attachments) ? (p.attachments as any[]).map(a => ({ url: a.url || '', type: (a.type?.startsWith('video') ? 'video' : 'image') as 'image' | 'video' })).filter(a => a.url) : undefined,
         };
       }),
     ...markdownPosts.map(p => ({ ...p, rawDate: p.date, isHtml: false }))
@@ -217,14 +217,18 @@ const AsciiMainContent = () => {
                         </span>
                       </div>
                     )}
-                    {post.author && (
+                    {(post as any).authorUsername ? (
                       <Link
-                        to={`/user/${(post as any).authorUsername || post.author}`}
+                        to={`/user/${(post as any).authorUsername}`}
                         className="text-xs text-green-400 text-center hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        @{post.author}
+                        @{(post as any).authorUsername}
                       </Link>
+                    ) : post.author && (
+                      <span className="text-xs text-green-600 text-center">
+                        {post.author}
+                      </span>
                     )}
                   </div>
                   {/* Post Content */}
