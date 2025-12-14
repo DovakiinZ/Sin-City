@@ -48,8 +48,7 @@ export default function UserProfile() {
 
             // Normalize username: decode URI components and trim
             const searchName = decodeURIComponent(rawUsername).trim();
-            // Normalize username: decode URI components and trim
-            const searchName = decodeURIComponent(rawUsername).trim();
+
 
             try {
                 let foundUser: any = null;
