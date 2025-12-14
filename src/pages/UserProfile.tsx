@@ -40,83 +40,123 @@ export default function UserProfile() {
     // Look up user ID by username or display_name
     useEffect(() => {
         const lookupUser = async () => {
-            if (!username) {
+            const rawUsername = username;
+            if (!rawUsername) {
                 setLookingUp(false);
                 return;
             }
 
-            console.log('[UserProfile] Looking up user:', username);
+            // Normalize username: decode URI components and trim
+            const searchName = decodeURIComponent(rawUsername).trim();
+            console.log(`[UserProfile] Starting lookup for: "${rawUsername}" (normalized: "${searchName}")`);
 
             try {
-                // First try exact match on username
-                let { data } = await supabase
+                let foundUser: any = null;
+
+                // 1. Exact Username Match
+                console.log('[UserProfile] Step 1: Trying exact username match...');
+                let { data: usernameMatch } = await supabase
                     .from('profiles')
-                    .select('id, username, display_name')
-                    .ilike('username', username)
+                    .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username')
+                    .ilike('username', searchName)
                     .limit(1);
 
-                let foundUser = data && data.length > 0 ? data[0] : null;
-
-                // If not found, try display_name
-                if (!foundUser) {
-                    const result = await supabase
-                        .from('profiles')
-                        .select('id, username, display_name')
-                        .ilike('display_name', `%${username}%`)
-                        .limit(1);
-                    foundUser = result.data && result.data.length > 0 ? result.data[0] : null;
+                if (usernameMatch && usernameMatch.length > 0) {
+                    foundUser = usernameMatch[0];
+                    console.log('[UserProfile] Success! Found by username:', foundUser.username);
                 }
 
-                // If still not found, try partial match on username
+                // 2. Exact Display Name Match
                 if (!foundUser) {
-                    const result = await supabase
+                    console.log('[UserProfile] Step 2: Trying exact display_name match...');
+                    const { data: displayMatch } = await supabase
                         .from('profiles')
-                        .select('id, username, display_name')
-                        .ilike('username', `%${username}%`)
+                        .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username')
+                        .ilike('display_name', searchName)
                         .limit(1);
-                    foundUser = result.data && result.data.length > 0 ? result.data[0] : null;
+
+                    if (displayMatch && displayMatch.length > 0) {
+                        foundUser = displayMatch[0];
+                        console.log('[UserProfile] Success! Found by display_name:', foundUser.display_name);
+                    }
                 }
 
-                // If still not found, try to find a post with this author_name and use its user_id
+                // 3. Partial/Wildcard Display Name Match
                 if (!foundUser) {
-                    console.log('[UserProfile] Trying fallback: search posts by author_name like', `%${username}%`);
-                    const { data: postData } = await supabase
+                    console.log('[UserProfile] Step 3: Trying wildcard display_name match...');
+                    const { data: wildcardMatch } = await supabase
+                        .from('profiles')
+                        .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username')
+                        .ilike('display_name', `%${searchName}%`)
+                        .limit(1);
+
+                    if (wildcardMatch && wildcardMatch.length > 0) {
+                        foundUser = wildcardMatch[0];
+                        console.log('[UserProfile] Success! Found by partial display_name:', foundUser.display_name);
+                    }
+                }
+
+                // 4. Post Author Lookup (Fallback)
+                if (!foundUser) {
+                    console.log('[UserProfile] Step 4: Trying post author lookup...');
+                    // Try exact match on author_name first for speed
+                    let { data: postData } = await supabase
                         .from('posts')
                         .select('user_id, author_name')
-                        .ilike('author_name', `%${username}%`)
+                        .ilike('author_name', searchName)
                         .not('user_id', 'is', null)
                         .limit(1);
 
+                    // If no exact match, try wildcard on author_name
+                    if (!postData || postData.length === 0) {
+                        console.log('[UserProfile] Step 4b: Trying wildcard post author lookup...');
+                        const result = await supabase
+                            .from('posts')
+                            .select('user_id, author_name')
+                            .ilike('author_name', `%${searchName}%`)
+                            .not('user_id', 'is', null)
+                            .limit(1);
+                        postData = result.data;
+                    }
+
                     if (postData && postData.length > 0 && postData[0].user_id) {
-                        console.log('[UserProfile] Found matching post:', postData[0]);
-                        // Found a post with this author_name, now get the profile
+                        console.log('[UserProfile] Found matching post author:', postData[0].author_name, 'UserID:', postData[0].user_id);
+
+                        // Fetch the actual profile
                         const { data: profileData } = await supabase
                             .from('profiles')
-                            .select('id, username, display_name')
+                            .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username')
                             .eq('id', postData[0].user_id)
                             .single();
-                        foundUser = profileData || null;
+
+                        if (profileData) {
+                            foundUser = profileData;
+                            console.log('[UserProfile] Success! Resolved profile via post author:', foundUser.username);
+                        }
                     }
                 }
 
                 if (foundUser) {
-                    console.log('[UserProfile] Found user:', foundUser);
                     setUserId(foundUser.id);
+                    // Pre-load profile data if we fetched full object to avoid double-fetch
+                    // (Note: useProfile hook will still fetch, but this ensures we have ID)
 
-                    // If we found the user via display name or alias and the username differs from URL,
-                    // update the URL to the canonical username
-                    if (foundUser.username && username && foundUser.username.toLowerCase() !== username.toLowerCase()) {
+                    // Redirect logic
+                    if (foundUser.username && normalize(foundUser.username) !== normalize(searchName)) {
+                        console.log(`[UserProfile] Redirecting from ${searchName} to ${foundUser.username}`);
                         navigate(`/user/${foundUser.username}`, { replace: true });
                     }
                 } else {
-                    console.log('[UserProfile] User not found for:', username);
+                    console.log('[UserProfile] FAILED: User not found after all attempts for:', searchName);
                 }
             } catch (err) {
-                console.error('[UserProfile] Error looking up user:', err);
+                console.error('[UserProfile] Critical error looking up user:', err);
             } finally {
                 setLookingUp(false);
             }
         };
+
+        const normalize = (s: string) => s ? s.toLowerCase().trim() : '';
 
         lookupUser();
     }, [username]);
