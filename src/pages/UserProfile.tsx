@@ -62,7 +62,7 @@ export default function UserProfile() {
                     const result = await supabase
                         .from('profiles')
                         .select('id, username, display_name')
-                        .ilike('display_name', username)
+                        .ilike('display_name', `%${username}%`)
                         .limit(1);
                     foundUser = result.data && result.data.length > 0 ? result.data[0] : null;
                 }
