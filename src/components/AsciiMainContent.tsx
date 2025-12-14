@@ -11,7 +11,7 @@ import { decodeHtml, stripHtml } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
 import MediaCarousel from "@/components/media/MediaCarousel";
-import { Pin } from "lucide-react";
+import { Pin, Paperclip, Eye } from "lucide-react";
 
 type Post = {
   title: string; date: string; content: string; slug: string; author?: string; authorAvatar?: string; isPinned?: boolean;
@@ -244,8 +244,18 @@ const AsciiMainContent = () => {
                     <h3 className="ascii-highlight text-xl mb-1">
                       {post.title}
                     </h3>
-                    <div className="ascii-dim text-xs mb-3">
-                      {post.date}
+                    <div className="ascii-dim text-xs mb-3 flex items-center gap-3">
+                      <span>{post.date}</span>
+                      {(post as any).view_count !== undefined && (
+                        <div className="flex items-center gap-1.5 opacity-80" title="Views">
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>
+                            {(post as any).view_count >= 1000
+                              ? `${((post as any).view_count / 1000).toFixed(1)}k`
+                              : (post as any).view_count}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="prose prose-invert max-w-none text-green-400/80">
                       {(post as any).isHtml ? (

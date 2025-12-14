@@ -1,4 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { Eye } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import matter from "gray-matter";
 import BackButton from "@/components/BackButton";
@@ -160,7 +161,12 @@ export default function PostDetail() {
                             </span>
                         )}
                         <span>{readTime} min read</span>
-                        {post.viewCount !== undefined && <span>👁 {post.viewCount} views</span>}
+                        {post.viewCount !== undefined && (
+                            <div className="flex items-center gap-1.5" title="Total Views">
+                                <Eye className="w-4 h-4" />
+                                <span>{post.viewCount} views</span>
+                            </div>
+                        )}
                     </div>
 
                     {post.tags && post.tags.length > 0 && (
