@@ -110,7 +110,7 @@ export default function CreatePost() {
                 // Upload to Supabase Storage
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-                const filePath = `post-media/${user?.id}/${fileName}`;
+                const filePath = `post-media/${user?.id || 'anonymous'}/${fileName}`;
 
                 const { error: uploadError } = await supabase.storage
                     .from('media')
@@ -171,15 +171,15 @@ export default function CreatePost() {
             // Generate unique slug with timestamp to prevent conflicts
             const uniqueSlug = `${slug}-${Date.now().toString(36)}`;
 
-            // Simplified post data - only essential fields
+            // Post data - works for both logged in and anonymous users
             const postData = {
                 title,
                 content,
                 type: mediaFiles.length > 0 ? 'Image' : 'Text',
                 slug: uniqueSlug,
-                user_id: user?.id, // Required for RLS policies
-                author_name: user?.displayName || user?.email || "Admin",
-                author_email: user?.email,
+                user_id: user?.id || null, // Allow null for anonymous posts
+                author_name: user?.displayName || user?.email || "Anonymous",
+                author_email: user?.email || null,
                 author_avatar: user?.avatarDataUrl || null,
                 draft: draft,
                 attachments: mediaFiles.length > 0 ? mediaFiles.map(m => ({ url: m.url, type: m.type })) : null,

@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
 import AvatarUploader from "@/components/AvatarUploader";
 import BackButton from "@/components/BackButton";
-import { Phone } from "lucide-react";
 
 export default function Register() {
   const { register } = useAuth();
@@ -12,7 +10,6 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [phone, setPhone] = useState("");
   const [avatar, setAvatar] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,26 +31,6 @@ export default function Register() {
         displayName: displayName || email.split("@")[0],
         avatarDataUrl: avatar,
       });
-
-      // Save phone number to profiles table if provided
-      if (phone) {
-        // Small delay to ensure profile is created
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Get the current user from Supabase auth
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-
-        if (authUser?.id) {
-          const { error: phoneError } = await supabase
-            .from("profiles")
-            .update({ phone, mfa_enabled: true })
-            .eq("id", authUser.id);
-
-          if (phoneError) {
-            console.error("Failed to save phone:", phoneError);
-          }
-        }
-      }
 
       nav("/profile");
     } catch (err: unknown) {
@@ -83,19 +60,6 @@ export default function Register() {
             <div className="ascii-dim text-xs mb-1">Display name</div>
             <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full bg-black text-green-400 border border-green-700 px-2 py-1 outline-none" placeholder="How should we call you?" disabled={loading} />
           </label>
-          <label className="block">
-            <div className="ascii-dim text-xs mb-1 flex items-center gap-1">
-              <Phone className="w-3 h-3" /> Phone Number <span className="text-green-600">(for 2FA)</span>
-            </div>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-black text-green-400 border border-green-700 px-2 py-1 outline-none"
-              placeholder="+1234567890"
-              type="tel"
-              disabled={loading}
-            />
-          </label>
           <div>
             <div className="ascii-dim text-xs mb-1">Profile picture <span className="text-red-400">*</span></div>
             <AvatarUploader value={avatar} onChange={setAvatar} />
@@ -110,3 +74,4 @@ export default function Register() {
     </div>
   );
 }
+
