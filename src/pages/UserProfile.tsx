@@ -346,7 +346,7 @@ export default function UserProfile() {
 
                         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
                             {/* Profile Avatar */}
-                            <div className="flex-shrink-0 -mt-8 sm:-mt-12">
+                            <div className="flex-shrink-0">
                                 {profile.avatar_url ? (
                                     <img
                                         src={profile.avatar_url}
