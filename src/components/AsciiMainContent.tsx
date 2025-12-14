@@ -225,6 +225,14 @@ const AsciiMainContent = () => {
                       >
                         @{(post as any).authorUsername}
                       </Link>
+                    ) : post.author && post.author !== "Anonymous" ? (
+                      <Link
+                        to={`/user/${encodeURIComponent(post.author)}`}
+                        className="text-xs text-green-400 text-center hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {post.author}
+                      </Link>
                     ) : post.author && (
                       <span className="text-xs text-green-600 text-center">
                         {post.author}
