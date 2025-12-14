@@ -118,9 +118,13 @@ export default function UserProfile() {
                 const userStats = await getUserStats(profile.id);
                 setStats(userStats);
 
-                // Load user's posts
+                // Load user's posts - match by user_id OR by display_name
                 const posts = await listPostsFromDb();
-                const filtered = posts.filter((p) => p.user_id === profile.id);
+                const filtered = posts.filter((p) =>
+                    p.user_id === profile.id ||
+                    (profile.display_name && p.author_name?.toLowerCase() === profile.display_name?.toLowerCase()) ||
+                    (profile.username && p.author_name?.toLowerCase() === profile.username?.toLowerCase())
+                );
                 setUserPosts(filtered);
             }
         };
