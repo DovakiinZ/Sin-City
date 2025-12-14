@@ -2,13 +2,17 @@ import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { createComment, type Comment } from "@/hooks/useComments";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
+import { extractMentions } from "@/lib/mentions";
+import MentionInput from "@/components/MentionInput";
 
 interface CommentFormProps {
     postId: string;
+    postTitle?: string;
     onSuccess?: () => void;
 }
 
-export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
+export default function CommentForm({ postId, postTitle, onSuccess }: CommentFormProps) {
     const { user } = useAuth();
     const { toast } = useToast();
     const [content, setContent] = useState("");
@@ -44,6 +48,42 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
                 content: content.trim(),
             });
 
+            // Create notifications for mentioned users
+            const mentions = extractMentions(content);
+            console.log("[CommentForm] Mentions found:", mentions);
+            if (mentions.length > 0) {
+                // Look up user IDs for mentioned usernames
+                for (const username of mentions) {
+                    console.log("[CommentForm] Looking up user:", username);
+                    const { data: mentionedUser, error: lookupError } = await supabase
+                        .from("profiles")
+                        .select("id")
+                        .ilike("username", username)
+                        .single();
+
+                    console.log("[CommentForm] Lookup result:", { mentionedUser, lookupError });
+
+                    if (mentionedUser && mentionedUser.id !== user.id) {
+                        console.log("[CommentForm] Creating notification for:", mentionedUser.id);
+                        const { error: notifError } = await supabase.from("notifications").insert({
+                            user_id: mentionedUser.id,
+                            type: "mention",
+                            content: {
+                                author: user.displayName || "Someone",
+                                postSlug: postId,
+                                postTitle: postTitle || "a post",
+                            },
+                        });
+
+                        if (notifError) {
+                            console.error("[CommentForm] Notification insert error:", notifError);
+                        } else {
+                            console.log("[CommentForm] Notification created successfully!");
+                        }
+                    }
+                }
+            }
+
             toast({
                 title: "Success",
                 description: "Comment posted!",
@@ -66,13 +106,13 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
     return (
         <form onSubmit={handleSubmit} className="ascii-box bg-secondary/20 p-4">
             <pre className="ascii-highlight text-xs mb-2">NEW COMMENT</pre>
-            <textarea
+            <MentionInput
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={setContent}
                 rows={4}
-                className="w-full bg-background border border-ascii-border p-3 ascii-text focus:border-ascii-highlight focus:outline-none resize-none mb-3"
-                placeholder="Write your comment..."
+                placeholder="Write your comment... Use @ to mention users"
                 disabled={submitting}
+                className="mb-3"
             />
             <div className="flex justify-between items-center">
                 <span className="ascii-dim text-xs">

@@ -6,8 +6,13 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    host: "0.0.0.0",
     port: 8080,
+    strictPort: true,
+    hmr: {
+      host: "localhost",
+      port: 8080,
+    },
     proxy: {
       // Proxy Supabase requests to bypass CORS in development
       '/supabase-api': {

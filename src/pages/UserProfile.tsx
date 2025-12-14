@@ -185,25 +185,23 @@ export default function UserProfile() {
                 <BackButton />
 
                 {/* Profile Header */}
-                <div className="ascii-box p-6">
-                    <pre className="ascii-highlight text-xl mb-4">
-                        {`╔═══════════════════════════════════════════════════════════════╗
-║                       USER PROFILE                            ║
-╚═══════════════════════════════════════════════════════════════╝`}
-                    </pre>
+                <div className="ascii-box p-4 sm:p-6">
+                    <h2 className="ascii-highlight text-lg sm:text-xl mb-4 text-center sm:text-left border-b border-ascii-border pb-2">
+                        USER PROFILE
+                    </h2>
 
-                    <div className="flex items-start gap-6">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
                         {/* Profile Avatar */}
                         <div className="flex-shrink-0">
                             {profile.avatar_url ? (
                                 <img
                                     src={profile.avatar_url}
                                     alt={profile.username || "User"}
-                                    className="w-24 h-24 rounded-lg border-2 border-green-700 object-cover"
+                                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg border-2 border-green-700 object-cover"
                                 />
                             ) : (
-                                <div className="w-24 h-24 rounded-lg border-2 border-green-700 bg-secondary/20 flex items-center justify-center">
-                                    <span className="text-4xl text-green-500">
+                                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg border-2 border-green-700 bg-secondary/20 flex items-center justify-center">
+                                    <span className="text-3xl sm:text-4xl text-green-500">
                                         {(profile.username || "?")[0]?.toUpperCase()}
                                     </span>
                                 </div>
@@ -211,19 +209,19 @@ export default function UserProfile() {
                         </div>
 
                         {/* Profile Info */}
-                        <div className="flex-1">
-                            <div className="ascii-highlight text-2xl mb-2">
+                        <div className="flex-1 text-center sm:text-left w-full">
+                            <div className="ascii-highlight text-xl sm:text-2xl mb-2">
                                 @{profile.username || "anonymous"}
                             </div>
 
                             {profile.bio && (
-                                <div className="ascii-text mb-4">{profile.bio}</div>
+                                <div className="ascii-text mb-4 text-sm sm:text-base">{profile.bio}</div>
                             )}
 
-                            <div className="ascii-dim text-sm space-y-1">
+                            <div className="ascii-dim text-xs sm:text-sm space-y-1">
                                 {profile.location && <div>📍 {profile.location}</div>}
                                 {profile.website && (
-                                    <div>
+                                    <div className="break-all">
                                         🔗{" "}
                                         <a
                                             href={profile.website}
@@ -240,29 +238,29 @@ export default function UserProfile() {
                                 </div>
                             </div>
 
-                            {/* Stats */}
-                            <div className="flex gap-6 mt-4 pt-4 border-t border-ascii-border">
-                                <div>
-                                    <div className="ascii-highlight text-xl">{stats.posts}</div>
+                            {/* Stats - Grid layout for mobile */}
+                            <div className="grid grid-cols-4 gap-2 sm:flex sm:gap-6 mt-4 pt-4 border-t border-ascii-border">
+                                <div className="text-center sm:text-left">
+                                    <div className="ascii-highlight text-lg sm:text-xl">{stats.posts}</div>
                                     <div className="ascii-dim text-xs">Posts</div>
                                 </div>
-                                <div>
-                                    <div className="ascii-highlight text-xl">{stats.comments}</div>
+                                <div className="text-center sm:text-left">
+                                    <div className="ascii-highlight text-lg sm:text-xl">{stats.comments}</div>
                                     <div className="ascii-dim text-xs">Comments</div>
                                 </div>
-                                <div>
-                                    <div className="ascii-highlight text-xl">{followerCount}</div>
+                                <div className="text-center sm:text-left">
+                                    <div className="ascii-highlight text-lg sm:text-xl">{followerCount}</div>
                                     <div className="ascii-dim text-xs">Followers</div>
                                 </div>
-                                <div>
-                                    <div className="ascii-highlight text-xl">{followingCount}</div>
+                                <div className="text-center sm:text-left">
+                                    <div className="ascii-highlight text-lg sm:text-xl">{followingCount}</div>
                                     <div className="ascii-dim text-xs">Following</div>
                                 </div>
                             </div>
 
                             {/* Follow Button */}
                             {user && user.id !== profile.id && (
-                                <div className="mt-4">
+                                <div className="mt-4 flex justify-center sm:justify-start">
                                     {isFollowing ? (
                                         <button
                                             onClick={handleUnfollow}

@@ -27,10 +27,10 @@ const AsciiFooter = () => {
   };
 
   return (
-    <footer className="ascii-text mt-12 pt-6 border-t border-ascii-border">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+    <footer className="ascii-text mt-8 sm:mt-12 pt-4 sm:pt-6 border-t border-ascii-border">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-6">
         {/* System Info */}
-        <div className="ascii-box bg-secondary/20 p-4">
+        <div className="ascii-box bg-secondary/20 p-3 sm:p-4">
           <pre className="ascii-highlight text-xs mb-2">SYSTEM INFO</pre>
           <pre className="ascii-dim text-xs">
             {`Uptime: ${formatUptime(uptime)}
@@ -40,16 +40,16 @@ Status: ONLINE`}
         </div>
 
         {/* Navigation */}
-        <div className="ascii-box bg-secondary/20 p-4">
+        <div className="ascii-box bg-secondary/20 p-3 sm:p-4">
           <pre className="ascii-highlight text-xs mb-2">QUICK LINKS</pre>
-          <pre className="ascii-text text-xs">
-            {`[HOME]  [POSTS]  [ABOUT]
+          <pre className="ascii-text text-xs whitespace-pre-wrap break-words">
+            {`[HOME] [POSTS] [ABOUT]
 [LOGIN] [MANAGE] [CONTACT]`}
           </pre>
         </div>
 
-        {/* ASCII Art */}
-        <div className="ascii-box bg-secondary/20 p-4">
+        {/* ASCII Art - Hidden on mobile for cleaner look */}
+        <div className="ascii-box bg-secondary/20 p-3 sm:p-4 hidden md:block">
           <pre className="ascii-highlight text-xs">
             {`   ___
   /   \\
@@ -61,13 +61,19 @@ Status: ONLINE`}
         </div>
       </div>
 
-      <div className="text-center">
-        <pre className="ascii-dim text-xs">
+      {/* Footer bottom - simplified for mobile */}
+      <div className="text-center overflow-x-auto">
+        {/* Full ASCII box for larger screens */}
+        <pre className="ascii-dim text-xs hidden sm:block">
           {`╔════════════════════════════════════════════════════════════╗
 ║  SIN CITY © 2025 | Built with ♥ and ASCII                 ║
 ║  Press '?' for keyboard shortcuts | '~' for terminal      ║
 ╚════════════════════════════════════════════════════════════╝`}
         </pre>
+        {/* Simple footer for mobile */}
+        <div className="sm:hidden ascii-dim text-xs py-2">
+          SIN CITY © 2025 | Built with ♥ and ASCII
+        </div>
       </div>
     </footer>
   );
