@@ -150,17 +150,22 @@ export default function UserProfile() {
         if (!profile?.id) return;
         setLoadingList(true);
         try {
-            const { data } = await supabase
+            // First get follower IDs
+            const { data: followData } = await supabase
                 .from('follows')
-                .select(`
-                    follower_id,
-                    profiles!follows_follower_id_fkey (id, username, display_name, avatar_url)
-                `)
+                .select('follower_id')
                 .eq('following_id', profile.id);
 
-            if (data) {
-                const users = data.map((f: any) => f.profiles).filter(Boolean);
-                setFollowersList(users);
+            if (followData && followData.length > 0) {
+                const followerIds = followData.map(f => f.follower_id);
+                // Then fetch profiles for those IDs
+                const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('id, username, display_name, avatar_url')
+                    .in('id', followerIds);
+                setFollowersList(profiles || []);
+            } else {
+                setFollowersList([]);
             }
         } catch (err) {
             console.error('Error loading followers:', err);
@@ -174,17 +179,22 @@ export default function UserProfile() {
         if (!profile?.id) return;
         setLoadingList(true);
         try {
-            const { data } = await supabase
+            // First get following IDs
+            const { data: followData } = await supabase
                 .from('follows')
-                .select(`
-                    following_id,
-                    profiles!follows_following_id_fkey (id, username, display_name, avatar_url)
-                `)
+                .select('following_id')
                 .eq('follower_id', profile.id);
 
-            if (data) {
-                const users = data.map((f: any) => f.profiles).filter(Boolean);
-                setFollowingList(users);
+            if (followData && followData.length > 0) {
+                const followingIds = followData.map(f => f.following_id);
+                // Then fetch profiles for those IDs
+                const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('id, username, display_name, avatar_url')
+                    .in('id', followingIds);
+                setFollowingList(profiles || []);
+            } else {
+                setFollowingList([]);
             }
         } catch (err) {
             console.error('Error loading following:', err);
@@ -336,7 +346,7 @@ export default function UserProfile() {
 
                         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
                             {/* Profile Avatar */}
-                            <div className="flex-shrink-0 -mt-16 sm:-mt-20">
+                            <div className="flex-shrink-0 -mt-8 sm:-mt-12">
                                 {profile.avatar_url ? (
                                     <img
                                         src={profile.avatar_url}
