@@ -48,21 +48,38 @@ export function useSupabasePosts() {
                 const userIds = new Set((postsData || []).map((p: any) => p.user_id).filter(Boolean));
 
                 let profilesMap = new Map();
+                let profilesByDisplayName = new Map();
 
-                if (userIds.size > 0) {
-                    const { data: profilesData } = await supabase
-                        .from('profiles')
-                        .select('id, username, avatar_url')
-                        .in('id', Array.from(userIds));
+                // Fetch all profiles (we need display_name matching too)
+                const { data: allProfiles } = await supabase
+                    .from('profiles')
+                    .select('id, username, display_name, avatar_url');
 
-                    if (profilesData) {
-                        profilesData.forEach(p => profilesMap.set(p.id, p));
-                    }
+                if (allProfiles) {
+                    allProfiles.forEach(p => {
+                        // Map by ID
+                        profilesMap.set(p.id, p);
+                        // Map by display_name (lowercase for case-insensitive matching)
+                        if (p.display_name) {
+                            profilesByDisplayName.set(p.display_name.toLowerCase(), p);
+                        }
+                        // Also map by username
+                        if (p.username) {
+                            profilesByDisplayName.set(p.username.toLowerCase(), p);
+                        }
+                    });
                 }
 
                 // Map the data to include author_avatar and author_username
                 const postsWithAvatars = (postsData || []).map((post: any) => {
-                    const profile = profilesMap.get(post.user_id);
+                    // First try to find profile by user_id
+                    let profile = profilesMap.get(post.user_id);
+
+                    // If no profile found by user_id, try by author_name (display_name)
+                    if (!profile && post.author_name) {
+                        profile = profilesByDisplayName.get(post.author_name.toLowerCase());
+                    }
+
                     return {
                         ...post,
                         author_avatar: profile?.avatar_url || post.author_avatar || null,
