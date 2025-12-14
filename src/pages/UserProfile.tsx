@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useProfile, getUserStats } from "@/hooks/useProfile";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -16,6 +16,7 @@ interface FollowUser {
 
 export default function UserProfile() {
     const { username } = useParams<{ username: string }>();
+    const navigate = useNavigate();
     const { user } = useAuth();
     const [userId, setUserId] = useState<string | undefined>();
     const { profile, loading } = useProfile(userId);
@@ -99,6 +100,12 @@ export default function UserProfile() {
                 if (foundUser) {
                     console.log('[UserProfile] Found user:', foundUser);
                     setUserId(foundUser.id);
+
+                    // If we found the user via display name or alias and the username differs from URL,
+                    // update the URL to the canonical username
+                    if (foundUser.username && username && foundUser.username.toLowerCase() !== username.toLowerCase()) {
+                        navigate(`/user/${foundUser.username}`, { replace: true });
+                    }
                 } else {
                     console.log('[UserProfile] User not found for:', username);
                 }
