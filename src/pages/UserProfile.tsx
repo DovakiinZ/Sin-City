@@ -76,6 +76,26 @@ export default function UserProfile() {
                     foundUser = result.data && result.data.length > 0 ? result.data[0] : null;
                 }
 
+                // If still not found, try to find a post with this author_name and use its user_id
+                if (!foundUser) {
+                    const { data: postData } = await supabase
+                        .from('posts')
+                        .select('user_id')
+                        .ilike('author_name', username)
+                        .not('user_id', 'is', null)
+                        .limit(1);
+
+                    if (postData && postData.length > 0 && postData[0].user_id) {
+                        // Found a post with this author_name, now get the profile
+                        const { data: profileData } = await supabase
+                            .from('profiles')
+                            .select('id, username, display_name')
+                            .eq('id', postData[0].user_id)
+                            .single();
+                        foundUser = profileData || null;
+                    }
+                }
+
                 if (foundUser) {
                     console.log('[UserProfile] Found user:', foundUser);
                     setUserId(foundUser.id);
