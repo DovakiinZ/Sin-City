@@ -48,13 +48,14 @@ export default function UserProfile() {
 
             // Normalize username: decode URI components and trim
             const searchName = decodeURIComponent(rawUsername).trim();
-            console.log(`[UserProfile] Starting lookup for: "${rawUsername}" (normalized: "${searchName}")`);
+            // Normalize username: decode URI components and trim
+            const searchName = decodeURIComponent(rawUsername).trim();
 
             try {
                 let foundUser: any = null;
 
                 // 1. Exact Username Match
-                console.log('[UserProfile] Step 1: Trying exact username match...');
+                // 1. Exact Username Match
                 let { data: usernameMatch } = await supabase
                     .from('profiles')
                     .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username')
@@ -63,12 +64,11 @@ export default function UserProfile() {
 
                 if (usernameMatch && usernameMatch.length > 0) {
                     foundUser = usernameMatch[0];
-                    console.log('[UserProfile] Success! Found by username:', foundUser.username);
                 }
 
                 // 2. Exact Display Name Match
+                // 2. Exact Display Name Match
                 if (!foundUser) {
-                    console.log('[UserProfile] Step 2: Trying exact display_name match...');
                     const { data: displayMatch } = await supabase
                         .from('profiles')
                         .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username')
@@ -77,13 +77,12 @@ export default function UserProfile() {
 
                     if (displayMatch && displayMatch.length > 0) {
                         foundUser = displayMatch[0];
-                        console.log('[UserProfile] Success! Found by display_name:', foundUser.display_name);
                     }
                 }
 
                 // 3. Partial/Wildcard Display Name Match
+                // 3. Partial/Wildcard Display Name Match
                 if (!foundUser) {
-                    console.log('[UserProfile] Step 3: Trying wildcard display_name match...');
                     const { data: wildcardMatch } = await supabase
                         .from('profiles')
                         .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username')
@@ -92,13 +91,11 @@ export default function UserProfile() {
 
                     if (wildcardMatch && wildcardMatch.length > 0) {
                         foundUser = wildcardMatch[0];
-                        console.log('[UserProfile] Success! Found by partial display_name:', foundUser.display_name);
                     }
                 }
 
                 // 4. Post Author Lookup (Fallback)
                 if (!foundUser) {
-                    console.log('[UserProfile] Step 4: Trying post author lookup...');
                     // Try exact match on author_name first for speed
                     let { data: postData } = await supabase
                         .from('posts')
@@ -109,7 +106,6 @@ export default function UserProfile() {
 
                     // If no exact match, try wildcard on author_name
                     if (!postData || postData.length === 0) {
-                        console.log('[UserProfile] Step 4b: Trying wildcard post author lookup...');
                         const result = await supabase
                             .from('posts')
                             .select('user_id, author_name')
@@ -120,7 +116,6 @@ export default function UserProfile() {
                     }
 
                     if (postData && postData.length > 0 && postData[0].user_id) {
-                        console.log('[UserProfile] Found matching post author:', postData[0].author_name, 'UserID:', postData[0].user_id);
 
                         // Fetch the actual profile
                         const { data: profileData } = await supabase
@@ -131,7 +126,6 @@ export default function UserProfile() {
 
                         if (profileData) {
                             foundUser = profileData;
-                            console.log('[UserProfile] Success! Resolved profile via post author:', foundUser.username);
                         }
                     }
                 }
@@ -143,11 +137,8 @@ export default function UserProfile() {
 
                     // Redirect logic
                     if (foundUser.username && normalize(foundUser.username) !== normalize(searchName)) {
-                        console.log(`[UserProfile] Redirecting from ${searchName} to ${foundUser.username}`);
                         navigate(`/user/${foundUser.username}`, { replace: true });
                     }
-                } else {
-                    console.log('[UserProfile] FAILED: User not found after all attempts for:', searchName);
                 }
             } catch (err) {
                 console.error('[UserProfile] Critical error looking up user:', err);
