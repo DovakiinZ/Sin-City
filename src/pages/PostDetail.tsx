@@ -3,9 +3,10 @@ import { useEffect, useState, useRef } from "react";
 import matter from "gray-matter";
 import BackButton from "@/components/BackButton";
 import CommentList from "@/components/comments/CommentList";
-import ReactionBar from "@/components/reactions/ReactionBar";
+import ReactionButtons from "@/components/reactions/ReactionButtons";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import ShareButtons from "@/components/sharing/ShareButtons";
+import MediaCarousel from "@/components/media/MediaCarousel";
 import { listPostsFromDb } from "@/data/posts";
 import { estimateReadTime } from "@/lib/markdown";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +20,7 @@ type Post = {
     authorId?: string;
     tags?: string[];
     viewCount?: number;
+    attachments?: { url: string; type: 'image' | 'video' }[];
 };
 
 export default function PostDetail() {
@@ -46,7 +48,8 @@ export default function PostDetail() {
                         slug: dbPost.id || slug || "",
                         author: dbPost.author_name || undefined,
                         authorId: dbPost.user_id || undefined,
-                        viewCount: (dbPost.view_count || 0) + 1, // Show incremented count
+                        viewCount: (dbPost.view_count || 0) + 1,
+                        attachments: dbPost.attachments || undefined,
                     });
 
                     // Get the author's username for the profile link
@@ -170,13 +173,18 @@ export default function PostDetail() {
                         </div>
                     )}
 
+                    {/* Media Gallery - Carousel with arrows */}
+                    {post.attachments && post.attachments.length > 0 && (
+                        <MediaCarousel media={post.attachments as { url: string; type: 'image' | 'video' }[]} />
+                    )}
+
                     <div className="prose prose-invert max-w-none mb-8">
                         <div dangerouslySetInnerHTML={{ __html: post.content }} />
                     </div>
 
                     {/* Reactions & Bookmark */}
                     <div className="mt-8 pt-6 border-t border-ascii-border flex items-center justify-between flex-wrap gap-4">
-                        <ReactionBar postId={post.slug} />
+                        <ReactionButtons postId={post.slug} />
                         <BookmarkButton postId={post.slug} />
                     </div>
 

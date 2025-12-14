@@ -13,8 +13,11 @@ export interface Post {
     tags?: string[];
     draft?: boolean;
     hidden?: boolean;
+    is_pinned?: boolean;
     author_name?: string;
     author_email?: string;
+    author_avatar?: string;
+    author_username?: string;
     view_count?: number;
     created_at: string;
     updated_at: string;
@@ -31,14 +34,43 @@ export function useSupabasePosts() {
         const fetchPosts = async () => {
             try {
                 setLoading(true);
-                const { data, error: fetchError } = await supabase
+                // Fetch posts without the join first to avoid FK errors
+                const { data: postsData, error: fetchError } = await supabase
                     .from("posts")
                     .select("*")
                     .or("hidden.is.null,hidden.eq.false") // Filter out hidden posts
+                    .order("is_pinned", { ascending: false, nullsFirst: false })
                     .order("created_at", { ascending: false });
 
                 if (fetchError) throw fetchError;
-                setPosts(data || []);
+
+                // Collect user IDs to fetch profiles
+                const userIds = new Set((postsData || []).map((p: any) => p.user_id).filter(Boolean));
+
+                let profilesMap = new Map();
+
+                if (userIds.size > 0) {
+                    const { data: profilesData } = await supabase
+                        .from('profiles')
+                        .select('id, username, avatar_url')
+                        .in('id', Array.from(userIds));
+
+                    if (profilesData) {
+                        profilesData.forEach(p => profilesMap.set(p.id, p));
+                    }
+                }
+
+                // Map the data to include author_avatar and author_username
+                const postsWithAvatars = (postsData || []).map((post: any) => {
+                    const profile = profilesMap.get(post.user_id);
+                    return {
+                        ...post,
+                        author_avatar: profile?.avatar_url || post.author_avatar || null,
+                        author_username: profile?.username || null,
+                    };
+                });
+
+                setPosts(postsWithAvatars);
                 setError(null);
             } catch (err) {
                 console.error("Error fetching posts:", err);

@@ -7,10 +7,11 @@ import { estimateReadTime, extractHeadings, slugify, stripHtml, decodeHtml } fro
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import CommentList from "@/components/comments/CommentList";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
+import MediaCarousel from "@/components/media/MediaCarousel";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AdminBadge from "@/components/AdminBadge";
 import { supabase } from "@/lib/supabase";
-import { MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
+import { MessageSquare, ChevronDown, ChevronUp, Pin } from "lucide-react";
 
 type Post = {
   title: string;
@@ -18,13 +19,17 @@ type Post = {
   rawDate: string;
   content: string;
   slug: string;
+  postId: string; // actual database ID
   author?: string;
   authorAvatar?: string;
+  authorUsername?: string;
   userId?: string;
   isAdmin?: boolean;
   tags?: string[];
   draft?: boolean;
   viewCount?: number;
+  isPinned?: boolean;
+  attachments?: { url: string; type: 'image' | 'video' }[];
 };
 
 interface FrontMatterData {
@@ -61,6 +66,7 @@ export default function Posts() {
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [commentCounts, setCommentCounts] = useState<Map<string, number>>(new Map());
   const [visibleCount, setVisibleCount] = useState(5); // Pagination: show 5 posts at a time
+  const [currentUserIsAdmin, setCurrentUserIsAdmin] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -82,18 +88,42 @@ export default function Posts() {
     });
   };
 
+  const togglePin = async (postId: string, currentlyPinned: boolean) => {
+    if (!currentUserIsAdmin) return;
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({ is_pinned: !currentlyPinned })
+        .eq('id', postId);
+
+      if (error) throw error;
+
+      // Update local state
+      setPosts(prev => prev.map(p =>
+        p.postId === postId ? { ...p, isPinned: !currentlyPinned } : p
+      ).sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return a.date < b.date ? 1 : -1;
+      }));
+    } catch (error) {
+      console.error("[Posts] Error toggling pin:", error);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       setIsLoading(true);
       console.log("[Posts] Starting to fetch posts...");
 
-      // Fetch profiles for admin status AND avatars
+      // Fetch profiles for admin status AND avatars AND usernames
       let adminUserIds: Set<string> = new Set();
       let userAvatars: Map<string, string> = new Map();
+      let userUsernames: Map<string, string> = new Map();
       try {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, role, avatar_url');
+          .select('id, role, avatar_url, username');
         if (profiles) {
           profiles.forEach(p => {
             if (p.role === 'admin') {
@@ -102,7 +132,14 @@ export default function Posts() {
             if (p.avatar_url) {
               userAvatars.set(p.id, p.avatar_url);
             }
+            if (p.username) {
+              userUsernames.set(p.id, p.username);
+            }
           });
+          // Check if current user is admin
+          if (user?.id && adminUserIds.has(user.id)) {
+            setCurrentUserIsAdmin(true);
+          }
         }
       } catch (error) {
         console.error("[Posts] Error fetching profiles:", error);
@@ -131,12 +168,16 @@ export default function Posts() {
             rawDate: p.created_at || '',
             content: p.content || "",
             slug: p.slug || p.id || slugify(p.title),
+            postId: p.id, // actual database ID
             author: p.author_name || undefined,
             authorAvatar: p.author_avatar || (p.user_id ? userAvatars.get(p.user_id) : undefined) || undefined,
+            authorUsername: p.user_id ? userUsernames.get(p.user_id) : undefined,
             userId: p.user_id || undefined,
             isAdmin: p.user_id ? adminUserIds.has(p.user_id) : false,
             draft: p.draft || false,
             viewCount: p.view_count || 0,
+            isPinned: p.is_pinned || false,
+            attachments: p.attachments?.map(a => ({ url: a.url || '', type: a.type?.startsWith('video') ? 'video' as const : 'image' as const })).filter(a => a.url) || undefined,
           };
         });
       } catch (error) {
@@ -167,7 +208,14 @@ export default function Posts() {
 
       const showDrafts = import.meta.env.VITE_SHOW_DRAFTS === "true";
       const filtered = allPosts.filter((p) => (showDrafts ? true : !p.draft));
-      filtered.sort((a, b) => (a.date < b.date ? 1 : -1));
+      // Sort by pinned first, then by date
+      filtered.sort((a, b) => {
+        // Pinned posts first
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        // Then by date
+        return a.date < b.date ? 1 : -1;
+      });
       console.log(`[Posts] Total posts to display: ${filtered.length}`);
       setPosts(filtered);
       setIsLoading(false);
@@ -338,52 +386,85 @@ export default function Posts() {
                   data-post-box
                   ref={i === 0 ? (el) => { if (!selectedRef.current) selectedRef.current = el; } : undefined}
                 >
-                  <div className="text-lg">
-                    <Link
-                      to={`/post/${post.slug}`}
-                      className="hover:ascii-highlight"
-                    >
-                      +-- {post.title} --+
-                    </Link>
-                  </div>
-                  {(post.date || post.author) && (
-                    <div className="text-xs opacity-70 flex flex-wrap gap-3 items-center">
-                      <span>{post.date}</span>
-                      <span>{readMins} min read</span>
-                      <span>👁 {post.viewCount || 0}</span>
-                      {post.author && (
-                        <span className="flex items-center gap-2">
-                          {post.authorAvatar && (
-                            <Avatar className="w-8 h-8 inline-block">
-                              <AvatarImage src={post.authorAvatar} alt={post.author} />
-                              <AvatarFallback className="text-sm bg-green-900 text-green-400">
-                                {post.author.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                          by <span className="ascii-highlight">{post.author}</span>
-                          {post.isAdmin && <AdminBadge variant="glitch" />}
-                        </span>
-                      )}
-                      {post.tags && post.tags.length > 0 && (
-                        <span className="flex gap-1 items-center">
-                          {post.tags.map((t) => (
-                            <button
-                              key={t}
-                              onClick={() => {
-                                const p = new URLSearchParams(location.search);
-                                p.set("tag", t);
-                                navigate({ pathname: location.pathname, search: p.toString() });
-                              }}
-                              className="text-xs border border-green-600 px-1"
-                            >
-                              #{t}
-                            </button>
-                          ))}
-                        </span>
-                      )}
+                  {/* Pinned label like Twitter */}
+                  {post.isPinned && (
+                    <div className="flex items-center gap-2 text-xs text-yellow-400 -mb-1">
+                      <Pin className="w-3 h-3" />
+                      <span>Pinned post</span>
                     </div>
                   )}
+                  <div className="flex gap-4">
+                    {/* Author Avatar on Left with username below */}
+                    <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                      {post.authorAvatar ? (
+                        <Avatar className="w-14 h-14 border-2 border-green-600">
+                          <AvatarImage src={post.authorAvatar} alt={post.author || "Author"} />
+                          <AvatarFallback className="text-xl bg-green-900 text-green-400">
+                            {(post.author || "?")[0]?.toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <div className="w-14 h-14 rounded-full border-2 border-green-600 bg-green-900/30 flex items-center justify-center">
+                          <span className="text-2xl text-green-500">
+                            {(post.author || "?")[0]?.toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                      {post.author && (
+                        <Link to={`/user/${post.authorUsername || post.author}`} className="text-xs text-green-400 text-center hover:underline" onClick={(e) => e.stopPropagation()}>
+                          @{post.author}
+                        </Link>
+                      )}
+                      {post.isAdmin && <AdminBadge variant="glitch" />}
+                    </div>
+                    {/* Post Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-lg flex items-center gap-2">
+                        <Link
+                          to={`/post/${post.slug}`}
+                          className="hover:ascii-highlight"
+                        >
+                          +-- {post.title} --+
+                        </Link>
+                        {currentUserIsAdmin && (
+                          <button
+                            onClick={() => togglePin(post.postId, post.isPinned || false)}
+                            className={cn(
+                              "ml-2 p-1 border border-green-600 text-xs transition-colors",
+                              post.isPinned ? "bg-yellow-600 text-black" : "hover:bg-green-600/20"
+                            )}
+                            title={post.isPinned ? "Unpin post" : "Pin post"}
+                          >
+                            <Pin className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      {post.date && (
+                        <div className="text-xs opacity-70 flex flex-wrap gap-3 items-center mt-1">
+                          <span>{post.date}</span>
+                          <span>{readMins} min read</span>
+                          <span>👁 {post.viewCount || 0}</span>
+                          {post.tags && post.tags.length > 0 && (
+                            <span className="flex gap-1 items-center">
+                              {post.tags.map((t) => (
+                                <button
+                                  key={t}
+                                  onClick={() => {
+                                    const p = new URLSearchParams(location.search);
+                                    p.set("tag", t);
+                                    navigate({ pathname: location.pathname, search: p.toString() });
+                                  }}
+                                  className="text-xs border border-green-600 px-1"
+                                >
+                                  #{t}
+                                </button>
+                              ))}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   {headings.length > 0 && (
                     <div className="text-xs ascii-dim">
@@ -401,6 +482,18 @@ export default function Posts() {
                     className="prose prose-invert max-w-none text-green-400/80 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_p]:mb-2"
                     dangerouslySetInnerHTML={{ __html: decodeHtml(post.content) }}
                   />
+
+                  {/* Media Carousel - inline media preview */}
+                  {post.attachments && post.attachments.length > 0 && (
+                    <div onClick={(e) => e.preventDefault()}>
+                      <MediaCarousel media={post.attachments} />
+                    </div>
+                  )}
+
+                  {/* Reactions Section */}
+                  <div className="mt-4 pt-3 border-t border-green-600/30">
+                    <ReactionButtons postId={post.postId} />
+                  </div>
 
                   {/* Comments Section */}
                   <div className="mt-4 pt-3 border-t border-green-600/30">

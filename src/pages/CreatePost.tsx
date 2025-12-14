@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -14,7 +14,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { X } from "lucide-react";
+import { X, Plus, Image, Film, Loader2 } from "lucide-react";
 
 export default function CreatePost() {
     const { user } = useAuth();
@@ -29,6 +29,11 @@ export default function CreatePost() {
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [categories, setCategories] = useState<any[]>([]);
     const [availableTags, setAvailableTags] = useState<any[]>([]);
+
+    // Multi-media attachments state
+    const [mediaFiles, setMediaFiles] = useState<{ url: string; type: 'image' | 'video'; file?: File }[]>([]);
+    const [uploadingMedia, setUploadingMedia] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Load categories and tags
     useEffect(() => {
@@ -71,6 +76,86 @@ export default function CreatePost() {
         setSelectedTags(selectedTags.filter(t => t !== tag));
     };
 
+    // Handle media file upload
+    const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        // Limit to 4 media files like Twitter
+        if (mediaFiles.length + files.length > 4) {
+            toast({
+                title: "Too many files",
+                description: "You can only attach up to 4 media files",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setUploadingMedia(true);
+        try {
+            for (const file of Array.from(files)) {
+                // Validate file type
+                const isImage = file.type.startsWith('image/');
+                const isVideo = file.type.startsWith('video/');
+
+                if (!isImage && !isVideo) {
+                    toast({
+                        title: "Invalid file type",
+                        description: "Only images and videos are allowed",
+                        variant: "destructive",
+                    });
+                    continue;
+                }
+
+                // Upload to Supabase Storage
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+                const filePath = `post-media/${user?.id}/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('media')
+                    .upload(filePath, file);
+
+                if (uploadError) {
+                    console.error("Upload error:", uploadError);
+                    toast({
+                        title: "Upload failed",
+                        description: uploadError.message,
+                        variant: "destructive",
+                    });
+                    continue;
+                }
+
+                // Get public URL
+                const { data: { publicUrl } } = supabase.storage
+                    .from('media')
+                    .getPublicUrl(filePath);
+
+                setMediaFiles(prev => [...prev, {
+                    url: publicUrl,
+                    type: isImage ? 'image' : 'video',
+                    file
+                }]);
+            }
+        } catch (error) {
+            console.error("Error uploading media:", error);
+            toast({
+                title: "Upload error",
+                description: "Failed to upload media",
+                variant: "destructive",
+            });
+        } finally {
+            setUploadingMedia(false);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+
+    const removeMedia = (index: number) => {
+        setMediaFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
     const handleSave = async (draft: boolean = true) => {
         if (!title.trim()) {
             toast({
@@ -90,13 +175,14 @@ export default function CreatePost() {
             const postData = {
                 title,
                 content,
-                type: 'Text',
+                type: mediaFiles.length > 0 ? 'Image' : 'Text',
                 slug: uniqueSlug,
                 user_id: user?.id, // Required for RLS policies
                 author_name: user?.displayName || user?.email || "Admin",
                 author_email: user?.email,
                 author_avatar: user?.avatarDataUrl || null,
                 draft: draft,
+                attachments: mediaFiles.length > 0 ? mediaFiles.map(m => ({ url: m.url, type: m.type })) : null,
             };
 
             console.log('Saving post:', postData);
@@ -253,6 +339,76 @@ export default function CreatePost() {
                                 </div>
                             )}
                         </div>
+                    </div>
+
+                    {/* Media Upload Section */}
+                    <div>
+                        <label className="block ascii-dim text-xs mb-2">MEDIA ATTACHMENTS (up to 4)</label>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*,video/*"
+                            multiple
+                            onChange={handleMediaUpload}
+                            className="hidden"
+                        />
+
+                        {/* Media Preview Grid */}
+                        <div className={`grid gap-2 mb-3 ${mediaFiles.length === 1 ? 'grid-cols-1' :
+                            mediaFiles.length === 2 ? 'grid-cols-2' :
+                                mediaFiles.length >= 3 ? 'grid-cols-2' : ''
+                            }`}>
+                            {mediaFiles.map((media, index) => (
+                                <div key={index} className="relative aspect-video ascii-box overflow-hidden bg-black">
+                                    {media.type === 'image' ? (
+                                        <img
+                                            src={media.url}
+                                            alt={`Attachment ${index + 1}`}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <video
+                                            src={media.url}
+                                            className="w-full h-full object-cover"
+                                            controls
+                                        />
+                                    )}
+                                    <button
+                                        onClick={() => removeMedia(index)}
+                                        className="absolute top-2 right-2 bg-black/70 p-1 rounded hover:bg-red-600 transition-colors"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                    <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs flex items-center gap-1">
+                                        {media.type === 'image' ? <Image className="w-3 h-3" /> : <Film className="w-3 h-3" />}
+                                        {media.type}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Add Media Button */}
+                        {mediaFiles.length < 4 && (
+                            <Button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploadingMedia}
+                                variant="outline"
+                                className="ascii-box flex items-center gap-2"
+                            >
+                                {uploadingMedia ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Uploading...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Plus className="w-4 h-4" />
+                                        Add Photo/Video
+                                    </>
+                                )}
+                            </Button>
+                        )}
                     </div>
 
                     <div>

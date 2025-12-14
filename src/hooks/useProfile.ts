@@ -10,6 +10,8 @@ export interface UserProfile {
     ascii_avatar: string | null;
     website: string | null;
     location: string | null;
+    twitter_username: string | null;
+    instagram_username: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -50,6 +52,8 @@ export function useProfile(userId: string | undefined) {
                                 ascii_avatar: null,
                                 website: null,
                                 location: null,
+                                twitter_username: null,
+                                instagram_username: null,
                             });
                             // Fetch again
                             const { data: newProfile } = await supabase

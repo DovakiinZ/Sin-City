@@ -9,8 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { decodeHtml, stripHtml } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
+import ReactionButtons from "@/components/reactions/ReactionButtons";
+import MediaCarousel from "@/components/media/MediaCarousel";
+import { Pin } from "lucide-react";
 
-type Post = { title: string; date: string; content: string; slug: string; author?: string };
+type Post = {
+  title: string; date: string; content: string; slug: string; author?: string; authorAvatar?: string; isPinned?: boolean;
+  attachments?: { url: string; type: 'image' | 'video' }[];
+};
 
 interface FrontMatterData {
   title?: unknown;
@@ -74,15 +80,20 @@ const AsciiMainContent = () => {
           content: p.content || "",
           slug: p.id || p.title,
           author: p.author_name || undefined,
+          authorAvatar: p.author_avatar || undefined,
+          authorUsername: p.author_username || undefined,
           isHtml: true, // Database posts are HTML
+          isPinned: p.is_pinned || false,
+          attachments: p.attachments?.map(a => ({ url: a.url || '', type: (a.type?.startsWith('video') ? 'video' : 'image') as 'image' | 'video' })).filter(a => a.url) || undefined,
         };
       }),
     ...markdownPosts.map(p => ({ ...p, rawDate: p.date, isHtml: false }))
   ];
 
-  // Sort posts based on sortBy
+  // Sort posts based on sortBy, but always pinned first
   const sortedPosts = useMemo(() => {
     const result = [...allPosts];
+    // First sort by the selected criteria
     switch (sortBy) {
       case "recent":
         result.sort((a, b) => ((a as any).rawDate < (b as any).rawDate ? 1 : -1));
@@ -94,7 +105,12 @@ const AsciiMainContent = () => {
         result.sort((a, b) => a.title.localeCompare(b.title));
         break;
     }
-    return result;
+    // Then move pinned posts to top while preserving their relative order
+    return result.sort((a, b) => {
+      if ((a as any).isPinned && !(b as any).isPinned) return -1;
+      if (!(a as any).isPinned && (b as any).isPinned) return 1;
+      return 0;
+    });
   }, [allPosts, sortBy]);
 
 
@@ -175,26 +191,77 @@ const AsciiMainContent = () => {
           <div className="ascii-dim">No posts yet. Add markdown files to /public/posts or create a post above.</div>
         ) : (
           sortedPosts.slice(0, visibleCount).map((post) => (
-            <article key={post.slug} className="border border-green-600 bg-black/60 p-4">
-              <h3 className="ascii-highlight text-xl mb-1">{post.title}</h3>
-              <div className="ascii-dim text-xs mb-3">
-                {post.date}
-                {post.author && <> • by <span className="ascii-highlight">{post.author}</span></>}
-              </div>
-              <div className="prose prose-invert max-w-none text-green-400/80">
-                {(post as any).isHtml ? (
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: decodeHtml(post.content.length > 400
-                        ? stripHtml(post.content).slice(0, 400) + '...'
-                        : post.content)
-                    }}
-                  />
-                ) : (
-                  <div>{post.content.length > 400 ? post.content.slice(0, 400) + '...' : post.content}</div>
+            <Link key={post.slug} to={`/post/${post.slug}`} className="block">
+              <article className="border border-green-600 bg-black/60 p-4 hover:border-green-400 hover:bg-black/80 transition-colors cursor-pointer">
+                {/* Pinned label like Twitter */}
+                {(post as any).isPinned && (
+                  <div className="flex items-center gap-2 text-xs text-yellow-400 mb-2">
+                    <Pin className="w-3 h-3" />
+                    <span>Pinned post</span>
+                  </div>
                 )}
-              </div>
-            </article>
+                <div className="flex gap-4">
+                  {/* Author Avatar on Left with username below */}
+                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                    {(post as any).authorAvatar ? (
+                      <img
+                        src={(post as any).authorAvatar}
+                        alt={post.author || "Author"}
+                        className="w-14 h-14 rounded-lg border-2 border-green-600 object-cover"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-lg border-2 border-green-600 bg-green-900/30 flex items-center justify-center">
+                        <span className="text-2xl text-green-500">
+                          {(post.author || "?")[0]?.toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    {post.author && (
+                      <Link
+                        to={`/user/${(post as any).authorUsername || post.author}`}
+                        className="text-xs text-green-400 text-center hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        @{post.author}
+                      </Link>
+                    )}
+                  </div>
+                  {/* Post Content */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="ascii-highlight text-xl mb-1">
+                      {post.title}
+                    </h3>
+                    <div className="ascii-dim text-xs mb-3">
+                      {post.date}
+                    </div>
+                    <div className="prose prose-invert max-w-none text-green-400/80">
+                      {(post as any).isHtml ? (
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: decodeHtml(post.content.length > 400
+                              ? stripHtml(post.content).slice(0, 400) + '...'
+                              : post.content)
+                          }}
+                        />
+                      ) : (
+                        <div>{post.content.length > 400 ? post.content.slice(0, 400) + '...' : post.content}</div>
+                      )}
+                    </div>
+
+                    {/* Media Carousel - inline media preview */}
+                    {(post as any).attachments && (post as any).attachments.length > 0 && (
+                      <div className="mt-4" onClick={(e) => e.preventDefault()}>
+                        <MediaCarousel media={(post as any).attachments} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Reactions */}
+                <div className="mt-3 pt-2 border-t border-green-600/30" onClick={(e) => e.preventDefault()}>
+                  <ReactionButtons postId={post.slug} />
+                </div>
+              </article>
+            </Link>
           ))
         )}
 
