@@ -79,14 +79,16 @@ export default function UserProfile() {
 
                 // If still not found, try to find a post with this author_name and use its user_id
                 if (!foundUser) {
+                    console.log('[UserProfile] Trying fallback: search posts by author_name like', `%${username}%`);
                     const { data: postData } = await supabase
                         .from('posts')
-                        .select('user_id')
-                        .ilike('author_name', username)
+                        .select('user_id, author_name')
+                        .ilike('author_name', `%${username}%`)
                         .not('user_id', 'is', null)
                         .limit(1);
 
                     if (postData && postData.length > 0 && postData[0].user_id) {
+                        console.log('[UserProfile] Found matching post:', postData[0]);
                         // Found a post with this author_name, now get the profile
                         const { data: profileData } = await supabase
                             .from('profiles')
