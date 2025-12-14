@@ -5,9 +5,11 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 export interface UserProfile {
     id: string;
     username: string | null;
+    display_name: string | null;
     bio: string | null;
     avatar_url: string | null;
     ascii_avatar: string | null;
+    header_url: string | null;
     website: string | null;
     location: string | null;
     twitter_username: string | null;

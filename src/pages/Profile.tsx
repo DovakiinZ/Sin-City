@@ -5,7 +5,7 @@ import AvatarUploader from "@/components/AvatarUploader";
 import BackButton from "@/components/BackButton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { Shield, Phone, Twitter, Instagram } from "lucide-react";
+import { Shield, Phone, Twitter, Instagram, ImagePlus } from "lucide-react";
 
 export default function Profile() {
   const { user, updateProfile, logout, updatePassword } = useAuth();
@@ -19,6 +19,8 @@ export default function Profile() {
   // Social media state
   const [twitterUsername, setTwitterUsername] = useState("");
   const [instagramUsername, setInstagramUsername] = useState("");
+  const [headerUrl, setHeaderUrl] = useState<string | undefined>(undefined);
+  const [uploadingHeader, setUploadingHeader] = useState(false);
 
   // Username change state
   const [username, setUsername] = useState("");
@@ -63,6 +65,7 @@ export default function Profile() {
           setTwitterUsername(data.twitter_username || "");
           setInstagramUsername(data.instagram_username || "");
           setDisplayName(data.display_name || "");
+          setHeaderUrl(data.header_url || undefined);
         } else if (error) {
           console.error("[Profile] Error fetching profile:", error);
         }
@@ -113,6 +116,7 @@ export default function Profile() {
               display_name: displayName || null,
               twitter_username: twitterUsername || null,
               instagram_username: instagramUsername || null,
+              header_url: headerUrl || null,
             }, { onConflict: 'id' });
 
           if (error) {
@@ -382,6 +386,50 @@ export default function Profile() {
           <div>
             <div className="ascii-dim text-xs mb-1">Profile picture</div>
             <AvatarUploader value={avatar} onChange={setAvatar} />
+          </div>
+          <div>
+            <div className="ascii-dim text-xs mb-1">Profile Header Banner</div>
+            {headerUrl ? (
+              <div className="relative">
+                <img src={headerUrl} alt="Header" className="w-full h-24 object-cover border border-green-700 rounded" />
+                <button
+                  type="button"
+                  onClick={() => setHeaderUrl(undefined)}
+                  className="absolute top-1 right-1 bg-black/70 text-red-400 px-2 py-1 text-xs border border-red-700 hover:bg-red-900/30"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-24 border border-green-700 border-dashed cursor-pointer hover:bg-green-900/10">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploadingHeader}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !user?.id) return;
+                    setUploadingHeader(true);
+                    try {
+                      const fileExt = file.name.split('.').pop();
+                      const fileName = `${Date.now()}.${fileExt}`;
+                      const filePath = `headers/${user.id}/${fileName}`;
+                      const { error: uploadError } = await supabase.storage.from('media').upload(filePath, file);
+                      if (uploadError) throw uploadError;
+                      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
+                      setHeaderUrl(publicUrl);
+                    } catch (err) {
+                      console.error('Header upload error:', err);
+                    } finally {
+                      setUploadingHeader(false);
+                    }
+                  }}
+                />
+                <ImagePlus className="w-6 h-6 text-green-600 mb-1" />
+                <span className="text-xs text-green-600">{uploadingHeader ? 'Uploading...' : 'Click to upload header'}</span>
+              </label>
+            )}
           </div>
           <label className="block">
             <div className="ascii-dim text-xs mb-1">Bio</div>
