@@ -6,9 +6,11 @@ import BackButton from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Shield, Users, FileText, Music, Eye, EyeOff } from "lucide-react";
+import { Trash2, Shield, Users, FileText, Music, Eye, EyeOff, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import MusicManager from "@/components/admin/MusicManager";
 import UserManagement from "@/components/admin/UserManagement";
+
+const POSTS_PER_PAGE = 20;
 
 export default function AdminDashboard() {
     const { user } = useAuth();
@@ -19,6 +21,10 @@ export default function AdminDashboard() {
     const [stats, setStats] = useState({ posts: 0, users: 0, comments: 0 });
     const [users, setUsers] = useState<any[]>([]);
     const [posts, setPosts] = useState<any[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPosts, setTotalPosts] = useState(0);
+
+    const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
 
     useEffect(() => {
         // TEMPORARY: Skip all checks and just load the admin panel
@@ -26,6 +32,10 @@ export default function AdminDashboard() {
         setLoading(false);
         loadStats();
     }, []);
+
+    useEffect(() => {
+        loadPosts();
+    }, [currentPage]);
 
     const loadStats = async () => {
         try {
@@ -38,6 +48,7 @@ export default function AdminDashboard() {
                 users: usersCount || 0,
                 comments: commentsCount || 0
             });
+            setTotalPosts(postsCount || 0);
 
             // Try to use database function for emails, fallback to profiles only
             let usersData = null;
@@ -53,12 +64,24 @@ export default function AdminDashboard() {
             }
             if (usersData) setUsers(usersData);
 
-            const { data: postsData } = await supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(20);
-            if (postsData) setPosts(postsData);
+            loadPosts();
         } catch (error) {
             console.error('Error loading stats:', error);
             // Continue with empty data - don't crash
         }
+    };
+
+    const loadPosts = async () => {
+        const from = (currentPage - 1) * POSTS_PER_PAGE;
+        const to = from + POSTS_PER_PAGE - 1;
+
+        const { data: postsData } = await supabase
+            .from("posts")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .range(from, to);
+
+        if (postsData) setPosts(postsData);
     };
 
     const handleDeletePost = async (id: string) => {
@@ -83,7 +106,39 @@ export default function AdminDashboard() {
             toast({ title: "Error", description: "Failed to update post visibility", variant: "destructive" });
         } else {
             toast({ title: "Success", description: currentHidden ? "Post is now visible" : "Post is now hidden" });
-            loadStats();
+            loadPosts();
+        }
+    };
+
+    const handleHideAll = async () => {
+        if (!confirm("Are you sure you want to hide ALL posts? This will hide all visible posts.")) return;
+
+        const { error } = await supabase
+            .from("posts")
+            .update({ hidden: true })
+            .eq("hidden", false);
+
+        if (error) {
+            toast({ title: "Error", description: "Failed to hide all posts", variant: "destructive" });
+        } else {
+            toast({ title: "Success", description: "All posts are now hidden" });
+            loadPosts();
+        }
+    };
+
+    const handleShowAll = async () => {
+        if (!confirm("Are you sure you want to show ALL posts? This will make all hidden posts visible.")) return;
+
+        const { error } = await supabase
+            .from("posts")
+            .update({ hidden: false })
+            .eq("hidden", true);
+
+        if (error) {
+            toast({ title: "Error", description: "Failed to show all posts", variant: "destructive" });
+        } else {
+            toast({ title: "Success", description: "All posts are now visible" });
+            loadPosts();
         }
     };
 
@@ -133,6 +188,26 @@ export default function AdminDashboard() {
 
                     <TabsContent value="posts" className="mt-4">
                         <div className="ascii-box p-4 overflow-x-auto">
+                            {/* Bulk Actions */}
+                            <div className="flex gap-2 mb-4">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleHideAll}
+                                    className="ascii-box text-yellow-400 hover:bg-yellow-900/20"
+                                >
+                                    <EyeOff className="w-4 h-4 mr-2" /> Hide All
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleShowAll}
+                                    className="ascii-box text-green-400 hover:bg-green-900/20"
+                                >
+                                    <Eye className="w-4 h-4 mr-2" /> Show All
+                                </Button>
+                            </div>
+
                             <table className="w-full text-sm text-left">
                                 <thead className="ascii-dim border-b border-ascii-border">
                                     <tr>
@@ -179,6 +254,52 @@ export default function AdminDashboard() {
                                     ))}
                                 </tbody>
                             </table>
+
+                            {/* Pagination Controls */}
+                            <div className="flex items-center justify-between mt-4 pt-4 border-t border-ascii-border">
+                                <div className="ascii-dim text-xs">
+                                    Page {currentPage} of {totalPages} ({totalPosts} posts)
+                                </div>
+                                <div className="flex gap-1">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(1)}
+                                        disabled={currentPage === 1}
+                                        className="ascii-box"
+                                    >
+                                        <ChevronsLeft className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className="ascii-box"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                    </Button>
+                                    <span className="ascii-box px-3 py-1 text-sm">{currentPage}</span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="ascii-box"
+                                    >
+                                        <ChevronRight className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(totalPages)}
+                                        disabled={currentPage === totalPages}
+                                        className="ascii-box"
+                                    >
+                                        <ChevronsRight className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     </TabsContent>
 
@@ -221,3 +342,4 @@ export default function AdminDashboard() {
         </div>
     );
 }
+
