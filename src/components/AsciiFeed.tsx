@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { decodeHtml, stripHtml } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
-import MediaCarousel from "@/components/media/CompactMediaCarousel";
+import MediaCarousel from "@/components/media/PostMediaCarousel";
 import QuickActions from "@/components/QuickActions";
 import { Pin, Paperclip, Eye } from "lucide-react";
 

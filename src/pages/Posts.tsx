@@ -7,7 +7,7 @@ import { estimateReadTime, extractHeadings, slugify, stripHtml, decodeHtml } fro
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import CommentList from "@/components/comments/CommentList";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
-import MediaCarousel from "@/components/media/CompactMediaCarousel";
+import MediaCarousel from "@/components/media/PostMediaCarousel";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AdminBadge from "@/components/AdminBadge";
 import { supabase } from "@/lib/supabase";

@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { convertToAscii } from "@/lib/ascii";
 
 interface TerminalCommandProps {
     onClose: () => void;
@@ -10,11 +11,13 @@ const TerminalCommand = ({ onClose }: TerminalCommandProps) => {
     const { user } = useAuth();
     const [input, setInput] = useState("");
     const [isAdmin, setIsAdmin] = useState(false);
+    const [textColor, setTextColor] = useState<"green" | "white" | "red">("green");
     const [history, setHistory] = useState<string[]>([
         "SIN CITY Terminal v2.0",
         "Type 'help' for available commands",
         "",
     ]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         checkAdminStatus();
@@ -41,10 +44,42 @@ const TerminalCommand = ({ onClose }: TerminalCommandProps) => {
         }
     };
 
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setHistory(prev => [...prev, `Loading ${file.name}...`]);
+
+        try {
+            const { ascii_text } = await convertToAscii(file, {
+                width: 60,
+                contrast: 1.2,
+                gamma: 1.0,
+                charset: 'jp2a',
+                invert: false
+            });
+
+            // Add the ASCII art to history
+            setHistory(prev => [...prev, ascii_text, ""]);
+        } catch (error) {
+            setHistory(prev => [...prev, "Error converting image to ASCII.", ""]);
+        }
+
+        // Reset input
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const getColorClass = (baseClass: string) => {
+        if (textColor === 'white') return baseClass.replace('ascii-text', 'text-white').replace('ascii-highlight', 'text-gray-300');
+        if (textColor === 'red') return baseClass.replace('ascii-text', 'text-red-500').replace('ascii-highlight', 'text-red-300');
+        return baseClass; // Default green
+    };
+
     const commands: Record<string, (args?: string[]) => Promise<string> | string> = {
         help: () => {
             let helpText = `Available commands:
   help          - Show this help message
+  color <c>     - Change color (green, white, red)
   about         - About Sin City
   clear         - Clear terminal
   
@@ -59,6 +94,7 @@ const TerminalCommand = ({ onClose }: TerminalCommandProps) => {
   trending      - Show trending posts
   tags          - List all tags
   categories    - List categories
+  jp2a          - Convert photo to ASCII (opens file picker)
   
  Social:
   whoami        - Display current user
@@ -90,6 +126,16 @@ Admin Commands (sudo):
             }
 
             return helpText;
+        },
+
+        color: (args?: string[]) => {
+            if (!args || args.length === 0) return "Usage: color <green|white|red>";
+            const color = args[0].toLowerCase();
+            if (color === 'green' || color === 'white' || color === 'red') {
+                setTextColor(color as any);
+                return `Terminal color set to ${color}`;
+            }
+            return "Invalid color. Available: green, white, red";
         },
 
         about: () => `SIN CITY - ASCII Blog Platform
@@ -140,6 +186,14 @@ Built with: React + TypeScript + Vite`,
         exit: () => {
             onClose();
             return "Closing terminal...";
+        },
+
+        jp2a: () => {
+            if (fileInputRef.current) {
+                fileInputRef.current.click();
+                return "Select an image to convert...";
+            }
+            return "Error: File input not found.";
         },
 
         // Navigation commands
@@ -576,11 +630,13 @@ Engine: React + Vite`;
             }
         } else {
             // Regular command
-            const cmdLower = cmd.toLowerCase();
+            const parts = cmd.split(' ');
+            const commandName = parts[0].toLowerCase();
+            const args = parts.slice(1);
             let output: string;
 
-            if (commands[cmdLower]) {
-                const result = commands[cmdLower]();
+            if (commands[commandName]) {
+                const result = commands[commandName](args);
                 output = result instanceof Promise ? await result : result;
             } else {
                 output = `Command not found: ${cmd}. Type 'help' for available commands.`;
@@ -594,15 +650,23 @@ Engine: React + Vite`;
 
     return (
         <div className="fixed inset-0 bg-background/95 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-3xl ascii-box bg-background p-4">
+            <div className={`w-full max-w-3xl ascii-box bg-background p-4 ${textColor === 'white' ? 'border-white text-white' : textColor === 'red' ? 'border-red-600 text-red-500' : ''}`}>
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-2">
-                        <pre className="ascii-highlight">TERMINAL</pre>
+                        <pre className={getColorClass("ascii-highlight")}>TERMINAL</pre>
                         {isAdmin && <span className="text-xs text-yellow-500">[ADMIN]</span>}
+                        {/* Hidden file input for commands like jp2a */}
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleFileSelect}
+                        />
                     </div>
                     <button
                         onClick={onClose}
-                        className="ascii-text hover:ascii-highlight"
+                        className={`${getColorClass("ascii-text")} hover:opacity-80`}
                     >
                         [X]
                     </button>
@@ -610,18 +674,18 @@ Engine: React + Vite`;
 
                 <div className="bg-black/50 p-4 h-96 overflow-y-auto mb-4 font-mono text-sm">
                     {history.map((line, i) => (
-                        <pre key={i} className={line.startsWith("$") ? "ascii-highlight" : "ascii-text"}>
+                        <pre key={i} className={line.startsWith("$") ? getColorClass("ascii-highlight") : getColorClass("ascii-text")}>
                             {line}
                         </pre>
                     ))}
                     <div className="flex items-center">
-                        <span className="ascii-highlight mr-2">$</span>
+                        <span className={`${getColorClass("ascii-highlight")} mr-2`}>$</span>
                         <form onSubmit={handleSubmit} className="flex-1">
                             <input
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                className="bg-transparent border-none outline-none ascii-text w-full typing-cursor"
+                                className={`bg-transparent border-none outline-none w-full typing-cursor ${getColorClass("ascii-text")}`}
                                 autoFocus
                                 placeholder="Type a command..."
                             />
@@ -629,7 +693,7 @@ Engine: React + Vite`;
                     </div>
                 </div>
 
-                <pre className="ascii-dim text-xs">
+                <pre className={`${getColorClass("ascii-dim")} text-xs`}>
                     {`Press 'Esc' to close | Type 'help' for commands`}
                 </pre>
             </div>
