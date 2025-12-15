@@ -17,28 +17,45 @@ export function useComments(postId: string) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const fetchComments = async () => {
+        try {
+            setLoading(true);
+            const { data, error: fetchError } = await supabase
+                .from("comments")
+                .select("*")
+                .eq("post_id", postId)
+                .order("created_at", { ascending: true });
+
+            if (fetchError) throw fetchError;
+            setComments(data || []);
+            setError(null);
+        } catch (err) {
+            console.error("Error fetching comments:", err);
+            setError(err instanceof Error ? err.message : "Failed to fetch comments");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Optimistic add - shows comment immediately before API responds
+    const optimisticAddComment = (comment: Omit<Comment, "id" | "created_at" | "updated_at">) => {
+        const optimisticComment: Comment = {
+            ...comment,
+            id: `temp-${Date.now()}`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+        setComments(current => [...current, optimisticComment]);
+        return optimisticComment.id;
+    };
+
+    // Remove optimistic comment (on error)
+    const removeOptimisticComment = (tempId: string) => {
+        setComments(current => current.filter(c => c.id !== tempId));
+    };
+
     useEffect(() => {
         let channel: RealtimeChannel;
-
-        const fetchComments = async () => {
-            try {
-                setLoading(true);
-                const { data, error: fetchError } = await supabase
-                    .from("comments")
-                    .select("*")
-                    .eq("post_id", postId)
-                    .order("created_at", { ascending: true });
-
-                if (fetchError) throw fetchError;
-                setComments(data || []);
-                setError(null);
-            } catch (err) {
-                console.error("Error fetching comments:", err);
-                setError(err instanceof Error ? err.message : "Failed to fetch comments");
-            } finally {
-                setLoading(false);
-            }
-        };
 
         const setupRealtimeSubscription = () => {
             channel = supabase
@@ -52,7 +69,23 @@ export function useComments(postId: string) {
                         filter: `post_id=eq.${postId}`,
                     },
                     (payload) => {
-                        setComments((current) => [...current, payload.new as Comment]);
+                        setComments((current) => {
+                            // Check if this is replacing an optimistic comment
+                            const hasTempVersion = current.some(c =>
+                                c.id.startsWith('temp-') &&
+                                c.user_id === payload.new.user_id &&
+                                c.content === payload.new.content
+                            );
+                            if (hasTempVersion) {
+                                // Replace temp with real
+                                return current.map(c =>
+                                    c.id.startsWith('temp-') && c.user_id === payload.new.user_id && c.content === payload.new.content
+                                        ? payload.new as Comment
+                                        : c
+                                );
+                            }
+                            return [...current, payload.new as Comment];
+                        });
                     }
                 )
                 .on(
@@ -98,7 +131,7 @@ export function useComments(postId: string) {
         };
     }, [postId]);
 
-    return { comments, loading, error };
+    return { comments, loading, error, optimisticAddComment, removeOptimisticComment, refetch: fetchComments };
 }
 
 export async function createComment(comment: Omit<Comment, "id" | "created_at" | "updated_at">) {

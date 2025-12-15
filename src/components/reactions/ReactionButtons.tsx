@@ -17,7 +17,7 @@ interface LikerInfo {
 
 export default function ReactionButtons({ postId }: ReactionButtonsProps) {
     const { user } = useAuth();
-    const { reactions, counts, loading } = useReactions(postId);
+    const { reactions, counts, loading, optimisticToggle } = useReactions(postId);
     const { toast } = useToast();
     const [toggling, setToggling] = useState(false);
     const [likers, setLikers] = useState<LikerInfo[]>([]);
@@ -69,7 +69,10 @@ export default function ReactionButtons({ postId }: ReactionButtonsProps) {
             return;
         }
 
+        // Optimistic update - UI updates immediately
+        optimisticToggle(user.id, "like");
         setToggling(true);
+
         try {
             const result = await toggleReaction(postId, user.id, "like");
 
@@ -79,6 +82,8 @@ export default function ReactionButtons({ postId }: ReactionButtonsProps) {
             });
         } catch (error) {
             console.error("Error toggling like:", error);
+            // Revert optimistic update on error
+            optimisticToggle(user.id, "like");
             toast({
                 title: "Error",
                 description: "Failed to update like",

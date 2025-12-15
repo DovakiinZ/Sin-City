@@ -21,41 +21,67 @@ export function useReactions(postId: string) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const updateCounts = (reactionList: Reaction[]) => {
+        const countMap = new Map<string, number>();
+        reactionList.forEach((r) => {
+            countMap.set(r.reaction_type, (countMap.get(r.reaction_type) || 0) + 1);
+        });
+
+        const countsArray: ReactionCount[] = Array.from(countMap.entries()).map(
+            ([reaction_type, count]) => ({ reaction_type, count })
+        );
+        setCounts(countsArray);
+    };
+
+    const fetchReactions = async () => {
+        try {
+            setLoading(true);
+            const { data, error: fetchError } = await supabase
+                .from("reactions")
+                .select("*")
+                .eq("post_id", postId);
+
+            if (fetchError) throw fetchError;
+
+            setReactions(data || []);
+            updateCounts(data || []);
+            setError(null);
+        } catch (err) {
+            console.error("Error fetching reactions:", err);
+            setError(err instanceof Error ? err.message : "Failed to fetch reactions");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Optimistic toggle - immediately updates UI
+    const optimisticToggle = (userId: string, reactionType: "like" = "like") => {
+        const existingIndex = reactions.findIndex(
+            (r) => r.user_id === userId && r.reaction_type === reactionType
+        );
+
+        if (existingIndex >= 0) {
+            // Remove optimistically
+            const updated = reactions.filter((_, i) => i !== existingIndex);
+            setReactions(updated);
+            updateCounts(updated);
+        } else {
+            // Add optimistically
+            const optimisticReaction: Reaction = {
+                id: `temp-${Date.now()}`,
+                post_id: postId,
+                user_id: userId,
+                reaction_type: reactionType,
+                created_at: new Date().toISOString(),
+            };
+            const updated = [...reactions, optimisticReaction];
+            setReactions(updated);
+            updateCounts(updated);
+        }
+    };
+
     useEffect(() => {
         let channel: RealtimeChannel;
-
-        const fetchReactions = async () => {
-            try {
-                setLoading(true);
-                const { data, error: fetchError } = await supabase
-                    .from("reactions")
-                    .select("*")
-                    .eq("post_id", postId);
-
-                if (fetchError) throw fetchError;
-
-                setReactions(data || []);
-                updateCounts(data || []);
-                setError(null);
-            } catch (err) {
-                console.error("Error fetching reactions:", err);
-                setError(err instanceof Error ? err.message : "Failed to fetch reactions");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        const updateCounts = (reactionList: Reaction[]) => {
-            const countMap = new Map<string, number>();
-            reactionList.forEach((r) => {
-                countMap.set(r.reaction_type, (countMap.get(r.reaction_type) || 0) + 1);
-            });
-
-            const countsArray: ReactionCount[] = Array.from(countMap.entries()).map(
-                ([reaction_type, count]) => ({ reaction_type, count })
-            );
-            setCounts(countsArray);
-        };
 
         const setupRealtimeSubscription = () => {
             channel = supabase
@@ -70,6 +96,21 @@ export function useReactions(postId: string) {
                     },
                     (payload) => {
                         setReactions((current) => {
+                            // Avoid duplicates from optimistic updates
+                            const exists = current.some(r =>
+                                r.user_id === payload.new.user_id &&
+                                r.reaction_type === payload.new.reaction_type
+                            );
+                            if (exists) {
+                                // Replace temp with real
+                                const updated = current.map(r =>
+                                    r.user_id === payload.new.user_id && r.reaction_type === payload.new.reaction_type
+                                        ? payload.new as Reaction
+                                        : r
+                                );
+                                updateCounts(updated);
+                                return updated;
+                            }
                             const updated = [...current, payload.new as Reaction];
                             updateCounts(updated);
                             return updated;
@@ -105,7 +146,7 @@ export function useReactions(postId: string) {
         };
     }, [postId]);
 
-    return { reactions, counts, loading, error };
+    return { reactions, counts, loading, error, optimisticToggle, refetch: fetchReactions };
 }
 
 export async function toggleReaction(
