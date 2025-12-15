@@ -133,7 +133,7 @@ Built with: React + TypeScript + Vite`,
             }
         },
 
-        whoami: () => user?.displayName || user?.email?.split('@')[0] || "guest",
+        whoami: () => user?.username || user?.email?.split('@')[0] || "guest",
 
         date: () => new Date().toString(),
 

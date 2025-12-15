@@ -7,7 +7,7 @@ import { listPostsFromDb, type DbPost } from "@/data/posts";
 
 export default function Bookmarks() {
     const { user } = useAuth();
-    const { bookmarks, loading } = useBookmarks(user?.uid);
+    const { bookmarks, loading } = useBookmarks(user?.id);
     const [posts, setPosts] = useState<DbPost[]>([]);
     const [loadingPosts, setLoadingPosts] = useState(true);
 

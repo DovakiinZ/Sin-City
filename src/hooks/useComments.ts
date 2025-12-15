@@ -122,7 +122,7 @@ export async function createComment(comment: Omit<Comment, "id" | "created_at" |
         // Get commenter's profile to ensure we have the username
         const { data: commenterProfile } = await supabase
             .from("profiles")
-            .select("username, display_name")
+            .select("username") // Removed display_name
             .eq("id", comment.user_id)
             .single();
 

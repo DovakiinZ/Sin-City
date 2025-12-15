@@ -148,7 +148,7 @@ export function toDbPost(input: {
       attachments && attachments.length > 0
         ? attachments.map<AttachmentMetadata>((f) => ({ name: f.name, size: f.size, type: f.type }))
         : null,
-    author_name: user?.displayName || null,
+    author_name: user?.username || null,
     author_email: user?.email || null,
     author_avatar: user?.avatarDataUrl || null,
   } satisfies DbPost;

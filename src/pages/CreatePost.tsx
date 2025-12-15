@@ -178,7 +178,7 @@ export default function CreatePost() {
                 type: mediaFiles.length > 0 ? 'Image' : 'Text',
                 slug: uniqueSlug,
                 user_id: user?.id || null, // Allow null for anonymous posts
-                author_name: user?.displayName || user?.email || "Anonymous",
+                author_name: user?.username || user?.email || "Anonymous",
                 author_email: user?.email || null,
                 author_avatar: user?.avatarDataUrl || null,
                 draft: draft,

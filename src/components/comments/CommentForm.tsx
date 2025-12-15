@@ -11,7 +11,6 @@ interface CommentFormProps {
 
 interface UserSuggestion {
     username: string;
-    display_name: string | null;
     avatar_url: string | null;
 }
 
@@ -98,9 +97,9 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
 
         const { data } = await supabase
             .from("profiles")
-            .select("id, username, display_name, avatar_url")
+            .select("id, username, avatar_url")
             .in('id', idsArray)
-            .or(`username.ilike.${query}%,display_name.ilike.${query}%`)
+            .ilike('username', `${query}%`) // Only search by username
             .limit(5);
 
         if (data) {
@@ -144,7 +143,7 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
             await createComment({
                 post_id: postId,
                 user_id: user.id,
-                author_name: user.displayName || "Anonymous",
+                author_name: user.username || "Anonymous", // Use username
                 content: content.trim(),
             });
 
@@ -202,9 +201,6 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
                                     </div>
                                     <div className="flex flex-col">
                                         <span className="font-bold">@{suggestion.username}</span>
-                                        {suggestion.display_name && (
-                                            <span className="text-xs text-green-600 truncate">{suggestion.display_name}</span>
-                                        )}
                                     </div>
                                 </button>
                             ))}
@@ -214,7 +210,7 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
 
                 <div className="flex justify-between items-center">
                     <span className="ascii-dim text-xs">
-                        {user ? `Posting as ${user.displayName}` : "Login to comment"}
+                        {user ? `Posting as ${user.username}` : "Login to comment"}
                     </span>
                     <button
                         type="submit"

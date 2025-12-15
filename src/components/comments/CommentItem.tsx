@@ -15,7 +15,7 @@ export default function CommentItem({ comment }: CommentItemProps) {
     const [editContent, setEditContent] = useState(comment.content);
     const [updating, setUpdating] = useState(false);
 
-    const isOwner = user?.uid === comment.user_id;
+    const isOwner = user?.id === comment.user_id;
     const formattedDate = new Date(comment.created_at).toLocaleString();
 
     const handleUpdate = async () => {

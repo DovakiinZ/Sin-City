@@ -169,7 +169,7 @@ export default function Posts() {
             content: p.content || "",
             slug: p.slug || p.id || slugify(p.title),
             postId: p.id, // actual database ID
-            author: p.author_name || undefined,
+            author: p.user_id ? userUsernames.get(p.user_id) || p.author_name : p.author_name || undefined,
             authorAvatar: p.author_avatar || (p.user_id ? userAvatars.get(p.user_id) : undefined) || undefined,
             authorUsername: p.user_id ? userUsernames.get(p.user_id) : undefined,
             userId: p.user_id || undefined,
@@ -412,7 +412,7 @@ export default function Posts() {
                       )}
                       {post.author && (
                         <Link to={`/user/${post.authorUsername || post.author}`} className="text-xs text-green-400 text-center hover:underline" onClick={(e) => e.stopPropagation()}>
-                          @{post.author}
+                          @{post.authorUsername || post.author}
                         </Link>
                       )}
                       {post.isAdmin && <AdminBadge variant="glitch" />}

@@ -153,14 +153,14 @@ export async function toggleReaction(
             // Get liker's profile
             const { data: likerProfile } = await supabase
                 .from("profiles")
-                .select("username, display_name")
+                .select("username")
                 .eq("id", userId)
                 .single();
 
             // Send notification (even for self-likes as requested)
             if (post?.user_id) {
                 console.log('[toggleReaction] Creating notification for user:', post.user_id, 'from liker:', userId);
-                const likerName = likerProfile?.display_name || likerProfile?.username || "Someone";
+                const likerName = likerProfile?.username || "Someone";
 
                 const { error: notifError } = await supabase.from("notifications").insert([{
                     user_id: post.user_id,

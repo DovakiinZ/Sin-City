@@ -16,13 +16,13 @@ export default function BookmarkButton({ postId }: BookmarkButtonProps) {
 
     useEffect(() => {
         const checkBookmark = async () => {
-            if (user?.uid) {
-                const result = await isBookmarked(user.uid, postId);
+            if (user?.id) {
+                const result = await isBookmarked(user.id, postId);
                 setBookmarked(result);
             }
         };
         checkBookmark();
-    }, [user?.uid, postId]);
+    }, [user?.id, postId]);
 
     const handleToggle = async () => {
         if (!user) {
@@ -36,7 +36,7 @@ export default function BookmarkButton({ postId }: BookmarkButtonProps) {
 
         setLoading(true);
         try {
-            const result = await toggleBookmark(user.uid, postId);
+            const result = await toggleBookmark(user.id, postId);
             setBookmarked(result.action === "added");
 
             toast({

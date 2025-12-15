@@ -84,6 +84,8 @@ export function useSupabasePosts() {
                         ...post,
                         author_avatar: profile?.avatar_url || post.author_avatar || null,
                         author_username: profile?.username || null,
+                        // Overwrite author_name with proper username if available
+                        author_name: profile?.username || post.author_name || "Anonymous",
                     };
                 });
 

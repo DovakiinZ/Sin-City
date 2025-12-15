@@ -11,7 +11,7 @@ export default function Profile() {
   const { user, updateProfile, logout, updatePassword } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [displayName, setDisplayName] = useState(user?.displayName || "");
+  // Removed displayName state
   const [avatar, setAvatar] = useState<string | undefined>(user?.avatarDataUrl);
   const [loadingAvatar, setLoadingAvatar] = useState(true);
   const [bio, setBio] = useState("");
@@ -64,7 +64,6 @@ export default function Profile() {
           if (data.username_changed_at) setUsernameChangedAt(data.username_changed_at);
           setTwitterUsername(data.twitter_username || "");
           setInstagramUsername(data.instagram_username || "");
-          setDisplayName(data.display_name || "");
           setHeaderUrl(data.header_url || undefined);
         } else if (error) {
           console.error("[Profile] Error fetching profile:", error);
@@ -97,8 +96,9 @@ export default function Profile() {
 
   async function save() {
     try {
-      // Save displayName to auth metadata
-      await updateProfile({ displayName, avatarDataUrl: avatar });
+      // Save avatar to auth metadata (only avatar, username is handled separately or via implicit sync potentially, but let's be explicit if needed)
+      // Actually we are not updating username here, only avatar.
+      await updateProfile({ avatarDataUrl: avatar });
 
       // Also save avatar to Supabase profiles table (more reliable than auth metadata)
       if (user?.id) {
@@ -113,7 +113,7 @@ export default function Profile() {
               id: user.id,
               avatar_url: avatar || null,
               bio: bio || null,
-              display_name: displayName || null,
+              // Removed display_name
               twitter_username: twitterUsername || null,
               instagram_username: instagramUsername || null,
               header_url: headerUrl || null,
@@ -236,6 +236,9 @@ export default function Profile() {
         .eq("id", user?.id);
 
       if (error) throw error;
+
+      // Update AuthContext and metadata with new username
+      await updateProfile({ username });
 
       setOriginalUsername(username);
       setUsernameChangesThisYear(prev => prev + 1);
@@ -379,10 +382,8 @@ export default function Profile() {
         {/* Profile Information */}
         <div className="space-y-4">
           <div className="ascii-dim text-xs">Email: {user.email}</div>
-          <label className="block">
-            <div className="ascii-dim text-xs mb-1">Display name</div>
-            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full bg-black text-green-400 border border-green-700 px-2 py-1 outline-none" />
-          </label>
+          <div className="ascii-dim text-xs">Username: @{user.username}</div>
+
           <div>
             <div className="ascii-dim text-xs mb-1">Profile picture</div>
             <AvatarUploader value={avatar} onChange={setAvatar} />

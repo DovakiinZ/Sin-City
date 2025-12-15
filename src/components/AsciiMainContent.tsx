@@ -11,7 +11,7 @@ import { decodeHtml, stripHtml } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
 import MediaCarousel from "@/components/media/MediaCarousel";
-import { Pin, Paperclip, Eye } from "lucide-react";
+import { Pin } from "lucide-react";
 
 type Post = {
   title: string; date: string; content: string; slug: string; author?: string; authorAvatar?: string; isPinned?: boolean;
@@ -79,12 +79,12 @@ const AsciiMainContent = () => {
           rawDate: p.created_at || '',
           content: p.content || "",
           slug: p.id || p.title,
-          author: p.author_name || undefined,
+          author: p.author_username || p.author_name || undefined,
           authorAvatar: p.author_avatar || undefined,
           authorUsername: p.author_username || undefined,
           isHtml: true, // Database posts are HTML
           isPinned: p.is_pinned || false,
-          attachments: Array.isArray(p.attachments) ? (p.attachments as any[]).map(a => ({ url: a.url || '', type: (a.type?.startsWith('video') ? 'video' : 'image') as 'image' | 'video' })).filter(a => a.url) : undefined,
+          attachments: (p.attachments as any[] | undefined)?.map((a: any) => ({ url: a.url || '', type: (a.type?.startsWith('video') ? 'video' : 'image') as 'image' | 'video' })).filter((a: any) => a.url) || undefined,
         };
       }),
     ...markdownPosts.map(p => ({ ...p, rawDate: p.date, isHtml: false }))
@@ -123,13 +123,12 @@ const AsciiMainContent = () => {
       // user_id will be null for anonymous posts
       await createPost({
         title: p.title,
-        type: p.attachments && p.attachments.length > 0 ? "Image" : "Text",
+        type: "Text",
         content: p.content,
         draft: false,
-        author_name: user?.displayName || supabaseUser?.email || "Anonymous",
+        author_name: user?.username || supabaseUser?.email || "Anonymous",
         author_email: user?.email || supabaseUser?.email || "",
         user_id: supabaseUser?.id || null,
-        attachments: p.attachments || null,
       });
 
       toast({
@@ -217,26 +216,14 @@ const AsciiMainContent = () => {
                         </span>
                       </div>
                     )}
-                    {(post as any).authorUsername ? (
+                    {post.author && (
                       <Link
-                        to={`/user/${(post as any).authorUsername}`}
+                        to={`/user/${(post as any).authorUsername || post.author}`}
                         className="text-xs text-green-400 text-center hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        @{(post as any).authorUsername}
+                        @{(post as any).authorUsername || post.author}
                       </Link>
-                    ) : post.author && post.author !== "Anonymous" ? (
-                      <Link
-                        to={`/user/${encodeURIComponent(post.author)}`}
-                        className="text-xs text-green-400 text-center hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {post.author}
-                      </Link>
-                    ) : post.author && (
-                      <span className="text-xs text-green-600 text-center">
-                        {post.author}
-                      </span>
                     )}
                   </div>
                   {/* Post Content */}
@@ -244,18 +231,8 @@ const AsciiMainContent = () => {
                     <h3 className="ascii-highlight text-xl mb-1">
                       {post.title}
                     </h3>
-                    <div className="ascii-dim text-xs mb-3 flex items-center gap-3">
-                      <span>{post.date}</span>
-                      {(post as any).view_count !== undefined && (
-                        <div className="flex items-center gap-1.5 opacity-80" title="Views">
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>
-                            {(post as any).view_count >= 1000
-                              ? `${((post as any).view_count / 1000).toFixed(1)}k`
-                              : (post as any).view_count}
-                          </span>
-                        </div>
-                      )}
+                    <div className="ascii-dim text-xs mb-3">
+                      {post.date}
                     </div>
                     <div className="prose prose-invert max-w-none text-green-400/80">
                       {(post as any).isHtml ? (

@@ -42,18 +42,8 @@ export default function PostDetail() {
                 const dbPost = dbPosts.find((p) => p.slug === slug || p.id === slug || p.title === slug);
 
                 if (dbPost) {
-                    setPost({
-                        title: dbPost.title,
-                        date: dbPost.created_at ? new Date(dbPost.created_at).toISOString().split("T")[0] : "",
-                        content: dbPost.content || "",
-                        slug: dbPost.id || slug || "",
-                        author: dbPost.author_name || undefined,
-                        authorId: dbPost.user_id || undefined,
-                        viewCount: (dbPost.view_count || 0) + 1,
-                        attachments: dbPost.attachments || undefined,
-                    });
-
                     // Get the author's username for the profile link
+                    let fetchedUsername = null;
                     if (dbPost.user_id) {
                         const { data } = await supabase
                             .from('profiles')
@@ -61,9 +51,21 @@ export default function PostDetail() {
                             .eq('id', dbPost.user_id)
                             .single();
                         if (data?.username) {
+                            fetchedUsername = data.username;
                             setAuthorUsername(data.username);
                         }
                     }
+
+                    setPost({
+                        title: dbPost.title,
+                        date: dbPost.created_at ? new Date(dbPost.created_at).toISOString().split("T")[0] : "",
+                        content: dbPost.content || "",
+                        slug: dbPost.id || slug || "",
+                        author: fetchedUsername || dbPost.author_name || undefined, // Use fetched username immediately
+                        authorId: dbPost.user_id || undefined,
+                        viewCount: (dbPost.view_count || 0) + 1,
+                        attachments: dbPost.attachments as { url: string; type: 'image' | 'video' }[] || undefined,
+                    });
 
                     // Increment view count (only once per page load)
                     if (!hasIncrementedView.current && dbPost.id) {
@@ -156,7 +158,7 @@ export default function PostDetail() {
                                     to={`/user/${authorUsername || post.author}`}
                                     className="text-blue-400 hover:underline"
                                 >
-                                    {post.author}
+                                    @{authorUsername || post.author}
                                 </Link>
                             </span>
                         )}

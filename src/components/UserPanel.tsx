@@ -24,7 +24,7 @@ export default function UserPanel() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="flex-1 min-w-[220px] bg-black text-green-400 border border-green-700 px-2 py-1 outline-none"
-          placeholder="Enter display name"
+          placeholder="Enter username"
         />
         <button onClick={save} className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1">
           Save

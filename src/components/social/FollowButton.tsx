@@ -24,16 +24,22 @@ export default function FollowButton({ targetUserId, targetUsername }: FollowBut
         if (!user || user.id === targetUserId) return;
 
         try {
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from("follows")
                 .select("*")
                 .eq("follower_id", user.id)
                 .eq("following_id", targetUserId)
-                .single();
+                .maybeSingle();
+
+            if (error) {
+                console.error("Error checking follow status:", error);
+                setIsFollowing(false);
+                return;
+            }
 
             setIsFollowing(!!data);
         } catch (error) {
-            // Not following
+            console.error("Error checking follow status:", error);
             setIsFollowing(false);
         }
     };
@@ -82,8 +88,8 @@ export default function FollowButton({ targetUserId, targetUsername }: FollowBut
                     user_id: targetUserId,
                     type: "follow",
                     content: {
-                        follower: user.displayName || "Someone",
-                        username: user.displayName?.toLowerCase().replace(/\s+/g, "-"),
+                        follower: user.username || "Someone",
+                        followerUsername: user.username,
                     },
                 });
 

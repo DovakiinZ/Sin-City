@@ -54,7 +54,6 @@ export default function UserProfile() {
                 let foundUser: any = null;
 
                 // 1. Exact Username Match
-                // 1. Exact Username Match
                 let { data: usernameMatch } = await supabase
                     .from('profiles')
                     .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username')
@@ -65,7 +64,6 @@ export default function UserProfile() {
                     foundUser = usernameMatch[0];
                 }
 
-                // 2. Exact Display Name Match
                 // 2. Exact Display Name Match
                 if (!foundUser) {
                     const { data: displayMatch } = await supabase
@@ -79,7 +77,6 @@ export default function UserProfile() {
                     }
                 }
 
-                // 3. Partial/Wildcard Display Name Match
                 // 3. Partial/Wildcard Display Name Match
                 if (!foundUser) {
                     const { data: wildcardMatch } = await supabase
@@ -204,9 +201,9 @@ export default function UserProfile() {
         loadUserData();
     }, [profile]);
 
-    // Load followers list
+    // Load followers list - only for logged-in users
     const loadFollowers = async () => {
-        if (!profile?.id) return;
+        if (!user || !profile?.id) return;
         setLoadingList(true);
         try {
             // First get follower IDs
@@ -233,9 +230,9 @@ export default function UserProfile() {
         }
     };
 
-    // Load following list
+    // Load following list - only for logged-in users
     const loadFollowing = async () => {
-        if (!profile?.id) return;
+        if (!user || !profile?.id) return;
         setLoadingList(true);
         try {
             // First get following IDs
@@ -274,6 +271,36 @@ export default function UserProfile() {
             if (!error) {
                 setIsFollowing(true);
                 setFollowerCount(prev => prev + 1);
+
+                // Send notification
+                try {
+                    // Get follower's profile name (current user)
+                    const { data: followerProfile } = await supabase
+                        .from('profiles')
+                        .select('username')
+                        .eq('id', user.id)
+                        .single();
+
+                    const followerName = followerProfile?.username || "Someone";
+
+                    console.log('[handleFollow] Creating notification for user:', profile.id, 'from follower:', user.id);
+                    const { error: notifError } = await supabase.from("notifications").insert([{
+                        user_id: profile.id,
+                        type: "follow",
+                        content: {
+                            follower: followerName,
+                            followerId: user.id,
+                            followerUsername: followerProfile?.username
+                        },
+                        read: false,
+                    }]);
+
+                    if (notifError) {
+                        console.error('[handleFollow] Notification insert error:', notifError);
+                    }
+                } catch (notifErr) {
+                    console.error("Error creating follow notification:", notifErr);
+                }
             }
         } catch (err) {
             console.error('Follow error:', err);
@@ -494,26 +521,42 @@ export default function UserProfile() {
                                         <div className="ascii-highlight text-lg sm:text-xl">{stats.comments}</div>
                                         <div className="ascii-dim text-xs">Comments</div>
                                     </div>
-                                    <button
-                                        className="text-center sm:text-left hover:bg-green-900/20 p-1 -m-1 rounded"
-                                        onClick={() => {
-                                            loadFollowers();
-                                            setShowFollowersModal(true);
-                                        }}
-                                    >
-                                        <div className="ascii-highlight text-lg sm:text-xl">{followerCount}</div>
-                                        <div className="ascii-dim text-xs">Followers</div>
-                                    </button>
-                                    <button
-                                        className="text-center sm:text-left hover:bg-green-900/20 p-1 -m-1 rounded"
-                                        onClick={() => {
-                                            loadFollowing();
-                                            setShowFollowingModal(true);
-                                        }}
-                                    >
-                                        <div className="ascii-highlight text-lg sm:text-xl">{followingCount}</div>
-                                        <div className="ascii-dim text-xs">Following</div>
-                                    </button>
+                                    {/* Followers - clickable only for logged-in users */}
+                                    {user ? (
+                                        <button
+                                            className="text-center sm:text-left hover:bg-green-900/20 p-1 -m-1 rounded cursor-pointer"
+                                            onClick={() => {
+                                                loadFollowers();
+                                                setShowFollowersModal(true);
+                                            }}
+                                        >
+                                            <div className="ascii-highlight text-lg sm:text-xl">{followerCount}</div>
+                                            <div className="ascii-dim text-xs">Followers</div>
+                                        </button>
+                                    ) : (
+                                        <div className="text-center sm:text-left p-1 -m-1" title="Login to see followers">
+                                            <div className="ascii-highlight text-lg sm:text-xl">{followerCount}</div>
+                                            <div className="ascii-dim text-xs">Followers</div>
+                                        </div>
+                                    )}
+                                    {/* Following - clickable only for logged-in users */}
+                                    {user ? (
+                                        <button
+                                            className="text-center sm:text-left hover:bg-green-900/20 p-1 -m-1 rounded cursor-pointer"
+                                            onClick={() => {
+                                                loadFollowing();
+                                                setShowFollowingModal(true);
+                                            }}
+                                        >
+                                            <div className="ascii-highlight text-lg sm:text-xl">{followingCount}</div>
+                                            <div className="ascii-dim text-xs">Following</div>
+                                        </button>
+                                    ) : (
+                                        <div className="text-center sm:text-left p-1 -m-1" title="Login to see following">
+                                            <div className="ascii-highlight text-lg sm:text-xl">{followingCount}</div>
+                                            <div className="ascii-dim text-xs">Following</div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Follow Button */}
@@ -571,8 +614,8 @@ export default function UserProfile() {
                 </div>
             </div>
 
-            {/* Followers Modal */}
-            {showFollowersModal && (
+            {/* Followers Modal - only for logged-in users */}
+            {user && showFollowersModal && (
                 <FollowModal
                     title="Followers"
                     users={followersList}
@@ -580,8 +623,8 @@ export default function UserProfile() {
                 />
             )}
 
-            {/* Following Modal */}
-            {showFollowingModal && (
+            {/* Following Modal - only for logged-in users */}
+            {user && showFollowingModal && (
                 <FollowModal
                     title="Following"
                     users={followingList}

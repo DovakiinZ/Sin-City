@@ -12,8 +12,7 @@ interface ReactionButtonsProps {
 
 interface LikerInfo {
     userId: string;
-    username: string;      // For URL routing
-    displayName: string;   // For display text
+    username: string;
 }
 
 export default function ReactionButtons({ postId }: ReactionButtonsProps) {
@@ -23,9 +22,15 @@ export default function ReactionButtons({ postId }: ReactionButtonsProps) {
     const [toggling, setToggling] = useState(false);
     const [likers, setLikers] = useState<LikerInfo[]>([]);
 
-    // Fetch usernames of people who liked
+    // Fetch usernames of people who liked - only for logged-in users
     useEffect(() => {
         const fetchLikerUsernames = async () => {
+            // Don't fetch liker info for anonymous users
+            if (!user) {
+                setLikers([]);
+                return;
+            }
+
             const likeReactions = reactions.filter(r => r.reaction_type === "like" && r.user_id);
             if (likeReactions.length === 0) {
                 setLikers([]);
@@ -37,14 +42,13 @@ export default function ReactionButtons({ postId }: ReactionButtonsProps) {
             try {
                 const { data } = await supabase
                     .from("profiles")
-                    .select("id, username, display_name")
+                    .select("id, username")
                     .in("id", userIds);
 
                 if (data) {
                     setLikers(data.map(p => ({
                         userId: p.id,
                         username: p.username || "anonymous",
-                        displayName: p.display_name || p.username || "Anonymous"
                     })));
                 }
             } catch (error) {
@@ -53,7 +57,7 @@ export default function ReactionButtons({ postId }: ReactionButtonsProps) {
         };
 
         fetchLikerUsernames();
-    }, [reactions]);
+    }, [reactions, user]);
 
     const handleLike = async () => {
         if (!user) {
@@ -97,7 +101,7 @@ export default function ReactionButtons({ postId }: ReactionButtonsProps) {
                 <span>
                     Liked by{" "}
                     <Link to={`/user/${likers[0].username}`} className="text-green-400 hover:underline" onClick={(e) => e.stopPropagation()}>
-                        @{likers[0].displayName}
+                        @{likers[0].username}
                     </Link>
                 </span>
             );
@@ -108,11 +112,11 @@ export default function ReactionButtons({ postId }: ReactionButtonsProps) {
                 <span>
                     Liked by{" "}
                     <Link to={`/user/${likers[0].username}`} className="text-green-400 hover:underline" onClick={(e) => e.stopPropagation()}>
-                        @{likers[0].displayName}
+                        @{likers[0].username}
                     </Link>
                     {" "}and{" "}
                     <Link to={`/user/${likers[1].username}`} className="text-green-400 hover:underline" onClick={(e) => e.stopPropagation()}>
-                        @{likers[1].displayName}
+                        @{likers[1].username}
                     </Link>
                 </span>
             );
@@ -122,7 +126,7 @@ export default function ReactionButtons({ postId }: ReactionButtonsProps) {
             <span>
                 Liked by{" "}
                 <Link to={`/user/${likers[0].username}`} className="text-green-400 hover:underline" onClick={(e) => e.stopPropagation()}>
-                    @{likers[0].displayName}
+                    @{likers[0].username}
                 </Link>
                 {" "}and {likers.length - 1} others
             </span>
@@ -154,7 +158,8 @@ export default function ReactionButtons({ postId }: ReactionButtonsProps) {
                     <span className="text-xs">{userLiked ? "Liked" : "Like"}</span>
                 </button>
             </div>
-            {likers.length > 0 && (
+            {/* Only show who liked for logged-in users */}
+            {user && likers.length > 0 && (
                 <div className="text-xs text-green-600 ml-1">
                     {renderLikedBy()}
                 </div>

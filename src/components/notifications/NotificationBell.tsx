@@ -16,20 +16,21 @@ export default function NotificationBell() {
 
     const getNotificationText = (notification: any) => {
         const { type, content } = notification;
+        const name = content.likerUsername || content.followerUsername || content.author || "Someone";
 
         switch (type) {
             case "comment":
-                return `${content.author} commented on your post "${content.postTitle}"`;
+                return `@${name} commented on your post "${content.postTitle}"`;
             case "reaction":
-                return `${content.author} reacted ${content.reaction} to your post`;
+                return `@${name} reacted ${content.reaction} to your post`;
             case "like":
-                return `👍 ${content.author} liked your post "${content.postTitle}"`;
+                return `👍 @${name} liked your post "${content.postTitle}"`;
             case "follow":
-                return `${content.follower} started following you`;
+                return `@${name} started following you`;
             case "mention":
-                return `${content.author} mentioned you in a post`;
+                return `@${name} mentioned you in a post`;
             case "reply":
-                return `${content.author} replied to your comment`;
+                return `@${name} replied to your comment`;
             default:
                 return "New notification";
         }
@@ -41,8 +42,15 @@ export default function NotificationBell() {
         // Navigate based on notification type
         if (notification.content.postSlug) {
             navigate(`/post/${notification.content.postSlug}`);
-        } else if (notification.content.username) {
-            navigate(`/user/${notification.content.username}`);
+        } else {
+            const username = notification.content.username ||
+                notification.content.likerUsername ||
+                notification.content.followerUsername ||
+                (notification.type === 'mention' ? notification.content.author : null);
+
+            if (username) {
+                navigate(`/user/${username}`);
+            }
         }
 
         setOpen(false);

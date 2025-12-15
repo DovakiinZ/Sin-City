@@ -38,9 +38,9 @@ const ManagePosts = () => {
         type: formData.type,
         content: formData.content,
         draft: formData.draft,
-        author_name: user?.displayName || "Anonymous",
+        author_name: user?.username || "Anonymous",
         author_email: user?.email || "",
-        user_id: user?.uid,
+        user_id: user?.id,
       });
 
       toast({
@@ -236,7 +236,7 @@ const ManagePosts = () => {
                         <pre className={index % 2 === 0 ? "ascii-text" : "ascii-dim"}>
                           {`║ ${shortId.padEnd(5)} ║ ${truncatedTitle.padEnd(34)} ║ ${post.type.padEnd(8)} ║ ${formattedDate} ║`}
                         </pre>
-                        {user?.uid === post.user_id && (
+                        {user?.id === post.user_id && (
                           <div className="ml-4 mb-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => handleDelete(post.id)}
