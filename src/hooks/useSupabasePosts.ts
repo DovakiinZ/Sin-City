@@ -45,29 +45,47 @@ export function useSupabasePosts() {
                 if (fetchError) throw fetchError;
 
                 // Collect user IDs to fetch profiles
-                const userIds = new Set((postsData || []).map((p: any) => p.user_id).filter(Boolean));
+                const userIds = [...new Set((postsData || []).map((p: any) => p.user_id).filter(Boolean))];
+
+                // Collect author names that might need matching
+                const authorNames = [...new Set((postsData || [])
+                    .filter((p: any) => !p.user_id && p.author_name)
+                    .map((p: any) => p.author_name.toLowerCase()))];
 
                 let profilesMap = new Map();
                 let profilesByDisplayName = new Map();
 
-                // Fetch all profiles (we need display_name matching too)
-                const { data: allProfiles } = await supabase
-                    .from('profiles')
-                    .select('id, username, display_name, avatar_url');
+                // Only fetch profiles we need - by user_id or by matching author_name
+                if (userIds.length > 0) {
+                    const { data: userProfiles } = await supabase
+                        .from('profiles')
+                        .select('id, username, display_name, avatar_url')
+                        .in('id', userIds);
 
-                if (allProfiles) {
-                    allProfiles.forEach(p => {
-                        // Map by ID
-                        profilesMap.set(p.id, p);
-                        // Map by display_name (lowercase for case-insensitive matching)
-                        if (p.display_name) {
-                            profilesByDisplayName.set(p.display_name.toLowerCase(), p);
-                        }
-                        // Also map by username
-                        if (p.username) {
-                            profilesByDisplayName.set(p.username.toLowerCase(), p);
-                        }
-                    });
+                    if (userProfiles) {
+                        userProfiles.forEach(p => {
+                            profilesMap.set(p.id, p);
+                        });
+                    }
+                }
+
+                // If there are orphaned posts (no user_id), try to match by display_name
+                if (authorNames.length > 0) {
+                    const { data: matchedProfiles } = await supabase
+                        .from('profiles')
+                        .select('id, username, display_name, avatar_url')
+                        .or(authorNames.map(n => `display_name.ilike.${n},username.ilike.${n}`).join(','));
+
+                    if (matchedProfiles) {
+                        matchedProfiles.forEach(p => {
+                            if (p.display_name) {
+                                profilesByDisplayName.set(p.display_name.toLowerCase(), p);
+                            }
+                            if (p.username) {
+                                profilesByDisplayName.set(p.username.toLowerCase(), p);
+                            }
+                        });
+                    }
                 }
 
                 // Map the data to include author_avatar and author_username
