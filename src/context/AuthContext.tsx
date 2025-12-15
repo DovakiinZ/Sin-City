@@ -6,12 +6,7 @@ export type User = {
   id: string;
   email: string;
   password: string; // unused with Supabase; retained for compatibility
-<<<<<<< HEAD
   username: string;
-=======
-  displayName: string; // Keeping this for backward compatibility, but it will map to username if display_name is null
-  username?: string;
->>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
   avatarDataUrl?: string;
 };
 
@@ -45,22 +40,13 @@ function saveUsers(users: User[]) {
 
 function mapSupabaseUser(u: SupabaseAuthUser | null): User | null {
   if (!u) return null;
-<<<<<<< HEAD
   // Map username from metadata, fallback to email prefix
   const username = (u.user_metadata?.username as string | undefined) || u.email?.split("@")[0] || "User";
-=======
-  const displayName = (u.user_metadata?.username as string | undefined) || (u.user_metadata?.displayName as string | undefined) || u.email?.split("@")[0] || "User";
-  const username = (u.user_metadata?.username as string | undefined) || displayName;
->>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
   const avatarDataUrl = (u.user_metadata?.avatarDataUrl as string | undefined) || undefined;
   return {
     id: u.id,
     email: u.email || "",
     password: "", // not stored when using Supabase
-<<<<<<< HEAD
-=======
-    displayName,
->>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
     username,
     avatarDataUrl,
   } satisfies User;
@@ -112,11 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email,
           password,
           options: {
-<<<<<<< HEAD
             data: { username }, // Store username in metadata
-=======
-            data: { username, displayName: username }, // Store username as both for compatibility
->>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
             emailRedirectTo: window.location.origin
           },
         });
@@ -140,10 +122,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: crypto.randomUUID(),
         email,
         password,
-<<<<<<< HEAD
-=======
-        displayName: username,
->>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
         username,
         avatarDataUrl,
       };
