@@ -1,15 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AsciiHeader from "@/components/AsciiHeader";
 import AsciiFooter from "@/components/AsciiFooter";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 const NotFound = () => {
   const [showHelp, setShowHelp] = useState(false);
+  const navigate = useNavigate();
 
   useKeyboardShortcuts({
     onHelp: () => setShowHelp(!showHelp),
   });
+
+  // Handle Escape key to return to home
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        navigate('/');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -23,12 +35,12 @@ const NotFound = () => {
 ║                                                               ║
 ║                    FATAL SYSTEM ERROR                         ║
 ║                                                               ║
-║   Error Code: 0x404                                           ║
+║   Error Code: 1248                                            ║
 ║   Description: PAGE_NOT_FOUND                                 ║
 ║                                                               ║
 ║   The requested resource does not exist in the system.        ║
 ║                                                               ║
-║   Press any key to return to safety...                        ║
+║   Press 'Esc' to return to safety...                          ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝`}
             </pre>

@@ -27,11 +27,37 @@ export default function AdminDashboard() {
     const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
 
     useEffect(() => {
-        // TEMPORARY: Skip all checks and just load the admin panel
-        setIsAdmin(true);
-        setLoading(false);
-        loadStats();
-    }, []);
+        const checkAdmin = async () => {
+            // Must be logged in
+            if (!user) {
+                navigate('/login');
+                return;
+            }
+
+            // Check if user has admin role in database
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+
+            if (error || profile?.role !== 'admin') {
+                toast({
+                    title: "Access Denied",
+                    description: "You don't have admin privileges",
+                    variant: "destructive"
+                });
+                navigate('/');
+                return;
+            }
+
+            setIsAdmin(true);
+            setLoading(false);
+            loadStats();
+        };
+
+        checkAdmin();
+    }, [user, navigate, toast]);
 
     useEffect(() => {
         loadPosts();

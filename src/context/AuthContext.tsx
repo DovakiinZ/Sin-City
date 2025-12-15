@@ -6,14 +6,15 @@ export type User = {
   id: string;
   email: string;
   password: string; // unused with Supabase; retained for compatibility
-  displayName: string;
+  displayName: string; // Keeping this for backward compatibility, but it will map to username if display_name is null
+  username?: string;
   avatarDataUrl?: string;
 };
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  register: (info: { email: string; password: string; displayName: string; avatarDataUrl?: string }) => Promise<void>;
+  register: (info: { email: string; password: string; username: string; avatarDataUrl?: string }) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (changes: Partial<Pick<User, "displayName" | "avatarDataUrl">>) => void;
@@ -40,13 +41,15 @@ function saveUsers(users: User[]) {
 
 function mapSupabaseUser(u: SupabaseAuthUser | null): User | null {
   if (!u) return null;
-  const displayName = (u.user_metadata?.displayName as string | undefined) || u.email?.split("@")[0] || "User";
+  const displayName = (u.user_metadata?.username as string | undefined) || (u.user_metadata?.displayName as string | undefined) || u.email?.split("@")[0] || "User";
+  const username = (u.user_metadata?.username as string | undefined) || displayName;
   const avatarDataUrl = (u.user_metadata?.avatarDataUrl as string | undefined) || undefined;
   return {
     id: u.id,
     email: u.email || "",
     password: "", // not stored when using Supabase
     displayName,
+    username,
     avatarDataUrl,
   } satisfies User;
 }
@@ -89,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const api = useMemo<AuthContextType>(() => ({
     user,
     loading,
-    async register({ email, password, displayName, avatarDataUrl }) {
+    async register({ email, password, username, avatarDataUrl }) {
       if (supabase) {
         // Note: avatarDataUrl should be stored in profiles table, NOT in user_metadata
         // Storing large base64 images in metadata causes 431 (Request Header Too Large) errors
@@ -97,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email,
           password,
           options: {
-            data: { displayName }, // Don't store avatarDataUrl here - it's too large!
+            data: { username, displayName: username }, // Store username as both for compatibility
             emailRedirectTo: window.location.origin
           },
         });
@@ -121,7 +124,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: crypto.randomUUID(),
         email,
         password,
-        displayName,
+        displayName: username,
+        username,
         avatarDataUrl,
       };
       users.push(newUser);

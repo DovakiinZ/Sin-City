@@ -126,7 +126,7 @@ const AsciiMainContent = () => {
         type: p.attachments && p.attachments.length > 0 ? "Image" : "Text",
         content: p.content,
         draft: false,
-        author_name: user?.displayName || supabaseUser?.email || "Anonymous",
+        author_name: user?.username || user?.displayName || supabaseUser?.email || "Anonymous",
         author_email: user?.email || supabaseUser?.email || "",
         user_id: supabaseUser?.id || null,
         attachments: p.attachments || null,

@@ -344,7 +344,7 @@ export default function UserProfile() {
                                 )}
                                 <div>
                                     <div className="ascii-highlight">@{u.username || "anonymous"}</div>
-                                    {u.display_name && <div className="ascii-dim text-xs">{u.display_name}</div>}
+                                    {/* {u.display_name && <div className="ascii-dim text-xs">{u.display_name}</div>} */}
                                 </div>
                             </Link>
                         ))}
@@ -427,10 +427,7 @@ export default function UserProfile() {
                                     @{profile.username || "anonymous"}
                                 </div>
 
-                                {/* Display name if different from username */}
-                                {profile.display_name && profile.display_name !== profile.username && (
-                                    <div className="ascii-dim text-sm mb-2">{profile.display_name}</div>
-                                )}
+                                {/* Display name removed as we act like it doesn't exist anymore */}
 
                                 {profile.bio && (
                                     <div className="ascii-text mb-4 text-sm sm:text-base">{profile.bio}</div>

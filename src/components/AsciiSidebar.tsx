@@ -95,7 +95,7 @@ const AsciiSidebar = () => {
           </li>
           {isAdmin && (
             <li>
-              <Link to="/admin" className="ascii-nav-link hover:ascii-highlight text-yellow-500">
+              <Link to="/crowd" className="ascii-nav-link hover:ascii-highlight text-yellow-500">
                 → Admin Console
               </Link>
             </li>
