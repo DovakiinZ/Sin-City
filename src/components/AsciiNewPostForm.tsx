@@ -104,7 +104,10 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !content.trim()) return;
+    // Allow post if title exists AND (content exists OR media exists)
+    if (!title.trim()) return;
+    if (!content.trim() && mediaFiles.length === 0) return;
+
     onAdd({
       title: title.trim(),
       date: today,
@@ -210,8 +213,12 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
       </div>
 
       <div className="flex gap-2">
-        <button type="submit" className="ascii-nav-link hover:ascii-highlight px-3 py-1 border border-green-700">
-          Add Post
+        <button
+          type="submit"
+          disabled={uploadingMedia}
+          className="ascii-nav-link hover:ascii-highlight px-3 py-1 border border-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {uploadingMedia ? "Uploading..." : "Add Post"}
         </button>
         {onClose && (
           <button type="button" onClick={onClose} className="px-3 py-1 border border-green-700 ascii-dim">

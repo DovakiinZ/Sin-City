@@ -125,12 +125,13 @@ const AsciiFeed = () => {
       // user_id will be null for anonymous posts
       await createPost({
         title: p.title,
-        type: "Text",
+        type: p.attachments && p.attachments.length > 0 ? "Image" : "Text",
         content: p.content,
         draft: false,
         author_name: user?.username || supabaseUser?.email || "Anonymous",
         author_email: user?.email || supabaseUser?.email || "",
         user_id: supabaseUser?.id || null,
+        attachments: p.attachments
       });
 
       toast({
