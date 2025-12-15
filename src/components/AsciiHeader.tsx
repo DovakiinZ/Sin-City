@@ -1,4 +1,5 @@
 import NotificationBell from "@/components/notifications/NotificationBell";
+import MobileMenu from "@/components/MobileMenu";
 import { useAuth } from "@/context/AuthContext";
 import { useDeviceDetect } from "@/hooks/useDeviceDetect";
 
@@ -13,6 +14,11 @@ const AsciiHeader = () => {
     <header className="ascii-text mb-4 sm:mb-6">
       <div className="relative">
         <div className="ascii-box p-3 sm:p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+
+          {/* Mobile Menu Button - Left side */}
+          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
+            <MobileMenu />
+          </div>
 
           {isMobileDevice ? (
             /* MOBILE: Simple clean text header */
@@ -58,3 +64,4 @@ const AsciiHeader = () => {
 };
 
 export default AsciiHeader;
+

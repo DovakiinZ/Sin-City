@@ -11,7 +11,12 @@ export default function Profile() {
   const { user, updateProfile, logout, updatePassword } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+<<<<<<< HEAD
   // Removed displayName state
+=======
+  // const [displayName, setDisplayName] = useState(user?.displayName || ""); // Deprecated, removing to fix lint
+  const [username, setUsername] = useState(user?.username || user?.displayName || "");
+>>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
   const [avatar, setAvatar] = useState<string | undefined>(user?.avatarDataUrl);
   const [loadingAvatar, setLoadingAvatar] = useState(true);
   const [bio, setBio] = useState("");
@@ -23,7 +28,7 @@ export default function Profile() {
   const [uploadingHeader, setUploadingHeader] = useState(false);
 
   // Username change state
-  const [username, setUsername] = useState("");
+  // const [username, setUsername] = useState(""); <-- Duplicate removed
   const [originalUsername, setOriginalUsername] = useState("");
   const [usernameChangesThisYear, setUsernameChangesThisYear] = useState(0);
   const [usernameChangedAt, setUsernameChangedAt] = useState<string | null>(null);
@@ -59,11 +64,19 @@ export default function Profile() {
           if (data.username) {
             setUsername(data.username);
             setOriginalUsername(data.username);
+          } else if (data.display_name) {
+            // Fallback if no username set in profile
+            setUsername(data.display_name);
+            setOriginalUsername(data.display_name);
           }
           setUsernameChangesThisYear(data.username_changes_this_year || 0);
           if (data.username_changed_at) setUsernameChangedAt(data.username_changed_at);
           setTwitterUsername(data.twitter_username || "");
           setInstagramUsername(data.instagram_username || "");
+<<<<<<< HEAD
+=======
+          // setDisplayName(data.display_name || ""); // Deprecated
+>>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
           setHeaderUrl(data.header_url || undefined);
         } else if (error) {
           console.error("[Profile] Error fetching profile:", error);
@@ -96,9 +109,14 @@ export default function Profile() {
 
   async function save() {
     try {
+<<<<<<< HEAD
       // Save avatar to auth metadata (only avatar, username is handled separately or via implicit sync potentially, but let's be explicit if needed)
       // Actually we are not updating username here, only avatar.
       await updateProfile({ avatarDataUrl: avatar });
+=======
+      // Update auth metadata with username as displayName for compatibility
+      await updateProfile({ displayName: username, avatarDataUrl: avatar });
+>>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
 
       // Also save avatar to Supabase profiles table (more reliable than auth metadata)
       if (user?.id) {
@@ -113,7 +131,12 @@ export default function Profile() {
               id: user.id,
               avatar_url: avatar || null,
               bio: bio || null,
+<<<<<<< HEAD
               // Removed display_name
+=======
+              display_name: username || null, // Sync display_name to username
+              username: username || null,
+>>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
               twitter_username: twitterUsername || null,
               instagram_username: instagramUsername || null,
               header_url: headerUrl || null,
@@ -382,8 +405,12 @@ export default function Profile() {
         {/* Profile Information */}
         <div className="space-y-4">
           <div className="ascii-dim text-xs">Email: {user.email}</div>
+<<<<<<< HEAD
           <div className="ascii-dim text-xs">Username: @{user.username}</div>
 
+=======
+          {/* Display Name field removed in favor of Username below */}
+>>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
           <div>
             <div className="ascii-dim text-xs mb-1">Profile picture</div>
             <AvatarUploader value={avatar} onChange={setAvatar} />
@@ -471,15 +498,15 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Username Change Section */}
+        {/* Username Change Section - moved up to be main identity */}
         <div className="border-t border-green-700 pt-4">
-          <div className="ascii-highlight text-lg mb-3">+-- Change Username --+</div>
+          <div className="ascii-highlight text-lg mb-3">+-- Identity --+</div>
           <div className="space-y-3">
             <div className="ascii-dim text-xs mb-2">
               Current: @{originalUsername || "not set"} • {getRemainingChanges()} changes remaining this year
             </div>
             <label className="block">
-              <div className="ascii-dim text-xs mb-1">New Username</div>
+              <div className="ascii-dim text-xs mb-1">Username</div>
               <input
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
@@ -494,7 +521,7 @@ export default function Profile() {
               disabled={changingUsername || !canChangeUsername() || username === originalUsername}
               className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1 disabled:opacity-50"
             >
-              {changingUsername ? "Changing..." : "Change Username"}
+              {changingUsername ? "Updating..." : "Update Username"}
             </button>
             {!canChangeUsername() && (
               <div className="text-red-400 text-xs">You've used all 2 username changes for this year</div>

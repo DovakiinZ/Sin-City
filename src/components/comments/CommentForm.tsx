@@ -143,7 +143,11 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
             await createComment({
                 post_id: postId,
                 user_id: user.id,
+<<<<<<< HEAD
                 author_name: user.username || "Anonymous", // Use username
+=======
+                author_name: user.username || user.displayName || "Anonymous",
+>>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
                 content: content.trim(),
             });
 
@@ -210,7 +214,11 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
 
                 <div className="flex justify-between items-center">
                     <span className="ascii-dim text-xs">
+<<<<<<< HEAD
                         {user ? `Posting as ${user.username}` : "Login to comment"}
+=======
+                        {user ? `Posting as @${user.username || user.displayName}` : "Login to comment"}
+>>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
                     </span>
                     <button
                         type="submit"

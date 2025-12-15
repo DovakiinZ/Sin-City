@@ -153,7 +153,7 @@ Built with: React + TypeScript + Vite`,
                 posts: "/posts",
                 about: "/about",
                 profile: "/profile",
-                admin: "/admin",
+                crowd: "/crowd",
                 create: "/create",
                 contact: "/contact",
             };

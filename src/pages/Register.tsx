@@ -10,7 +10,6 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
-  const [phone, setPhone] = useState("");
   const [avatar, setAvatar] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -24,12 +23,17 @@ export default function Register() {
       return;
     }
 
+    if (!username) {
+      setError("Username is required");
+      return;
+    }
+
     setLoading(true);
     try {
       await register({
         email,
         password,
-        username: username || email.split("@")[0],
+        username,
         avatarDataUrl: avatar,
       });
 
@@ -59,8 +63,15 @@ export default function Register() {
           </label>
           <label className="block">
             <div className="ascii-dim text-xs mb-1">Username</div>
-            <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} className="w-full bg-black text-green-400 border border-green-700 px-2 py-1 outline-none" placeholder="Choose a username" disabled={loading} maxLength={20} />
-            <div className="ascii-dim text-xs mt-1">3-20 characters, letters, numbers, underscores only</div>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              className="w-full bg-black text-green-400 border border-green-700 px-2 py-1 outline-none"
+              placeholder="username"
+              required
+              disabled={loading}
+            />
+            <div className="ascii-dim text-[10px] mt-1">Letters, numbers, and underscores only</div>
           </label>
           <div>
             <div className="ascii-dim text-xs mb-1">Profile picture <span className="text-red-400">*</span></div>
@@ -76,4 +87,3 @@ export default function Register() {
     </div>
   );
 }
-

@@ -49,6 +49,10 @@ export default function ReactionButtons({ postId }: ReactionButtonsProps) {
                     setLikers(data.map(p => ({
                         userId: p.id,
                         username: p.username || "anonymous",
+<<<<<<< HEAD
+=======
+                        displayName: p.username || p.display_name || "Anonymous"
+>>>>>>> 1fb12862d45718769639b4d7937d0ae07dedf6e5
                     })));
                 }
             } catch (error) {
