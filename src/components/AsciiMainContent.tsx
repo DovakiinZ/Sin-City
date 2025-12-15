@@ -11,6 +11,7 @@ import { decodeHtml, stripHtml } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
 import MediaCarousel from "@/components/media/MediaCarousel";
+import QuickActions from "@/components/QuickActions";
 import { Pin, Paperclip, Eye } from "lucide-react";
 
 type Post = {
@@ -193,7 +194,15 @@ const AsciiMainContent = () => {
         ) : (
           sortedPosts.slice(0, visibleCount).map((post) => (
             <Link key={post.slug} to={`/post/${post.slug}`} className="block">
-              <article className="border border-green-600 bg-black/60 p-4 hover:border-green-400 hover:bg-black/80 transition-colors cursor-pointer">
+              <article className="group relative border border-green-600 bg-black/60 p-4 hover:border-green-400 hover:bg-black/80 transition-colors cursor-pointer">
+                {/* Quick Actions - appear on hover */}
+                <QuickActions
+                  postId={post.slug}
+                  postTitle={post.title}
+                  postSlug={post.slug}
+                  className="absolute top-2 right-2 z-10"
+                />
+
                 {/* Pinned label like Twitter */}
                 {(post as any).isPinned && (
                   <div className="flex items-center gap-2 text-xs text-yellow-400 mb-2">

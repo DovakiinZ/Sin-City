@@ -30,6 +30,7 @@ import Contact from "./pages/Contact";
 import BootSequence from "./components/BootSequence";
 import ScanlineEffect from "./components/ScanlineEffect";
 import TerminalCommand from "./components/TerminalCommand";
+import PageTransition from "./components/PageTransition";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 const queryClient = new QueryClient();
@@ -77,27 +78,29 @@ const AppContent = () => {
     <>
       <ScanlineEffect />
       {showTerminal && <TerminalCommand onClose={() => setShowTerminal(false)} />}
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/manage" element={<ManagePosts />} />
-        <Route path="/posts" element={<Posts />} />
-        <Route path="/post/:slug" element={<PostDetail />} />
-        <Route path="/search" element={<SearchResults />} />
-        <Route path="/user/:username" element={<UserProfile />} />
-        <Route path="/bookmarks" element={<Bookmarks />} />
-        <Route path="/drafts" element={<Drafts />} />
-        <Route path="/create" element={<CreatePost />} />
-        <Route path="/crowd" element={<AdminDashboard />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/profile" element={<Profile />} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <PageTransition>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/manage" element={<ManagePosts />} />
+          <Route path="/posts" element={<Posts />} />
+          <Route path="/post/:slug" element={<PostDetail />} />
+          <Route path="/search" element={<SearchResults />} />
+          <Route path="/user/:username" element={<UserProfile />} />
+          <Route path="/bookmarks" element={<Bookmarks />} />
+          <Route path="/drafts" element={<Drafts />} />
+          <Route path="/create" element={<CreatePost />} />
+          <Route path="/crowd" element={<AdminDashboard />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/profile" element={<Profile />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </PageTransition>
     </>
   );
 };
