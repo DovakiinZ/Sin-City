@@ -7,7 +7,7 @@ import { estimateReadTime, extractHeadings, slugify, stripHtml, decodeHtml } fro
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import CommentList from "@/components/comments/CommentList";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
-import MediaCarousel from "@/components/media/MediaCarousel";
+import MediaCarousel from "@/components/media/CompactMediaCarousel";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AdminBadge from "@/components/AdminBadge";
 import { supabase } from "@/lib/supabase";
@@ -486,7 +486,7 @@ export default function Posts() {
                   {/* Media Carousel - inline media preview */}
                   {post.attachments && post.attachments.length > 0 && (
                     <div onClick={(e) => e.preventDefault()}>
-                      <MediaCarousel media={post.attachments} />
+                      <MediaCarousel media={post.attachments} compact />
                     </div>
                   )}
 

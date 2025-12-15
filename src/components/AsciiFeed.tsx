@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import matter from "gray-matter";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AsciiNewPostForm, { NewPost } from "./AsciiNewPostForm";
 import UserPanel from "./UserPanel";
 import { useAuth } from "@/context/AuthContext";
@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { decodeHtml, stripHtml } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
-import MediaCarousel from "@/components/media/MediaCarousel";
+import MediaCarousel from "@/components/media/CompactMediaCarousel";
 import QuickActions from "@/components/QuickActions";
 import { Pin, Paperclip, Eye } from "lucide-react";
 
@@ -27,7 +27,8 @@ interface FrontMatterData {
 
 const FILES = ["post1.md", "post2.md"]; // served from /public/posts
 
-const AsciiMainContent = () => {
+const AsciiFeed = () => {
+  const navigate = useNavigate();
   const [markdownPosts, setMarkdownPosts] = useState<Post[]>([]);
   const { posts: dbPosts, loading } = useSupabasePosts();
   const [showForm, setShowForm] = useState(false);
@@ -192,8 +193,12 @@ const AsciiMainContent = () => {
           <div className="ascii-dim">No posts yet. Add markdown files to /public/posts or create a post above.</div>
         ) : (
           sortedPosts.slice(0, visibleCount).map((post) => (
-            <Link key={post.slug} to={`/post/${post.slug}`} className="block">
-              <article className="group relative border border-green-600 bg-black/60 p-4 hover:border-green-400 hover:bg-black/80 transition-colors cursor-pointer">
+            <div
+              key={post.slug}
+              onClick={() => navigate(`/post/${post.slug}`)}
+              className="block cursor-pointer"
+            >
+              <article className="group relative border border-green-600 bg-black/60 p-4 hover:border-green-400 hover:bg-black/80 transition-colors">
                 {/* Quick Actions - appear on hover */}
                 <QuickActions
                   postId={post.slug}
@@ -260,7 +265,7 @@ const AsciiMainContent = () => {
                     {/* Media Carousel - inline media preview */}
                     {(post as any).attachments && (post as any).attachments.length > 0 && (
                       <div className="mt-4" onClick={(e) => e.preventDefault()}>
-                        <MediaCarousel media={(post as any).attachments} />
+                        <MediaCarousel media={(post as any).attachments} compact />
                       </div>
                     )}
                   </div>
@@ -270,7 +275,7 @@ const AsciiMainContent = () => {
                   <ReactionButtons postId={post.slug} />
                 </div>
               </article>
-            </Link>
+            </div>
           ))
         )}
 
@@ -299,4 +304,4 @@ const AsciiMainContent = () => {
   );
 };
 
-export default AsciiMainContent;
+export default AsciiFeed;

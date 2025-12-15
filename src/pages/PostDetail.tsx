@@ -7,7 +7,7 @@ import CommentList from "@/components/comments/CommentList";
 import ReactionButtons from "@/components/reactions/ReactionButtons";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import ShareButtons from "@/components/sharing/ShareButtons";
-import MediaCarousel from "@/components/media/MediaCarousel";
+import MediaCarousel from "@/components/media/PostMediaCarousel";
 import { listPostsFromDb } from "@/data/posts";
 import { estimateReadTime } from "@/lib/markdown";
 import { supabase } from "@/lib/supabase";

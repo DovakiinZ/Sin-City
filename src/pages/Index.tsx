@@ -1,6 +1,6 @@
 import AsciiHeader from "@/components/AsciiHeader";
 import AsciiSidebar from "@/components/AsciiSidebar";
-import AsciiMainContent from "@/components/AsciiMainContent";
+import AsciiFeed from "@/components/AsciiFeed";
 import AsciiFooter from "@/components/AsciiFooter";
 import NewPostsBadge from "@/components/NewPostsBadge";
 
@@ -22,7 +22,7 @@ const Index = () => {
 
           {/* Main content */}
           <div className="flex-1 min-w-0">
-            <AsciiMainContent />
+            <AsciiFeed />
           </div>
         </div>
 

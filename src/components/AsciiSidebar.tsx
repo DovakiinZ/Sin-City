@@ -89,6 +89,11 @@ const AsciiSidebar = () => {
             </Link>
           </li>
           <li>
+            <Link to="/ascii" className="ascii-nav-link hover:ascii-highlight">
+              → ASCII Tools
+            </Link>
+          </li>
+          <li>
             <Link to="/posts" className="ascii-nav-link hover:ascii-highlight">
               → Posts
             </Link>

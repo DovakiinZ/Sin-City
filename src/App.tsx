@@ -27,6 +27,7 @@ import Drafts from "./pages/Drafts";
 import AdminDashboard from "./pages/AdminDashboard";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
+import AsciiTools from "./pages/AsciiTools";
 import BootSequence from "./components/BootSequence";
 import ScanlineEffect from "./components/ScanlineEffect";
 import TerminalCommand from "./components/TerminalCommand";
@@ -92,6 +93,7 @@ const AppContent = () => {
           <Route path="/crowd" element={<AdminDashboard />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/ascii" element={<AsciiTools />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
