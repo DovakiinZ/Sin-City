@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Terminal } from "lucide-react";
 import { Analytics } from "@vercel/analytics/react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -103,6 +104,15 @@ const AppContent = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </PageTransition>
+
+      {/* Mobile Terminal Toggle */}
+      <button
+        onClick={() => setShowTerminal(true)}
+        className="fixed bottom-4 right-4 z-50 p-3 bg-black border border-green-500 rounded-full text-green-500 shadow-[0_0_10px_rgba(0,255,0,0.5)] md:hidden hover:shadow-[0_0_20px_rgba(0,255,0,0.8)] transition-all"
+        aria-label="Open Terminal"
+      >
+        <Terminal size={24} />
+      </button>
     </>
   );
 };

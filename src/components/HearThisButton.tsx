@@ -6,7 +6,10 @@ const HearThisButton = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
-    const { musicLinks, loading } = useMusicLinks();
+    const { musicLinks: allMusicLinks, loading } = useMusicLinks();
+
+    // Filter out hidden songs for the public feed
+    const musicLinks = allMusicLinks.filter(link => !link.is_hidden);
 
     const openSong = (index: number) => {
         if (musicLinks.length === 0) return;
@@ -106,8 +109,8 @@ const HearThisButton = () => {
                     <div className="flex items-center gap-2 mb-1">
                         <span
                             className={`text-xs px-2 py-0.5 rounded ${currentSong.platform === "Spotify"
-                                    ? "bg-green-600/20 text-green-400"
-                                    : "bg-red-600/20 text-red-400"
+                                ? "bg-green-600/20 text-green-400"
+                                : "bg-red-600/20 text-red-400"
                                 }`}
                         >
                             {currentSong.platform}

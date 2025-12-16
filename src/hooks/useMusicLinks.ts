@@ -10,6 +10,8 @@ export interface MusicLink {
     created_at: string;
     created_by: string | null;
     is_active: boolean;
+    mood?: 'sad' | 'happy' | 'bored' | null;
+    is_hidden?: boolean;
 }
 
 export function useMusicLinks() {
@@ -26,11 +28,7 @@ export function useMusicLinks() {
 
         if (error) {
             console.error("Error fetching music links:", error);
-            toast({
-                title: "Error",
-                description: "Failed to load music links",
-                variant: "destructive",
-            });
+            // Don't show toast on every fetch error (polite failure)
         } else {
             setMusicLinks(data || []);
         }
@@ -45,7 +43,9 @@ export function useMusicLinks() {
     const addMusicLink = async (
         platform: "Spotify" | "YouTube Music",
         url: string,
-        title: string
+        title: string,
+        mood?: 'sad' | 'happy' | 'bored' | null,
+        is_hidden: boolean = false
     ) => {
         const {
             data: { user },
@@ -61,7 +61,7 @@ export function useMusicLinks() {
 
         const { data, error } = await supabase
             .from("music_links")
-            .insert([{ platform, url, title, created_by: user.id }])
+            .insert([{ platform, url, title, mood, is_hidden, created_by: user.id }])
             .select()
             .single();
 
@@ -71,7 +71,7 @@ export function useMusicLinks() {
                 title: "Error",
                 description: error.message.includes("duplicate")
                     ? "This song URL already exists"
-                    : "Failed to add music link",
+                    : "Failed to add music link. (Did you run the Migration?)",
                 variant: "destructive",
             });
             return false;
@@ -87,7 +87,7 @@ export function useMusicLinks() {
 
     const updateMusicLink = async (
         id: string,
-        updates: Partial<Pick<MusicLink, "platform" | "url" | "title" | "is_active">>
+        updates: Partial<Pick<MusicLink, "platform" | "url" | "title" | "is_active" | "mood" | "is_hidden">>
     ) => {
         const { error } = await supabase
             .from("music_links")
@@ -137,6 +137,10 @@ export function useMusicLinks() {
         return updateMusicLink(id, { is_active: isActive });
     };
 
+    const toggleVisibility = async (id: string, isHidden: boolean) => {
+        return updateMusicLink(id, { is_hidden: !isHidden });
+    };
+
     return {
         musicLinks,
         loading,
@@ -144,6 +148,7 @@ export function useMusicLinks() {
         updateMusicLink,
         deleteMusicLink,
         toggleMusicLink,
+        toggleVisibility,
         refetch: fetchMusicLinks,
     };
 }

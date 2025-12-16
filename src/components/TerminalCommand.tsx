@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { convertToAscii } from "@/lib/ascii";
+import { validateMusicUrl } from "@/hooks/useMusicLinks";
 
 interface TerminalCommandProps {
     onClose: () => void;
@@ -11,7 +12,65 @@ const TerminalCommand = ({ onClose }: TerminalCommandProps) => {
     const { user } = useAuth();
     const [input, setInput] = useState("");
     const [isAdmin, setIsAdmin] = useState(false);
-    const [textColor, setTextColor] = useState<"green" | "white" | "red">("green");
+    const [textColor, setTextColor] = useState<string>("green");
+    const [isMaximized, setIsMaximized] = useState(false);
+    const [position, setPosition] = useState({ x: 50, y: 50 });
+    const [size, setSize] = useState({ w: 800, h: 500 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+    const [isResizing, setIsResizing] = useState(false);
+    const dragRef = useRef<HTMLDivElement>(null);
+
+    // Initial positioning (center)
+    useEffect(() => {
+        if (!isMaximized) {
+            const cx = Math.max(0, (window.innerWidth - 800) / 2);
+            const cy = Math.max(0, (window.innerHeight - 500) / 2);
+            setPosition({ x: cx, y: cy });
+        }
+    }, []);
+
+    // Global Mouse Handlers for Drag/Resize
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (isDragging && !isMaximized) {
+                setPosition({
+                    x: e.clientX - dragOffset.x,
+                    y: e.clientY - dragOffset.y
+                });
+            }
+            if (isResizing && !isMaximized) {
+                setSize({
+                    w: Math.max(400, e.clientX - position.x),
+                    h: Math.max(300, e.clientY - position.y)
+                });
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsDragging(false);
+            setIsResizing(false);
+        };
+
+        if (isDragging || isResizing) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging, isResizing, dragOffset, position, isMaximized]);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (isMaximized) return;
+        setIsDragging(true);
+        setDragOffset({
+            x: e.clientX - position.x,
+            y: e.clientY - position.y
+        });
+    };
     const [history, setHistory] = useState<string[]>([
         "SIN CITY Terminal v2.0",
         "Type 'help' for available commands",
@@ -70,9 +129,54 @@ const TerminalCommand = ({ onClose }: TerminalCommandProps) => {
     };
 
     const getColorClass = (baseClass: string) => {
-        if (textColor === 'white') return baseClass.replace('ascii-text', 'text-white').replace('ascii-highlight', 'text-gray-300');
-        if (textColor === 'red') return baseClass.replace('ascii-text', 'text-red-500').replace('ascii-highlight', 'text-red-300');
-        return baseClass; // Default green
+        const colorMap: Record<string, string> = {
+            'white': 'text-white',
+            'red': 'text-red-500',
+            'blue': 'text-blue-500',
+            'cyan': 'text-cyan-400',
+            'purple': 'text-purple-500',
+            'yellow': 'text-yellow-400',
+            'green': 'ascii-text', // Default
+        };
+
+        const colorClass = colorMap[textColor] || 'ascii-text';
+
+        if (baseClass === 'ascii-text') return colorClass;
+        if (baseClass === 'ascii-highlight') {
+            // Try to map highlight roughly to lighter version or same
+            if (textColor === 'white') return 'text-gray-300';
+            if (textColor === 'red') return 'text-red-300';
+            return 'ascii-highlight';
+        }
+        return baseClass;
+    };
+
+    const playMoodMusic = async (mood: string): Promise<string> => {
+        try {
+            const { data, error } = await supabase
+                .from('music_links')
+                .select('url, title, platform')
+                .eq('mood', mood)
+                .eq('is_active', true);
+
+            if (error) {
+                // If column doesn't exist yet, this will error. Handle gracefully.
+                console.error('Mood fetch error:', error);
+                return `Error: Could not fetch ${mood} music. (Database might be missing 'mood' column)`;
+            }
+
+            if (!data || data.length === 0) {
+                return `No ${mood} music found. Add some songs with '${mood}' mood in Admin Console!`;
+            }
+
+            // Pick random
+            const song = data[Math.floor(Math.random() * data.length)];
+            window.open(song.url, '_blank');
+            return `Playing ${mood} vibes: ${song.title} (${song.platform})...`;
+
+        } catch (e: any) {
+            return `Error: ${e.message}`;
+        }
     };
 
     const commands: Record<string, (args?: string[]) => Promise<string> | string> = {
@@ -80,6 +184,7 @@ const TerminalCommand = ({ onClose }: TerminalCommandProps) => {
             let helpText = `Available commands:
   help          - Show this help message
   color <c>     - Change color (green, white, red)
+  sad/happy/bored - Play mood music
   about         - About Sin City
   clear         - Clear terminal
   
@@ -122,20 +227,46 @@ Admin Commands (sudo):
   sudo promote <username> - Promote user to admin
   sudo demote <username>  - Demote admin to user
   sudo delete-post <slug> - Delete a post
-  sudo delete-user <user> - Delete a user profile`;
+  sudo delete-post <slug> - Delete a post
+  sudo delete-user <user> - Delete a user profile
+
+Music Admin:
+  git clone <url> <mood>  - Add song (git clone https://... sad)`;
             }
 
             return helpText;
         },
 
         color: (args?: string[]) => {
-            if (!args || args.length === 0) return "Usage: color <green|white|red>";
-            const color = args[0].toLowerCase();
-            if (color === 'green' || color === 'white' || color === 'red') {
-                setTextColor(color as any);
-                return `Terminal color set to ${color}`;
+            if (!args || args.length === 0) return "Usage: color <a-f|0-9|name>\nExample: color a (green), color b (cyan)";
+
+            const code = args[0].toLowerCase();
+            const colorMap: Record<string, string> = {
+                'a': 'green', 'green': 'green',
+                'b': 'cyan', 'cyan': 'cyan',
+                'c': 'red', 'red': 'red',
+                'd': 'purple', 'purple': 'purple',
+                'e': 'yellow', 'yellow': 'yellow',
+                'f': 'white', 'white': 'white',
+                '1': 'blue', 'blue': 'blue',
+            };
+
+            if (colorMap[code]) {
+                setTextColor(colorMap[code]);
+                return `Terminal color set to ${colorMap[code]}`;
             }
-            return "Invalid color. Available: green, white, red";
+            return "Invalid color code. Try: a (green), b (cyan), c (red), f (white)";
+        },
+
+        // Mood Commands
+        sad: async () => {
+            return await playMoodMusic('sad');
+        },
+        happy: async () => {
+            return await playMoodMusic('happy');
+        },
+        bored: async () => {
+            return await playMoodMusic('bored');
         },
 
         about: () => `SIN CITY - ASCII Blog Platform
@@ -427,6 +558,76 @@ Built with: React + TypeScript + Vite`,
             return "Wake up, Bassam... The Matrix has you...\nFollow the white rabbit. 🐰";
         },
 
+        git: async (args?: string[]) => {
+            if (!isAdmin) return "Permission denied: admin privileges required";
+
+            if (!args || args.length === 0) {
+                return "usage: git clone <url> <mood>\nReview 'help' for more info.";
+            }
+
+            const subcommand = args[0].toLowerCase();
+
+            if (subcommand === 'clone') {
+                if (args.length < 3) {
+                    return "fatal: you must specify a repository (url) and destination (mood)\nusage: git clone <url> <sad|happy|bored>";
+                }
+
+                const url = args[1];
+                const mood = args[2].toLowerCase();
+
+                if (!['sad', 'happy', 'bored'].includes(mood)) {
+                    return `fatal: destination path '${mood}' does not exist\nAvailable moods: sad, happy, bored`;
+                }
+
+                const validation = validateMusicUrl(url);
+                if (!validation.valid) {
+                    return `fatal: repository '${url}' not found\nError: ${validation.error}`;
+                }
+
+                // Simulate cloning process
+                // We'll try to fetch title via noembed if YouTube, otherwise generic
+                let title = `${validation.platform} Track`;
+
+                if (validation.platform === 'YouTube Music') {
+                    try {
+                        const fetchUrl = `https://noembed.com/embed?url=${encodeURIComponent(url.replace('music.youtube.com', 'www.youtube.com'))}`;
+                        const res = await fetch(fetchUrl);
+                        const data = await res.json();
+                        if (data.title) title = data.title;
+                    } catch (e) {
+                        // ignore fetch error
+                    }
+                } else if (validation.platform === 'Spotify') {
+                    // Try to extract some ID or slug from URL for better placeholder
+                    // e.g. /track/4cOdK2wGLETKBW3PvgPWqT?si=... -> 4cOd...
+                    const parts = url.split('/').pop()?.split('?')[0];
+                    if (parts) title = `Spotify ${parts.substring(0, 8)}...`;
+                }
+
+                try {
+                    const { error } = await supabase
+                        .from('music_links')
+                        .insert({
+                            url: url,
+                            title: title,
+                            platform: validation.platform,
+                            mood: mood,
+                            is_active: true,
+                            is_hidden: true // Hide from public 'Hear This' feed
+                        });
+
+                    if (error) throw error;
+
+                    return `Cloning into '${mood}'...\nremote: Enumerating objects: 1, done.\nremote: Counting objects: 100% (1/1), done.\nremote: Total 1 (delta 0), reused 0 (delta 0), pack-reused 0\nReceiving objects: 100% (1/1), done.\n\nSuccessfully added:\n  Song: ${title}\n  Mood: ${mood}\n  Platform: ${validation.platform}`;
+
+                } catch (error: any) {
+                    return `fatal: database error: ${error.message}`;
+                }
+            }
+
+            return `git: '${subcommand}' is not a git command. See 'git --help'.`;
+        },
+
         version: () => {
             return `SIN CITY Terminal v2.0
 Build: ${new Date().toISOString().split('T')[0]}
@@ -649,53 +850,89 @@ Engine: React + Vite`;
     };
 
     return (
-        <div className="fixed inset-0 bg-background/95 z-50 flex items-center justify-center p-4">
-            <div className={`w-full max-w-3xl ascii-box bg-background p-4 ${textColor === 'white' ? 'border-white text-white' : textColor === 'red' ? 'border-red-600 text-red-500' : ''}`}>
-                <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center gap-2">
-                        <pre className={getColorClass("ascii-highlight")}>TERMINAL</pre>
-                        {isAdmin && <span className="text-xs text-yellow-500">[ADMIN]</span>}
-                        {/* Hidden file input for commands like jp2a */}
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            accept="image/*"
-                            onChange={handleFileSelect}
-                        />
-                    </div>
+        <div
+            className="fixed z-50 shadow-2xl overflow-hidden flex flex-col"
+            style={{
+                left: isMaximized ? 0 : position.x,
+                top: isMaximized ? 0 : position.y,
+                width: isMaximized ? '100vw' : size.w,
+                height: isMaximized ? '100vh' : size.h,
+                backgroundColor: 'rgba(10, 10, 10, 0.95)',
+                border: '1px solid',
+                borderColor: textColor === 'green' ? '#22c55e' : textColor === 'red' ? '#dc2626' : '#ffffff' // basic border match
+            }}
+        >
+            {/* Header / Drag Handle */}
+            <div
+                className={`flex justify-between items-center p-2 select-none cursor-move border-b ${textColor === 'green' ? 'border-green-800' : 'border-gray-700'}`}
+                onMouseDown={handleMouseDown}
+            >
+                <div className="flex items-center gap-2">
+                    <pre className={`${getColorClass("ascii-highlight")} font-bold`}>SIN CITY TERMINAL</pre>
+                    {isAdmin && <span className="text-xs text-yellow-500">[ADMIN]</span>}
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                    />
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsMaximized(!isMaximized)}
+                        className={`${getColorClass("ascii-text")} hover:opacity-80 font-mono`}
+                    >
+                        [{isMaximized ? '❐' : '□'}]
+                    </button>
                     <button
                         onClick={onClose}
-                        className={`${getColorClass("ascii-text")} hover:opacity-80`}
+                        className={`${getColorClass("ascii-text")} hover:opacity-80 font-mono`}
                     >
                         [X]
                     </button>
                 </div>
+            </div>
 
-                <div className="bg-black/50 p-4 h-96 overflow-y-auto mb-4 font-mono text-sm">
-                    {history.map((line, i) => (
-                        <pre key={i} className={line.startsWith("$") ? getColorClass("ascii-highlight") : getColorClass("ascii-text")}>
-                            {line}
-                        </pre>
-                    ))}
-                    <div className="flex items-center">
-                        <span className={`${getColorClass("ascii-highlight")} mr-2`}>$</span>
-                        <form onSubmit={handleSubmit} className="flex-1">
-                            <input
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                className={`bg-transparent border-none outline-none w-full typing-cursor ${getColorClass("ascii-text")}`}
-                                autoFocus
-                                placeholder="Type a command..."
-                            />
-                        </form>
-                    </div>
+            {/* Terminal Body */}
+            <div className="flex-1 p-4 overflow-y-auto font-mono text-sm" onClick={() => document.querySelector('.typing-cursor')?.clientWidth}>
+                {/* ^ Click focus handler could be improved */}
+                {history.map((line, i) => (
+                    <pre key={i} className={`whitespace-pre-wrap break-words ${line.startsWith("$") ? getColorClass("ascii-highlight") : getColorClass("ascii-text")}`}>
+                        {line}
+                    </pre>
+                ))}
+                <div className="flex items-center mt-2">
+                    <span className={`${getColorClass("ascii-highlight")} mr-2`}>$</span>
+                    <form onSubmit={handleSubmit} className="flex-1">
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            className={`bg-transparent border-none outline-none w-full typing-cursor ${getColorClass("ascii-text")}`}
+                            autoFocus
+                            placeholder="Type a command..."
+                        />
+                    </form>
                 </div>
+            </div>
 
-                <pre className={`${getColorClass("ascii-dim")} text-xs`}>
-                    {`Press 'Esc' to close | Type 'help' for commands`}
-                </pre>
+            {/* Footer / Resize Handle */}
+            <div className="p-1 px-4 flex justify-between items-center text-xs opacity-50 bg-black/20">
+                <span className={getColorClass("ascii-dim")}>
+                    v2.0 | {isMaximized ? 'FULLSCREEN' : `${size.w}x${size.h}`}
+                </span>
+                {!isMaximized && (
+                    <div
+                        className="cursor-nwse-resize w-4 h-4 flex items-center justify-center"
+                        onMouseDown={(e) => {
+                            e.stopPropagation();
+                            setIsResizing(true);
+                        }}
+                    >
+                        ◢
+                    </div>
+                )}
             </div>
         </div>
     );
