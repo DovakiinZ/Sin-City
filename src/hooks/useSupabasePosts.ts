@@ -19,6 +19,8 @@ export interface Post {
     author_avatar?: string;
     author_username?: string;
     view_count?: number;
+    thread_id?: string;
+    thread_position?: number;
     created_at: string;
     updated_at: string;
 }
@@ -208,4 +210,86 @@ export async function deletePost(id: string) {
         .eq("id", id);
 
     if (error) throw error;
+}
+
+// Thread-related types
+export interface ThreadPost {
+    title: string;
+    content: string;
+    attachments?: unknown;
+    tags?: string[];
+}
+
+// Create a thread (multiple connected posts)
+export async function createThread(
+    posts: ThreadPost[],
+    authorInfo: {
+        user_id?: string;
+        author_name: string;
+        author_email?: string;
+    }
+) {
+    if (posts.length === 0) throw new Error("Thread must have at least one post");
+
+    // Generate a unique thread_id
+    const threadId = crypto.randomUUID();
+
+    // Create all posts with thread info
+    const postsToInsert = posts.map((post, index) => ({
+        title: post.title,
+        type: post.attachments ? "Image" as const : "Text" as const,
+        content: post.content,
+        attachments: post.attachments || null,
+        tags: post.tags || null,
+        draft: false,
+        thread_id: threadId,
+        thread_position: index + 1,
+        user_id: authorInfo.user_id || null,
+        author_name: authorInfo.author_name,
+        author_email: authorInfo.author_email || "",
+    }));
+
+    const { data, error } = await supabase
+        .from("posts")
+        .insert(postsToInsert)
+        .select();
+
+    if (error) throw error;
+    return { threadId, posts: data };
+}
+
+// Get all posts in a thread
+export async function getThreadPosts(threadId: string): Promise<Post[]> {
+    const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("thread_id", threadId)
+        .order("thread_position", { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+}
+
+// Get thread info for a post (if it belongs to a thread)
+export async function getThreadInfo(postId: string): Promise<{ threadId: string; position: number; total: number } | null> {
+    // First get the post's thread info
+    const { data: post, error } = await supabase
+        .from("posts")
+        .select("thread_id, thread_position")
+        .eq("id", postId)
+        .single();
+
+    if (error || !post?.thread_id) return null;
+
+    // Get total posts in thread
+    const { count } = await supabase
+        .from("posts")
+        .select("*", { count: "exact", head: true })
+        .eq("thread_id", post.thread_id);
+
+    return {
+        threadId: post.thread_id,
+        position: post.thread_position,
+        total: count || 0
+    };
 }

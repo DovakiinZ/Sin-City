@@ -29,6 +29,8 @@ import AdminDashboard from "./pages/AdminDashboard";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import AsciiTools from "./pages/AsciiTools";
+import ThreadView from "./pages/ThreadView";
+import QuickCreateButton from "./components/QuickCreateButton";
 import BootSequence from "./components/BootSequence";
 import ScanlineEffect from "./components/ScanlineEffect";
 import TerminalCommand from "./components/TerminalCommand";
@@ -86,6 +88,7 @@ const AppContent = () => {
           <Route path="/manage" element={<ManagePosts />} />
           <Route path="/posts" element={<Posts />} />
           <Route path="/post/:slug" element={<PostDetail />} />
+          <Route path="/thread/:threadId" element={<ThreadView />} />
           <Route path="/search" element={<SearchResults />} />
           <Route path="/user/:username" element={<UserProfile />} />
           <Route path="/bookmarks" element={<Bookmarks />} />
@@ -104,6 +107,11 @@ const AppContent = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </PageTransition>
+
+      {/* Quick Create FAB - hidden on mobile to avoid conflict with terminal */}
+      <div className="hidden md:block">
+        <QuickCreateButton />
+      </div>
 
       {/* Mobile Terminal Toggle */}
       <button

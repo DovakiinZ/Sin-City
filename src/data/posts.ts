@@ -23,6 +23,8 @@ export type DbPost = {
   draft?: boolean;
   view_count?: number;
   is_pinned?: boolean;
+  thread_id?: string | null;
+  thread_position?: number | null;
 };
 
 const normalizeAttachments = (value: unknown): AttachmentMetadata[] | null => {
@@ -105,7 +107,7 @@ export async function listPostsFromDb(): Promise<DbPost[]> {
   // Filter out hidden posts for public view
   const { data, error } = await supabase
     .from("posts")
-    .select("id,slug,title,type,content,attachments,author_name,author_email,author_avatar,user_id,view_count,created_at,draft,hidden,is_pinned")
+    .select("id,slug,title,type,content,attachments,author_name,author_email,author_avatar,user_id,view_count,created_at,draft,hidden,is_pinned,thread_id,thread_position")
     .or("hidden.is.null,hidden.eq.false") // Only show non-hidden posts
     .order("is_pinned", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })

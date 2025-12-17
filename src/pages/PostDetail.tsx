@@ -8,6 +8,7 @@ import ReactionButtons from "@/components/reactions/ReactionButtons";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import ShareButtons from "@/components/sharing/ShareButtons";
 import MediaCarousel from "@/components/media/PostMediaCarousel";
+import ThreadNavigation from "@/components/thread/ThreadNavigation";
 import { listPostsFromDb } from "@/data/posts";
 import { estimateReadTime } from "@/lib/markdown";
 import { supabase } from "@/lib/supabase";
@@ -22,6 +23,8 @@ type Post = {
     tags?: string[];
     viewCount?: number;
     attachments?: { url: string; type: 'image' | 'video' }[];
+    threadId?: string;
+    threadPosition?: number;
 };
 
 export default function PostDetail() {
@@ -31,6 +34,7 @@ export default function PostDetail() {
     const [loading, setLoading] = useState(true);
     const hasIncrementedView = useRef(false);
     const [authorUsername, setAuthorUsername] = useState<string | null>(null);
+    const [threadTotal, setThreadTotal] = useState<number>(0);
 
     useEffect(() => {
         const loadPost = async () => {
@@ -56,15 +60,33 @@ export default function PostDetail() {
                         }
                     }
 
+                    // Check if post is part of a thread - redirect to ThreadView
+                    if (dbPost.thread_id) {
+                        const { count } = await supabase
+                            .from('posts')
+                            .select('*', { count: 'exact', head: true })
+                            .eq('thread_id', dbPost.thread_id);
+                        const threadTotalCount = count || 0;
+
+                        // If thread has multiple posts, redirect to thread view
+                        if (threadTotalCount > 1) {
+                            navigate(`/thread/${dbPost.thread_id}`, { replace: true });
+                            return;
+                        }
+                        setThreadTotal(threadTotalCount);
+                    }
+
                     setPost({
                         title: dbPost.title,
                         date: dbPost.created_at ? new Date(dbPost.created_at).toISOString().split("T")[0] : "",
                         content: dbPost.content || "",
                         slug: dbPost.id || slug || "",
-                        author: fetchedUsername || dbPost.author_name || undefined, // Use fetched username immediately
+                        author: fetchedUsername || dbPost.author_name || undefined,
                         authorId: dbPost.user_id || undefined,
                         viewCount: (dbPost.view_count || 0) + 1,
                         attachments: dbPost.attachments as { url: string; type: 'image' | 'video' }[] || undefined,
+                        threadId: dbPost.thread_id || undefined,
+                        threadPosition: dbPost.thread_position || undefined,
                     });
 
                     // Increment view count (only once per page load)
@@ -146,7 +168,26 @@ export default function PostDetail() {
             <div className="w-full max-w-4xl mx-auto space-y-6">
                 <BackButton />
 
+                {/* Thread Navigation - show if post is part of a thread */}
+                {post.threadId && post.threadPosition && threadTotal > 1 && (
+                    <ThreadNavigation
+                        threadId={post.threadId}
+                        currentPosition={post.threadPosition}
+                        total={threadTotal}
+                        currentPostId={post.slug}
+                    />
+                )}
+
                 <div className="ascii-box p-6">
+                    {/* Thread indicator badge */}
+                    {post.threadId && post.threadPosition && threadTotal > 1 && (
+                        <div className="mb-4 flex items-center gap-2">
+                            <span className="ascii-box px-2 py-1 text-xs bg-green-500/10 text-green-400 border-green-500/30">
+                                📎 Thread [{post.threadPosition}/{threadTotal}]
+                            </span>
+                        </div>
+                    )}
+
                     <pre className="ascii-highlight text-2xl mb-4">{post.title}</pre>
 
                     <div className="ascii-dim text-xs mb-6 flex flex-wrap gap-3">

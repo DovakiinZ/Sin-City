@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import RichTextEditor from "@/components/editor/RichTextEditor";
 import BackButton from "@/components/BackButton";
+import ThreadCreator from "@/components/thread/ThreadCreator";
+import { createThread } from "@/hooks/useSupabasePosts";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -14,12 +16,20 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { X, Plus, Image, Film, Loader2 } from "lucide-react";
+import { X, Plus, Image, Film, Loader2, Link2 } from "lucide-react";
+
+type PostMode = "single" | "thread";
 
 export default function CreatePost() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
+    const [searchParams] = useSearchParams();
+
+    // Mode toggle - can be set from URL param (?mode=thread)
+    const initialMode = searchParams.get("mode") === "thread" ? "thread" : "single";
+    const [mode, setMode] = useState<PostMode>(initialMode);
+
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
     const [saving, setSaving] = useState(false);
@@ -157,10 +167,11 @@ export default function CreatePost() {
     };
 
     const handleSave = async (draft: boolean = true) => {
-        if (!title.trim()) {
+        // Title is now optional - if not provided, we'll auto-generate one
+        if (!content.trim() && mediaFiles.length === 0) {
             toast({
-                title: "Title required",
-                description: "Please enter a post title",
+                title: "Content required",
+                description: "Please add some text or media to your post",
                 variant: "destructive",
             });
             return;
@@ -168,12 +179,18 @@ export default function CreatePost() {
 
         setSaving(true);
         try {
+            // Auto-generate title if not provided
+            const postTitle = title.trim() || `Post from ${new Date().toLocaleDateString()}`;
+            const generatedSlug = postTitle
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/(^-|-$)+/g, "");
             // Generate unique slug with timestamp to prevent conflicts
-            const uniqueSlug = `${slug}-${Date.now().toString(36)}`;
+            const uniqueSlug = `${generatedSlug}-${Date.now().toString(36)}`;
 
             // Post data - works for both logged in and anonymous users
             const postData = {
-                title,
+                title: postTitle,
                 content,
                 type: mediaFiles.length > 0 ? 'Image' : 'Text',
                 slug: uniqueSlug,
@@ -239,187 +256,256 @@ export default function CreatePost() {
         }
     };
 
+    // Handle thread publish
+    const handleThreadPublish = async (items: { id: string; title: string; content: string; attachments: { url: string; type: 'image' | 'video' }[] }[]) => {
+        try {
+            const threadPosts = items.map(item => ({
+                title: item.title || `Thread post`,
+                content: item.content,
+                attachments: item.attachments.length > 0 ? item.attachments : undefined,
+            }));
+
+            const { threadId, posts } = await createThread(threadPosts, {
+                user_id: user?.id,
+                author_name: user?.username || user?.email || "Anonymous",
+                author_email: user?.email,
+            });
+
+            toast({
+                title: "Thread published!",
+                description: `Created ${posts?.length || 0} connected posts`,
+            });
+
+            // Navigate to thread view
+            navigate(`/thread/${threadId}`);
+        } catch (error) {
+            console.error("Error creating thread:", error);
+            toast({
+                title: "Error",
+                description: "Failed to create thread",
+                variant: "destructive",
+            });
+        }
+    };
+
     return (
         <div className="min-h-screen bg-background p-4">
             <div className="max-w-4xl mx-auto space-y-6">
                 <div className="flex justify-between items-center">
                     <BackButton />
-                    <div className="flex gap-2">
-                        <Button
-                            onClick={() => handleSave(true)}
-                            disabled={saving}
-                            variant="outline"
-                            className="ascii-box"
-                        >
-                            Save Draft
-                        </Button>
-                        <Button
-                            onClick={() => handleSave(false)}
-                            disabled={saving}
-                            className="ascii-box bg-ascii-highlight text-black hover:bg-ascii-highlight/90"
-                        >
-                            Publish
-                        </Button>
-                    </div>
-                </div>
 
-                <div className="ascii-box p-6 space-y-6">
-                    <div>
-                        <label className="block ascii-dim text-xs mb-2">TITLE</label>
-                        <Input
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Enter post title..."
-                            className="ascii-box bg-transparent text-xl font-bold border-ascii-border focus-visible:ring-ascii-highlight"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block ascii-dim text-xs mb-2">SLUG</label>
-                        <div className="ascii-text text-sm opacity-70">/post/{slug}</div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block ascii-dim text-xs mb-2">CATEGORY</label>
-                            <Select value={categoryId} onValueChange={setCategoryId}>
-                                <SelectTrigger className="ascii-box border-ascii-border">
-                                    <SelectValue placeholder="Select category..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categories.map((cat) => (
-                                        <SelectItem key={cat.id} value={cat.id}>
-                                            {cat.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                    {/* Mode Toggle */}
+                    <div className="flex items-center gap-4">
+                        <div className="ascii-box flex overflow-hidden">
+                            <button
+                                onClick={() => setMode("single")}
+                                className={`px-4 py-2 text-sm transition-colors ${mode === "single"
+                                    ? "bg-green-500/20 ascii-highlight"
+                                    : "ascii-dim hover:ascii-highlight"
+                                    }`}
+                            >
+                                Single Post
+                            </button>
+                            <button
+                                onClick={() => setMode("thread")}
+                                className={`px-4 py-2 text-sm flex items-center gap-1 transition-colors border-l border-ascii-border ${mode === "thread"
+                                    ? "bg-green-500/20 ascii-highlight"
+                                    : "ascii-dim hover:ascii-highlight"
+                                    }`}
+                            >
+                                <Link2 className="w-4 h-4" />
+                                Thread
+                            </button>
                         </div>
 
-                        <div>
-                            <label className="block ascii-dim text-xs mb-2">TAGS</label>
+                        {mode === "single" && (
                             <div className="flex gap-2">
-                                <Input
-                                    value={tagInput}
-                                    onChange={(e) => setTagInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                            e.preventDefault();
-                                            addTag(tagInput);
-                                        }
-                                    }}
-                                    placeholder="Add tags..."
-                                    className="ascii-box bg-transparent border-ascii-border"
-                                />
                                 <Button
-                                    type="button"
-                                    onClick={() => addTag(tagInput)}
+                                    onClick={() => handleSave(true)}
+                                    disabled={saving}
                                     variant="outline"
                                     className="ascii-box"
                                 >
-                                    Add
+                                    Save Draft
+                                </Button>
+                                <Button
+                                    onClick={() => handleSave(false)}
+                                    disabled={saving}
+                                    className="ascii-box bg-ascii-highlight text-black hover:bg-ascii-highlight/90"
+                                >
+                                    Publish
                                 </Button>
                             </div>
-                            {selectedTags.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    {selectedTags.map((tag) => (
-                                        <span
-                                            key={tag}
-                                            className="ascii-box px-2 py-1 text-xs flex items-center gap-1"
-                                        >
-                                            #{tag}
-                                            <button
-                                                onClick={() => removeTag(tag)}
-                                                className="hover:text-red-400"
-                                            >
-                                                <X className="w-3 h-3" />
-                                            </button>
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Media Upload Section */}
-                    <div>
-                        <label className="block ascii-dim text-xs mb-2">MEDIA ATTACHMENTS (up to 4)</label>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*,video/*"
-                            multiple
-                            onChange={handleMediaUpload}
-                            className="hidden"
-                        />
-
-                        {/* Media Preview Grid */}
-                        <div className={`grid gap-2 mb-3 ${mediaFiles.length === 1 ? 'grid-cols-1' :
-                            mediaFiles.length === 2 ? 'grid-cols-2' :
-                                mediaFiles.length >= 3 ? 'grid-cols-2' : ''
-                            }`}>
-                            {mediaFiles.map((media, index) => (
-                                <div key={index} className="relative aspect-video ascii-box overflow-hidden bg-black">
-                                    {media.type === 'image' ? (
-                                        <img
-                                            src={media.url}
-                                            alt={`Attachment ${index + 1}`}
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        <video
-                                            src={media.url}
-                                            className="w-full h-full object-cover"
-                                            controls
-                                        />
-                                    )}
-                                    <button
-                                        onClick={() => removeMedia(index)}
-                                        className="absolute top-2 right-2 bg-black/70 p-1 rounded hover:bg-red-600 transition-colors"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                    <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs flex items-center gap-1">
-                                        {media.type === 'image' ? <Image className="w-3 h-3" /> : <Film className="w-3 h-3" />}
-                                        {media.type}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Add Media Button */}
-                        {mediaFiles.length < 4 && (
-                            <Button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={uploadingMedia}
-                                variant="outline"
-                                className="ascii-box flex items-center gap-2"
-                            >
-                                {uploadingMedia ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Uploading...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Plus className="w-4 h-4" />
-                                        Add Photo/Video
-                                    </>
-                                )}
-                            </Button>
                         )}
                     </div>
-
-                    <div>
-                        <label className="block ascii-dim text-xs mb-2">CONTENT</label>
-                        <RichTextEditor
-                            content={content}
-                            onChange={setContent}
-                            placeholder="Write your post content..."
-                        />
-                    </div>
                 </div>
+
+                {/* Thread Mode */}
+                {mode === "thread" ? (
+                    <ThreadCreator
+                        onPublish={handleThreadPublish}
+                        onCancel={() => setMode("single")}
+                    />
+                ) : (
+                    /* Single Post Mode */
+                    <div className="ascii-box p-6 space-y-6">
+                        <div>
+                            <label className="block ascii-dim text-xs mb-2">TITLE</label>
+                            <Input
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="Enter post title..."
+                                className="ascii-box bg-transparent text-xl font-bold border-ascii-border focus-visible:ring-ascii-highlight"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block ascii-dim text-xs mb-2">SLUG</label>
+                            <div className="ascii-text text-sm opacity-70">/post/{slug}</div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block ascii-dim text-xs mb-2">CATEGORY</label>
+                                <Select value={categoryId} onValueChange={setCategoryId}>
+                                    <SelectTrigger className="ascii-box border-ascii-border">
+                                        <SelectValue placeholder="Select category..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {categories.map((cat) => (
+                                            <SelectItem key={cat.id} value={cat.id}>
+                                                {cat.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div>
+                                <label className="block ascii-dim text-xs mb-2">TAGS</label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={tagInput}
+                                        onChange={(e) => setTagInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                e.preventDefault();
+                                                addTag(tagInput);
+                                            }
+                                        }}
+                                        placeholder="Add tags..."
+                                        className="ascii-box bg-transparent border-ascii-border"
+                                    />
+                                    <Button
+                                        type="button"
+                                        onClick={() => addTag(tagInput)}
+                                        variant="outline"
+                                        className="ascii-box"
+                                    >
+                                        Add
+                                    </Button>
+                                </div>
+                                {selectedTags.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                        {selectedTags.map((tag) => (
+                                            <span
+                                                key={tag}
+                                                className="ascii-box px-2 py-1 text-xs flex items-center gap-1"
+                                            >
+                                                #{tag}
+                                                <button
+                                                    onClick={() => removeTag(tag)}
+                                                    className="hover:text-red-400"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Media Upload Section */}
+                        <div>
+                            <label className="block ascii-dim text-xs mb-2">MEDIA ATTACHMENTS (up to 4)</label>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*,video/*"
+                                multiple
+                                onChange={handleMediaUpload}
+                                className="hidden"
+                            />
+
+                            {/* Media Preview Grid */}
+                            <div className={`grid gap-2 mb-3 ${mediaFiles.length === 1 ? 'grid-cols-1' :
+                                mediaFiles.length === 2 ? 'grid-cols-2' :
+                                    mediaFiles.length >= 3 ? 'grid-cols-2' : ''
+                                }`}>
+                                {mediaFiles.map((media, index) => (
+                                    <div key={index} className="relative aspect-video ascii-box overflow-hidden bg-black">
+                                        {media.type === 'image' ? (
+                                            <img
+                                                src={media.url}
+                                                alt={`Attachment ${index + 1}`}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <video
+                                                src={media.url}
+                                                className="w-full h-full object-cover"
+                                                controls
+                                            />
+                                        )}
+                                        <button
+                                            onClick={() => removeMedia(index)}
+                                            className="absolute top-2 right-2 bg-black/70 p-1 rounded hover:bg-red-600 transition-colors"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                        <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs flex items-center gap-1">
+                                            {media.type === 'image' ? <Image className="w-3 h-3" /> : <Film className="w-3 h-3" />}
+                                            {media.type}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Add Media Button */}
+                            {mediaFiles.length < 4 && (
+                                <Button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploadingMedia}
+                                    variant="outline"
+                                    className="ascii-box flex items-center gap-2"
+                                >
+                                    {uploadingMedia ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Uploading...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Plus className="w-4 h-4" />
+                                            Add Photo/Video
+                                        </>
+                                    )}
+                                </Button>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="block ascii-dim text-xs mb-2">CONTENT</label>
+                            <RichTextEditor
+                                content={content}
+                                onChange={setContent}
+                                placeholder="Write your post content..."
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
