@@ -45,8 +45,8 @@ const AsciiHeader = () => {
               src="/images/cicada.png?v=3"
               alt="Sin City Cicada Logo"
               className={isMobileDevice
-                ? "w-16 h-16 object-contain opacity-90 hover:opacity-100 transition-opacity duration-300 mix-blend-screen brightness-90 contrast-125"
-                : "w-24 h-24 md:w-32 md:h-32 lg:w-40 lg:h-40 object-contain opacity-90 hover:opacity-100 transition-opacity duration-300 mix-blend-screen brightness-90 contrast-125"
+                ? "w-16 h-16 object-contain opacity-90 hover:opacity-100 transition-opacity duration-300 mix-blend-screen brightness-75 contrast-150"
+                : "w-24 h-24 md:w-32 md:h-32 lg:w-40 lg:h-40 object-contain opacity-90 hover:opacity-100 transition-opacity duration-300 mix-blend-screen brightness-75 contrast-150"
               }
             />
           </div>
