@@ -22,7 +22,7 @@ const BootSequence = ({ onComplete }: { onComplete: () => void }) => {
             <img
                 src="/loader.gif"
                 alt="Loading..."
-                className="max-h-screen max-w-full object-contain"
+                className="max-h-screen max-w-full object-contain mix-blend-screen brightness-75 contrast-150"
             />
         </div>
     );
