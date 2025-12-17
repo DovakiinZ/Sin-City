@@ -232,15 +232,40 @@ export default function CreatePost() {
     return (
         <div className="min-h-screen bg-background p-4">
             <div className="max-w-4xl mx-auto space-y-6">
-                <div className="flex justify-between items-center">
-                    <BackButton />
+                <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
+                    <div className="flex justify-between items-center w-full md:w-auto">
+                        <BackButton />
 
-                    {/* Mode Toggle */}
-                    <div className="flex items-center gap-4">
-                        <div className="ascii-box flex overflow-hidden">
+                        {/* Mobile Actions - Visible only on mobile in single mode */}
+                        {mode === "single" && (
+                            <div className="flex gap-2 md:hidden">
+                                <Button
+                                    onClick={() => handleSave(true)}
+                                    disabled={saving}
+                                    variant="outline"
+                                    size="sm"
+                                    className="ascii-box px-3 h-9 text-xs"
+                                >
+                                    Save
+                                </Button>
+                                <Button
+                                    onClick={() => handleSave(false)}
+                                    disabled={saving}
+                                    size="sm"
+                                    className="ascii-box bg-ascii-highlight text-black hover:bg-ascii-highlight/90 px-3 h-9 text-xs"
+                                >
+                                    Publish
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Mode Toggle & Desktop Actions */}
+                    <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                        <div className="ascii-box flex overflow-hidden w-full md:w-auto justify-center">
                             <button
                                 onClick={() => setMode("single")}
-                                className={`px-4 py-2 text-sm transition-colors ${mode === "single"
+                                className={`flex-1 md:flex-none px-4 py-2 text-sm transition-colors ${mode === "single"
                                     ? "bg-green-500/20 ascii-highlight"
                                     : "ascii-dim hover:ascii-highlight"
                                     }`}
@@ -249,7 +274,7 @@ export default function CreatePost() {
                             </button>
                             <button
                                 onClick={() => setMode("thread")}
-                                className={`px-4 py-2 text-sm flex items-center gap-1 transition-colors border-l border-ascii-border ${mode === "thread"
+                                className={`flex-1 md:flex-none px-4 py-2 text-sm flex items-center justify-center gap-1 transition-colors border-l border-ascii-border ${mode === "thread"
                                     ? "bg-green-500/20 ascii-highlight"
                                     : "ascii-dim hover:ascii-highlight"
                                     }`}
@@ -260,7 +285,7 @@ export default function CreatePost() {
                         </div>
 
                         {mode === "single" && (
-                            <div className="flex gap-2">
+                            <div className="hidden md:flex gap-2">
                                 <Button
                                     onClick={() => handleSave(true)}
                                     disabled={saving}

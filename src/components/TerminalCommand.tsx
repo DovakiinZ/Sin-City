@@ -3,6 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { convertToAscii } from "@/lib/ascii";
 import { validateMusicUrl } from "@/hooks/useMusicLinks";
+import { arabicPoetry } from "@/data/arabicPoetry";
 
 interface TerminalCommandProps {
     onClose: () => void;
@@ -213,6 +214,7 @@ const TerminalCommand = ({ onClose }: TerminalCommandProps) => {
  Fun:
   hack          - Hacking animation
   quote         - Random quote
+  poetry        - Random Arabic poetry (alias: shi3r, شعر)
   matrix        - Matrix effect
   
  System:
@@ -559,6 +561,21 @@ Built with: React + TypeScript + Vite`,
 
         matrix: () => {
             return "Wake up, Bassam... The Matrix has you...\nFollow the white rabbit. 🐰";
+        },
+
+        poetry: () => {
+            const verse = arabicPoetry[Math.floor(Math.random() * arabicPoetry.length)];
+            return verse.text;
+        },
+
+        shi3r: () => {
+            const verse = arabicPoetry[Math.floor(Math.random() * arabicPoetry.length)];
+            return verse.text;
+        },
+
+        "شعر": () => {
+            const verse = arabicPoetry[Math.floor(Math.random() * arabicPoetry.length)];
+            return verse.text;
         },
 
         git: async (args?: string[]) => {
