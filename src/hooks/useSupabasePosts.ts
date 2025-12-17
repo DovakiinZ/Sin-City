@@ -10,7 +10,6 @@ export interface Post {
     content?: string;
     slug?: string;
     attachments?: unknown;
-    tags?: string[];
     draft?: boolean;
     hidden?: boolean;
     is_pinned?: boolean;
@@ -224,7 +223,6 @@ export interface ThreadPost {
     title: string;
     content: string;
     attachments?: unknown;
-    tags?: string[];
 }
 
 // Create a thread (multiple connected posts)
@@ -247,7 +245,6 @@ export async function createThread(
         type: post.attachments ? "Image" as const : "Text" as const,
         content: post.content,
         attachments: post.attachments || null,
-        tags: post.tags || null,
         draft: false,
         thread_id: threadId,
         thread_position: index + 1,

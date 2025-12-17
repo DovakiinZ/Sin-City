@@ -212,15 +212,7 @@ export default function PostDetail() {
                         )}
                     </div>
 
-                    {post.tags && post.tags.length > 0 && (
-                        <div className="mb-6 flex flex-wrap gap-2">
-                            {post.tags.map((tag) => (
-                                <span key={tag} className="ascii-box px-2 py-1 text-xs">
-                                    #{tag}
-                                </span>
-                            ))}
-                        </div>
-                    )}
+
 
                     {/* Media Gallery - Carousel with arrows */}
                     {post.attachments && post.attachments.length > 0 && (

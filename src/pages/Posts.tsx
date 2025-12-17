@@ -25,7 +25,6 @@ type Post = {
   authorUsername?: string;
   userId?: string;
   isAdmin?: boolean;
-  tags?: string[];
   draft?: boolean;
   viewCount?: number;
   isPinned?: boolean;
@@ -36,7 +35,6 @@ interface FrontMatterData {
   title?: unknown;
   date?: unknown;
   author?: unknown;
-  tags?: unknown;
   draft?: unknown;
 }
 
@@ -72,7 +70,6 @@ export default function Posts() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const qParam = params.get("q") || "";
-  const tagParam = params.get("tag") || "";
   const [query, setQuery] = useState(qParam);
   const selectedRef = useRef<HTMLDivElement | null>(null);
 
@@ -222,22 +219,17 @@ export default function Posts() {
     })();
   }, []); // No dependencies - run once on mount
 
-  const uniqueTags = useMemo(() => {
-    const s = new Set<string>();
-    posts.forEach((p) => p.tags?.forEach((t) => s.add(t)));
-    return Array.from(s).sort();
-  }, [posts]);
+
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     let result = posts.filter((p) => {
-      const tagOk = tagParam ? p.tags?.map((t) => t.toLowerCase()).includes(tagParam.toLowerCase()) : true;
       const qOk = q
-        ? [p.title, p.author, p.content, ...(p.tags || [])]
+        ? [p.title, p.author, p.content]
           .filter(Boolean)
           .some((x) => String(x).toLowerCase().includes(q))
         : true;
-      return tagOk && qOk;
+      return qOk;
     });
 
     // Apply sorting
@@ -254,7 +246,7 @@ export default function Posts() {
     }
 
     return result;
-  }, [posts, query, tagParam, sortBy]);
+  }, [posts, query, sortBy]);
 
   // Keyboard nav j/k across boxes
   useEffect(() => {
@@ -309,7 +301,7 @@ export default function Posts() {
                       else p.delete("q");
                       navigate({ pathname: location.pathname, search: p.toString() }, { replace: true });
                     }}
-                    placeholder="Search title, content, tags..."
+                    placeholder="Search title, content..."
                     className="w-full bg-black text-green-400 border border-green-600 px-2 py-1 font-mono"
                     aria-label="Search posts"
                   />
@@ -347,29 +339,7 @@ export default function Posts() {
                   </button>
                 </div>
 
-                {uniqueTags.length > 0 && (
-                  <div className="text-xs flex flex-wrap gap-2">
-                    <span className="ascii-dim">Tags:</span>
-                    {uniqueTags.map((t) => (
-                      <button
-                        key={t}
-                        onClick={() => {
-                          const p = new URLSearchParams(location.search);
-                          if ((params.get("tag") || "").toLowerCase() === t.toLowerCase()) p.delete("tag");
-                          else p.set("tag", t);
-                          navigate({ pathname: location.pathname, search: p.toString() });
-                        }}
-                        className={cn(
-                          "px-1 border border-green-600",
-                          (params.get("tag") || "").toLowerCase() === t.toLowerCase() ? "ascii-highlight" : ""
-                        )}
-                        aria-label={`Filter by tag ${t}`}
-                      >
-                        #{t}
-                      </button>
-                    ))}
-                  </div>
-                )}
+
               </div>
             </AsciiBox>
 
@@ -444,23 +414,7 @@ export default function Posts() {
                           <span>{post.date}</span>
                           <span>{readMins} min read</span>
                           <span>👁 {post.viewCount || 0}</span>
-                          {post.tags && post.tags.length > 0 && (
-                            <span className="flex gap-1 items-center">
-                              {post.tags.map((t) => (
-                                <button
-                                  key={t}
-                                  onClick={() => {
-                                    const p = new URLSearchParams(location.search);
-                                    p.set("tag", t);
-                                    navigate({ pathname: location.pathname, search: p.toString() });
-                                  }}
-                                  className="text-xs border border-green-600 px-1"
-                                >
-                                  #{t}
-                                </button>
-                              ))}
-                            </span>
-                          )}
+
                         </div>
                       )}
                     </div>

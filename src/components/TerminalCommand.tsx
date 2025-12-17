@@ -21,9 +21,11 @@ const TerminalCommand = ({ onClose }: TerminalCommandProps) => {
     const [isResizing, setIsResizing] = useState(false);
     const dragRef = useRef<HTMLDivElement>(null);
 
-    // Initial positioning (center)
+    // Initial positioning (center) or auto-maximize on mobile
     useEffect(() => {
-        if (!isMaximized) {
+        if (window.innerWidth < 768) {
+            setIsMaximized(true);
+        } else if (!isMaximized) {
             const cx = Math.max(0, (window.innerWidth - 800) / 2);
             const cy = Math.max(0, (window.innerHeight - 500) / 2);
             setPosition({ x: cx, y: cy });

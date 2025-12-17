@@ -12,8 +12,6 @@ interface Draft {
     id: string;
     title: string;
     content: string;
-    category_id: string | null;
-    tags: string[];
     auto_saved_at: string;
     created_at: string;
 }
@@ -150,9 +148,6 @@ export default function Drafts() {
                                                 <Clock className="w-3 h-3" />
                                                 {formatDistanceToNow(new Date(draft.auto_saved_at), { addSuffix: true })}
                                             </span>
-                                            {draft.tags && draft.tags.length > 0 && (
-                                                <span>{draft.tags.length} tags</span>
-                                            )}
                                         </div>
                                     </div>
                                     <div className="flex gap-2">

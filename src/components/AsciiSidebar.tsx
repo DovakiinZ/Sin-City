@@ -3,7 +3,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import SearchBar from "./search/SearchBar";
-import TagCloud from "./tags/TagCloud";
 import PopularPosts from "./analytics/PopularPosts";
 import BackButton from "@/components/BackButton";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
@@ -153,8 +152,7 @@ const AsciiSidebar = () => {
       {/* Popular/Trending Posts */}
       <PopularPosts />
 
-      {/* Tag Cloud */}
-      <TagCloud />
+
 
       {/* System Info */}
       <div className="ascii-box p-4">
