@@ -105,12 +105,10 @@ export async function listPostsFromDb(): Promise<DbPost[]> {
 
   // RLS policies will filter for published posts (draft = false)
   // Filter out hidden posts for public view
-  // Only show first post of threads (thread_position = 1) or standalone posts (null)
   const { data, error } = await supabase
     .from("posts")
     .select("id,slug,title,type,content,attachments,author_name,author_email,author_avatar,user_id,view_count,created_at,draft,hidden,is_pinned,thread_id,thread_position")
     .or("hidden.is.null,hidden.eq.false") // Only show non-hidden posts
-    .or("thread_position.is.null,thread_position.eq.1") // Only show first post of threads or standalone
     .order("is_pinned", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(100);
@@ -120,9 +118,14 @@ export async function listPostsFromDb(): Promise<DbPost[]> {
     throw error;
   }
 
-  console.log(`[listPostsFromDb] Successfully fetched ${data?.length || 0} posts`);
+  // Filter to only show first post of threads or standalone posts
+  const filteredData = (data || []).filter(
+    (p) => p.thread_position === null || p.thread_position === undefined || p.thread_position === 1
+  );
 
-  return (data || []).map(
+  console.log(`[listPostsFromDb] Successfully fetched ${filteredData.length} posts (filtered from ${data?.length || 0})`);
+
+  return filteredData.map(
     (p) =>
       ({
         ...p,

@@ -37,22 +37,27 @@ export function useSupabasePosts() {
             try {
                 setLoading(true);
                 // Fetch posts without the join first to avoid FK errors
-                // Only show first post of threads (thread_position = 1) or standalone posts
                 const { data: postsData, error: fetchError } = await supabase
                     .from("posts")
                     .select("*")
                     .or("hidden.is.null,hidden.eq.false") // Filter out hidden posts
-                    .or("thread_position.is.null,thread_position.eq.1") // Only first post of threads
                     .order("is_pinned", { ascending: false, nullsFirst: false })
                     .order("created_at", { ascending: false });
 
                 if (fetchError) throw fetchError;
 
+                // Filter to only show first post of threads or standalone posts
+                const filteredPosts = (postsData || []).filter((post: any) =>
+                    post.thread_position === null ||
+                    post.thread_position === undefined ||
+                    post.thread_position === 1
+                );
+
                 // Collect user IDs to fetch profiles
-                const userIds = [...new Set((postsData || []).map((p: any) => p.user_id).filter(Boolean))];
+                const userIds = [...new Set(filteredPosts.map((p: any) => p.user_id).filter(Boolean))];
 
                 // Collect author names that might need matching
-                const authorNames = [...new Set((postsData || [])
+                const authorNames = [...new Set(filteredPosts
                     .filter((p: any) => !p.user_id && p.author_name)
                     .map((p: any) => p.author_name.toLowerCase()))];
 
@@ -93,7 +98,7 @@ export function useSupabasePosts() {
                 }
 
                 // Map the data to include author_avatar and author_username
-                const postsWithAvatars = (postsData || []).map((post: any) => {
+                const postsWithAvatars = filteredPosts.map((post: any) => {
                     // First try to find profile by user_id
                     let profile = profilesMap.get(post.user_id);
 
