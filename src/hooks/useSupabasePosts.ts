@@ -37,10 +37,12 @@ export function useSupabasePosts() {
             try {
                 setLoading(true);
                 // Fetch posts without the join first to avoid FK errors
+                // Only show first post of threads (thread_position = 1) or standalone posts
                 const { data: postsData, error: fetchError } = await supabase
                     .from("posts")
                     .select("*")
                     .or("hidden.is.null,hidden.eq.false") // Filter out hidden posts
+                    .or("thread_position.is.null,thread_position.eq.1") // Only first post of threads
                     .order("is_pinned", { ascending: false, nullsFirst: false })
                     .order("created_at", { ascending: false });
 
