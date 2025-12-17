@@ -171,7 +171,8 @@ const TerminalCommand = ({ onClose }: TerminalCommandProps) => {
 
             // Pick random
             const song = data[Math.floor(Math.random() * data.length)];
-            window.open(song.url, '_blank');
+            // Use location.href for better mobile compatibility (window.open is often blocked)
+            window.location.href = song.url;
             return `Playing ${mood} vibes: ${song.title} (${song.platform})...`;
 
         } catch (e: any) {
