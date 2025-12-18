@@ -176,7 +176,7 @@ export default function ThreadView() {
 
                                             {/* Content */}
                                             <div className="prose prose-invert max-w-none">
-                                                <div dangerouslySetInnerHTML={{ __html: post.content || "" }} />
+                                                <div dir="auto" dangerouslySetInnerHTML={{ __html: post.content || "" }} />
                                             </div>
 
                                             {/* Reactions per post */}
@@ -214,7 +214,7 @@ export default function ThreadView() {
 
                 {/* Comments - for the whole thread */}
                 <div className="mt-6">
-                    <CommentList postId={firstPost.id} />
+                    <CommentList postId={firstPost.id} postAuthorId={firstPost.user_id} />
                 </div>
 
                 <div className="text-center mt-6">

@@ -433,6 +433,7 @@ export default function Posts() {
                   )}
 
                   <div
+                    dir="auto"
                     className="prose prose-invert max-w-none text-green-400/80 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_p]:mb-2"
                     dangerouslySetInnerHTML={{ __html: decodeHtml(post.content) }}
                   />

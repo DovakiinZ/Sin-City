@@ -297,3 +297,65 @@ export async function getThreadInfo(postId: string): Promise<{ threadId: string;
         total: count || 0
     };
 }
+
+// Convert a comment/reply into a thread post
+export async function replyAsThreadPost(
+    parentPostId: string,
+    content: string,
+    authorInfo: { user_id: string; author_name: string; author_email?: string }
+) {
+    // 1. Get parent post
+    const { data: parent, error: parentError } = await supabase
+        .from("posts")
+        .select("thread_id, thread_position")
+        .eq("id", parentPostId)
+        .single();
+
+    if (parentError) throw parentError;
+
+    let threadId = parent.thread_id;
+
+    // 2. If no thread_id, start a new thread
+    if (!threadId) {
+        threadId = crypto.randomUUID();
+        // Update parent to be the start of the thread
+        await updatePost(parentPostId, {
+            thread_id: threadId,
+            thread_position: 1
+        });
+    }
+
+    // 3. Get next position
+    // We can't just count because of potential deletions, so we get the max position
+    const { data: maxPosPost } = await supabase
+        .from("posts")
+        .select("thread_position")
+        .eq("thread_id", threadId)
+        .order("thread_position", { ascending: false })
+        .limit(1)
+        .single();
+
+    const nextPosition = (maxPosPost?.thread_position || 1) + 1;
+
+    // 4. Create new post
+    const newPost = {
+        title: "", // Thread replies don't need titles
+        type: "Text",
+        content: content,
+        author_name: authorInfo.author_name,
+        author_email: authorInfo.author_email,
+        user_id: authorInfo.user_id,
+        thread_id: threadId,
+        thread_position: nextPosition,
+        draft: false
+    };
+
+    const { data, error } = await supabase
+        .from("posts")
+        .insert([newPost])
+        .select()
+        .single();
+
+    if (error) throw error;
+    return { data, threadId };
+}

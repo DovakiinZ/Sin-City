@@ -252,6 +252,7 @@ const AsciiFeed = () => {
                     <div className="prose prose-invert max-w-none text-green-400/80">
                       {(post as any).isHtml ? (
                         <div
+                          dir="auto"
                           dangerouslySetInnerHTML={{
                             __html: decodeHtml(post.content.length > 400
                               ? stripHtml(post.content).slice(0, 400) + '...'

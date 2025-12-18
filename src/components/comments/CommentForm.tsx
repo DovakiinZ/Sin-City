@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { createComment } from "@/hooks/useComments";
+import { replyAsThreadPost } from "@/hooks/useSupabasePosts";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { Check } from "lucide-react";
 
 interface CommentFormProps {
     postId: string;
+    postAuthorId?: string;
     onSuccess?: () => void;
 }
 
@@ -14,11 +17,15 @@ interface UserSuggestion {
     avatar_url: string | null;
 }
 
-export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
+export default function CommentForm({ postId, postAuthorId, onSuccess }: CommentFormProps) {
     const { user } = useAuth();
     const { toast } = useToast();
     const [content, setContent] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
+    // Thread mode state
+    const [asThread, setAsThread] = useState(false);
+    const canThread = user && postAuthorId && user.id === postAuthorId;
 
     // Mention state
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -140,19 +147,44 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
 
         setSubmitting(true);
         try {
-            await createComment({
-                post_id: postId,
-                user_id: user.id,
-                author_name: user.username || "Anonymous",
-                content: content.trim(),
-            });
+            if (asThread && canThread) {
+                // Post as thread
+                const { threadId } = await replyAsThreadPost(postId, content.trim(), {
+                    user_id: user.id,
+                    author_name: user.username || "Anonymous",
+                    author_email: user.email || undefined,
+                });
 
-            toast({ title: "Success", description: "Comment posted!" });
-            setContent("");
-            onSuccess?.();
+                toast({
+                    title: "Thread Updated",
+                    description: "Your comment has been added to the thread!"
+                });
+
+                // We might want to clear content or redirect?
+                // Depending on UX, we might just clear for now.
+                setContent("");
+                onSuccess?.();
+
+                // Optional: Reload page to show thread UI updates? 
+                // Navigate to thread view if not already there?
+                // window.location.reload(); // Simple brute force for now to ensure UI sync
+
+            } else {
+                // Normal comment
+                await createComment({
+                    post_id: postId,
+                    user_id: user.id,
+                    author_name: user.username || "Anonymous",
+                    content: content.trim(),
+                });
+
+                toast({ title: "Success", description: "Comment posted!" });
+                setContent("");
+                onSuccess?.();
+            }
         } catch (error) {
             console.error("Error posting comment:", error);
-            toast({ title: "Error", description: "Failed to post comment", variant: "destructive" });
+            toast({ title: "Error", description: "Failed to post", variant: "destructive" });
         } finally {
             setSubmitting(false);
         }
@@ -166,7 +198,27 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
     return (
         <div className="relative">
             <form onSubmit={handleSubmit} className="ascii-box bg-secondary/20 p-4">
-                <pre className="ascii-highlight text-xs mb-2">NEW COMMENT</pre>
+                <div className="flex justify-between items-start mb-2">
+                    <pre className="ascii-highlight text-xs">NEW COMMENT</pre>
+
+                    {/* Thread Toggle for Author */}
+                    {canThread && (
+                        <button
+                            type="button"
+                            onClick={() => setAsThread(!asThread)}
+                            className={`text-xs flex items-center gap-2 px-2 py-1 border transition-colors ${asThread
+                                    ? "border-green-500 bg-green-500/10 text-green-400"
+                                    : "border-ascii-border text-ascii-dim hover:text-ascii-text"
+                                }`}
+                        >
+                            <div className={`w-3 h-3 border flex items-center justify-center ${asThread ? "border-green-500 bg-green-500" : "border-ascii-dim"
+                                }`}>
+                                {asThread && <Check className="w-3 h-3 text-black" />}
+                            </div>
+                            Start/Continue Thread
+                        </button>
+                    )}
+                </div>
 
                 <div className="relative">
                     <textarea
@@ -174,8 +226,11 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
                         value={content}
                         onChange={handleInputChange}
                         rows={4}
-                        className="w-full bg-background border border-ascii-border p-3 ascii-text focus:border-ascii-highlight focus:outline-none resize-none mb-3"
-                        placeholder="Write your comment... (Type @ to mention)"
+                        className={`w-full bg-background border p-3 ascii-text focus:outline-none resize-none mb-3 ${asThread
+                                ? "border-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.1)]"
+                                : "border-ascii-border focus:border-ascii-highlight"
+                            }`}
+                        placeholder={asThread ? "Write your thread update..." : "Write your comment... (Type @ to mention)"}
                         disabled={submitting}
                     />
 
@@ -215,9 +270,12 @@ export default function CommentForm({ postId, onSuccess }: CommentFormProps) {
                     <button
                         type="submit"
                         disabled={submitting || !user}
-                        className="ascii-nav-link hover:ascii-highlight border border-ascii-border px-4 py-2 disabled:opacity-50"
+                        className={`ascii-nav-link border px-4 py-2 disabled:opacity-50 ${asThread
+                                ? "border-green-500 text-green-400 hover:bg-green-500/10"
+                                : "border-ascii-border hover:ascii-highlight"
+                            }`}
                     >
-                        {submitting ? "► POSTING..." : "► POST COMMENT"}
+                        {submitting ? "► PROCESSING..." : (asThread ? "► POST TO THREAD" : "► POST COMMENT")}
                     </button>
                 </div>
             </form>

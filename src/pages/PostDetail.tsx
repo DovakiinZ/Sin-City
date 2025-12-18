@@ -220,7 +220,7 @@ export default function PostDetail() {
                     )}
 
                     <div className="prose prose-invert max-w-none mb-8">
-                        <div dangerouslySetInnerHTML={{ __html: post.content }} />
+                        <div dir="auto" dangerouslySetInnerHTML={{ __html: post.content }} />
                     </div>
 
                     {/* Reactions & Bookmark */}
@@ -234,7 +234,7 @@ export default function PostDetail() {
                 </div>
 
                 {/* Comments */}
-                <CommentList postId={post.slug} />
+                <CommentList postId={post.slug} postAuthorId={post.authorId} />
 
                 <div className="text-center">
                     <button

@@ -4,9 +4,10 @@ import CommentItem from "./CommentItem";
 
 interface CommentListProps {
     postId: string;
+    postAuthorId?: string;
 }
 
-export default function CommentList({ postId }: CommentListProps) {
+export default function CommentList({ postId, postAuthorId }: CommentListProps) {
     const { comments, loading, error } = useComments(postId);
 
     return (
@@ -17,7 +18,7 @@ export default function CommentList({ postId }: CommentListProps) {
 ╚═══════════════════════════════════════════════════════════════╝`}
             </pre>
 
-            <CommentForm postId={postId} />
+            <CommentForm postId={postId} postAuthorId={postAuthorId} />
 
             <div className="mt-6">
                 {loading ? (

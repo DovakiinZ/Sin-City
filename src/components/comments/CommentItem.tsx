@@ -107,7 +107,7 @@ export default function CommentItem({ comment }: CommentItemProps) {
                     </div>
                 </div>
             ) : (
-                <pre className="ascii-text text-sm whitespace-pre-wrap">{parseMentions(comment.content)}</pre>
+                <pre dir="auto" className="ascii-text text-sm whitespace-pre-wrap">{parseMentions(comment.content)}</pre>
             )}
         </div>
     );
