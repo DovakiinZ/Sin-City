@@ -15,6 +15,7 @@ export default function Profile() {
   const [username, setUsername] = useState("");
   const [avatar, setAvatar] = useState<string | undefined>(user?.avatarDataUrl);
   const [loadingAvatar, setLoadingAvatar] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [bio, setBio] = useState("");
 
   // Social media state
@@ -54,6 +55,7 @@ export default function Profile() {
           console.log("[Profile] Loaded data:", data);
           // Set all values, even if empty
           setAvatar(data.avatar_url || undefined);
+          if (data.role === 'admin') setIsAdmin(true);
           if (data.phone) setPhone(data.phone);
           if (data.mfa_enabled) setMfaEnabled(data.mfa_enabled);
           setBio(data.bio || "");
@@ -148,6 +150,85 @@ export default function Profile() {
       });
     }
   }
+
+  // Compress image to reduce upload size and avoid timeouts
+  const compressImage = (file: File, maxWidth = 400, maxHeight = 400, quality = 0.8): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+
+        // Calculate new dimensions while maintaining aspect ratio
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Could not compress image'));
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleAvatarUpload = async (file: File): Promise<string | null> => {
+    if (!user?.id) return null;
+
+    try {
+      // Compress the image first (unless it's a GIF for admins)
+      let uploadFile: File | Blob = file;
+      if (file.type !== 'image/gif') {
+        console.log('[Profile] Original file size:', file.size);
+        uploadFile = await compressImage(file);
+        console.log('[Profile] Compressed size:', uploadFile.size);
+      }
+
+      const fileExt = file.type === 'image/gif' ? 'gif' : 'jpg';
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('media')
+        .upload(filePath, uploadFile, {
+          contentType: file.type === 'image/gif' ? 'image/gif' : 'image/jpeg',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('media')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      throw error;
+    }
+  };
 
   // Check if username can be changed (reset count if new year)
   const canChangeUsername = () => {
@@ -388,7 +469,7 @@ export default function Profile() {
           <div className="ascii-dim text-xs">Username: @{user.username}</div>
           <div>
             <div className="ascii-dim text-xs mb-1">Profile picture</div>
-            <AvatarUploader value={avatar} onChange={setAvatar} />
+            <AvatarUploader value={avatar} onChange={setAvatar} isAdmin={isAdmin} onUpload={handleAvatarUpload} />
           </div>
           <div>
             <div className="ascii-dim text-xs mb-1">Profile Header Banner</div>
