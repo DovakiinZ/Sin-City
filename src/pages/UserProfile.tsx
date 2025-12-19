@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import BackButton from "@/components/BackButton";
 import { listPostsFromDb } from "@/data/posts";
 import { supabase } from "@/lib/supabase";
-import { UserPlus, UserMinus, Twitter, Instagram, X } from "lucide-react";
+import { UserPlus, UserMinus, Twitter, Instagram, X, Check } from "lucide-react";
 
 interface FollowUser {
     id: string;
@@ -169,12 +169,17 @@ export default function UserProfile() {
 
             // Check if current user follows this profile
             if (user?.id && user.id !== profile.id) {
-                const { data } = await supabase
+                const { data, error } = await supabase
                     .from('follows')
                     .select('id')
                     .eq('follower_id', user.id)
                     .eq('following_id', profile.id)
-                    .single();
+                    .maybeSingle();
+
+                if (error) {
+                    console.error('[UserProfile] Error checking follow status:', error);
+                }
+                console.log('[UserProfile] Follow check result:', { userId: user.id, profileId: profile.id, data, isFollowing: !!data });
                 setIsFollowing(!!data);
             }
         };
@@ -563,10 +568,12 @@ export default function UserProfile() {
                                             <button
                                                 onClick={handleUnfollow}
                                                 disabled={followLoading}
-                                                className="flex items-center gap-2 border border-red-700 text-red-400 px-4 py-2 hover:bg-red-900/20 disabled:opacity-50"
+                                                className="flex items-center gap-2 border border-green-700 bg-green-900/20 text-green-400 px-4 py-2 hover:bg-red-900/20 hover:border-red-700 hover:text-red-400 disabled:opacity-50 group"
                                             >
-                                                <UserMinus className="w-4 h-4" />
-                                                {followLoading ? "..." : "Unfollow"}
+                                                <Check className="w-4 h-4 group-hover:hidden" />
+                                                <UserMinus className="w-4 h-4 hidden group-hover:block" />
+                                                <span className="group-hover:hidden">{followLoading ? "..." : "Followed"}</span>
+                                                <span className="hidden group-hover:inline">{followLoading ? "..." : "Unfollow"}</span>
                                             </button>
                                         ) : (
                                             <button

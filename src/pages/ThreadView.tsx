@@ -135,10 +135,10 @@ export default function ThreadView() {
                                                 <img
                                                     src={authorAvatar}
                                                     alt={displayAuthor}
-                                                    className="w-12 h-12 rounded-full object-cover border border-ascii-border"
+                                                    className="w-14 h-14 rounded-full object-cover border-2 border-green-600"
                                                 />
                                             ) : (
-                                                <div className="w-12 h-12 rounded-full bg-green-500/20 border border-green-500/50 flex items-center justify-center ascii-highlight text-lg font-bold">
+                                                <div className="w-14 h-14 rounded-full bg-green-900/30 border-2 border-green-600 flex items-center justify-center text-2xl text-green-500">
                                                     {displayAuthor.charAt(0).toUpperCase()}
                                                 </div>
                                             )}

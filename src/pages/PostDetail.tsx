@@ -20,6 +20,7 @@ type Post = {
     slug: string;
     author?: string;
     authorId?: string;
+    authorAvatar?: string;
     tags?: string[];
     viewCount?: number;
     attachments?: { url: string; type: 'image' | 'video' }[];
@@ -34,6 +35,7 @@ export default function PostDetail() {
     const [loading, setLoading] = useState(true);
     const hasIncrementedView = useRef(false);
     const [authorUsername, setAuthorUsername] = useState<string | null>(null);
+    const [authorAvatar, setAuthorAvatar] = useState<string | null>(null);
     const [threadTotal, setThreadTotal] = useState<number>(0);
 
     useEffect(() => {
@@ -51,12 +53,15 @@ export default function PostDetail() {
                     if (dbPost.user_id) {
                         const { data } = await supabase
                             .from('profiles')
-                            .select('username')
+                            .select('username, avatar_url')
                             .eq('id', dbPost.user_id)
                             .single();
                         if (data?.username) {
                             fetchedUsername = data.username;
                             setAuthorUsername(data.username);
+                        }
+                        if (data?.avatar_url) {
+                            setAuthorAvatar(data.avatar_url);
                         }
                     }
 
@@ -188,28 +193,48 @@ export default function PostDetail() {
                         </div>
                     )}
 
-                    <pre className="ascii-highlight text-2xl mb-4">{post.title}</pre>
+                    {post.title && <pre className="ascii-highlight text-2xl mb-4">{post.title}</pre>}
 
-                    <div className="ascii-dim text-xs mb-6 flex flex-wrap gap-3">
-                        {post.date && <span>{post.date}</span>}
-                        {post.author && (
-                            <span>
-                                by{" "}
+                    {/* Author section with avatar */}
+                    <div className="flex items-start gap-4 mb-6">
+                        {/* Author Avatar */}
+                        <Link to={`/user/${authorUsername || post.author}`} className="flex-shrink-0">
+                            {authorAvatar ? (
+                                <img
+                                    src={authorAvatar}
+                                    alt={post.author || "Author"}
+                                    className="w-14 h-14 rounded-lg border-2 border-green-600 object-cover"
+                                />
+                            ) : (
+                                <div className="w-14 h-14 rounded-lg border-2 border-green-600 bg-green-900/30 flex items-center justify-center">
+                                    <span className="text-2xl text-green-500">
+                                        {(post.author || "?")[0]?.toUpperCase()}
+                                    </span>
+                                </div>
+                            )}
+                        </Link>
+
+                        {/* Author info and meta */}
+                        <div className="flex-1">
+                            {post.author && (
                                 <Link
                                     to={`/user/${authorUsername || post.author}`}
-                                    className="text-blue-400 hover:underline"
+                                    className="text-green-400 hover:underline text-sm"
                                 >
                                     @{authorUsername || post.author}
                                 </Link>
-                            </span>
-                        )}
-                        <span>{readTime} min read</span>
-                        {post.viewCount !== undefined && (
-                            <div className="flex items-center gap-1.5" title="Total Views">
-                                <Eye className="w-4 h-4" />
-                                <span>{post.viewCount} views</span>
+                            )}
+                            <div className="ascii-dim text-xs flex flex-wrap gap-3 mt-1">
+                                {post.date && <span>{post.date}</span>}
+                                <span>{readTime} min read</span>
+                                {post.viewCount !== undefined && (
+                                    <div className="flex items-center gap-1.5" title="Total Views">
+                                        <Eye className="w-4 h-4" />
+                                        <span>{post.viewCount} views</span>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </div>
                     </div>
 
 

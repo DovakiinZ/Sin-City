@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { UserPlus, UserMinus } from "lucide-react";
+import { UserPlus, UserMinus, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface FollowButtonProps {
@@ -125,8 +125,8 @@ export default function FollowButton({ targetUserId, targetUsername }: FollowBut
         >
             {isFollowing ? (
                 <>
-                    <UserMinus className="w-4 h-4 mr-2" />
-                    Unfollow
+                    <Check className="w-4 h-4 mr-2" />
+                    Followed
                 </>
             ) : (
                 <>

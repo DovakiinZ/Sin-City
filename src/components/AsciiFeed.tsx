@@ -273,7 +273,7 @@ const AsciiFeed = () => {
                   </div>
                 </div>
                 {/* Reactions */}
-                <div className="mt-3 pt-2 border-t border-green-600/30" onClick={(e) => e.preventDefault()}>
+                <div className="mt-3 pt-2 border-t border-green-600/30" onClick={(e) => e.stopPropagation()}>
                   <ReactionButtons postId={post.slug} />
                 </div>
               </article>

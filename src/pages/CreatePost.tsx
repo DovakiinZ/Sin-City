@@ -139,12 +139,15 @@ export default function CreatePost() {
 
         setSaving(true);
         try {
-            // Auto-generate title if not provided
-            const postTitle = title.trim() || `Post from ${new Date().toLocaleDateString()}`;
+            // Use empty title if not provided (cleaner for media-only posts)
+            const postTitle = title.trim() || "";
+            // Generate slug from title or use timestamp-based slug for untitled posts
             const generatedSlug = postTitle
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, "-")
-                .replace(/(^-|-$)+/g, "");
+                ? postTitle
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "-")
+                    .replace(/(^-|-$)+/g, "")
+                : "post";
             // Generate unique slug with timestamp to prevent conflicts
             const uniqueSlug = `${generatedSlug}-${Date.now().toString(36)}`;
 

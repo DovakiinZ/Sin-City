@@ -367,14 +367,13 @@ export default function Posts() {
                     {/* Author Avatar on Left with username below */}
                     <div className="flex-shrink-0 flex flex-col items-center gap-1">
                       {post.authorAvatar ? (
-                        <Avatar className="w-14 h-14 border-2 border-green-600">
-                          <AvatarImage src={post.authorAvatar} alt={post.author || "Author"} />
-                          <AvatarFallback className="text-xl bg-green-900 text-green-400">
-                            {(post.author || "?")[0]?.toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
+                        <img
+                          src={post.authorAvatar}
+                          alt={post.author || "Author"}
+                          className="w-14 h-14 rounded-lg border-2 border-green-600 object-cover"
+                        />
                       ) : (
-                        <div className="w-14 h-14 rounded-full border-2 border-green-600 bg-green-900/30 flex items-center justify-center">
+                        <div className="w-14 h-14 rounded-lg border-2 border-green-600 bg-green-900/30 flex items-center justify-center">
                           <span className="text-2xl text-green-500">
                             {(post.author || "?")[0]?.toUpperCase()}
                           </span>
@@ -394,7 +393,7 @@ export default function Posts() {
                           to={`/post/${post.slug}`}
                           className="hover:ascii-highlight"
                         >
-                          +-- {post.title} --+
+                          {post.title ? `+-- ${post.title} --+` : "📎"}
                         </Link>
                         {currentUserIsAdmin && (
                           <button
@@ -472,7 +471,7 @@ export default function Posts() {
                           )}
                         </button>
                         {expandedComments.has(post.slug) && (
-                          <CommentList postId={post.slug} />
+                          <CommentList postId={post.postId} />
                         )}
                       </>
                     ) : (
@@ -496,7 +495,7 @@ export default function Posts() {
                         </button>
                         {expandedComments.has(post.slug) && (
                           <div className="mt-3">
-                            <CommentList postId={post.slug} />
+                            <CommentList postId={post.postId} />
                           </div>
                         )}
                       </>
