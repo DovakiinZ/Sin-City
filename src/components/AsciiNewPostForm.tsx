@@ -2,13 +2,14 @@ import { useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { X, Plus, Image, Film, Loader2 } from "lucide-react";
+import { X, Plus, Image, Film, Loader2, Music } from "lucide-react";
+import MusicEmbed from "./MusicEmbed";
 
 export type NewPost = {
   title: string;
   date?: string;
   content: string;
-  attachments?: { url: string; type: 'image' | 'video' }[];
+  attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
 };
 
 export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPost) => void; onClose?: () => void }) {
@@ -18,9 +19,15 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
   const { toast } = useToast();
 
   // Media attachments state
-  const [mediaFiles, setMediaFiles] = useState<{ url: string; type: 'image' | 'video' }[]>([]);
+  const [mediaFiles, setMediaFiles] = useState<{ url: string; type: 'image' | 'video' | 'music' }[]>([]);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [showMusicInput, setShowMusicInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const addMusic = (url: string) => {
+    setMediaFiles(prev => [...prev, { url, type: 'music' }]);
+    setShowMusicInput(false);
+  };
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -159,29 +166,38 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
           <div className={`grid gap-2 mb-2 ${mediaFiles.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
             }`}>
             {mediaFiles.map((media, index) => (
-              <div key={index} className="relative aspect-video border border-green-700 overflow-hidden bg-black">
+              <div key={index} className="relative border border-green-700 overflow-hidden bg-black">
                 {media.type === 'image' ? (
-                  <img
-                    src={media.url}
-                    alt={`Attachment ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
+                  <div className="aspect-video">
+                    <img
+                      src={media.url}
+                      alt={`Attachment ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : media.type === 'video' ? (
+                  <div className="aspect-video">
+                    <video
+                      src={media.url}
+                      className="w-full h-full object-cover"
+                      controls
+                    />
+                  </div>
                 ) : (
-                  <video
-                    src={media.url}
-                    className="w-full h-full object-cover"
-                    controls
-                  />
+                  // Music preview
+                  <div className="p-2">
+                    <MusicEmbed url={media.url} compact />
+                  </div>
                 )}
                 <button
                   type="button"
                   onClick={() => removeMedia(index)}
-                  className="absolute top-1 right-1 bg-black/70 p-1 rounded hover:bg-red-600 transition-colors"
+                  className="absolute top-1 right-1 bg-black/70 p-1 rounded hover:bg-red-600 transition-colors z-10"
                 >
                   <X className="w-3 h-3" />
                 </button>
-                <div className="absolute bottom-1 left-1 bg-black/70 px-1 py-0.5 text-[10px] flex items-center gap-1">
-                  {media.type === 'image' ? <Image className="w-2 h-2" /> : <Film className="w-2 h-2" />}
+                <div className="absolute bottom-1 left-1 bg-black/70 px-1 py-0.5 text-[10px] flex items-center gap-1 z-10">
+                  {media.type === 'image' ? <Image className="w-2 h-2" /> : media.type === 'video' ? <Film className="w-2 h-2" /> : <Music className="w-2 h-2" />}
                   {media.type}
                 </div>
               </div>
@@ -189,26 +205,66 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
           </div>
         )}
 
-        {/* Add Media Button */}
-        {mediaFiles.length < 4 && (
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingMedia}
-            className="flex items-center gap-2 text-xs ascii-dim hover:ascii-highlight border border-green-700 px-2 py-1 disabled:opacity-50"
-          >
-            {uploadingMedia ? (
-              <>
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Plus className="w-3 h-3" />
-                Add Photo/Video
-              </>
-            )}
-          </button>
+        {/* Music Input Field */}
+        {showMusicInput && (
+          <div className="flex gap-2 mb-2">
+            <input
+              type="url"
+              placeholder="Paste Spotify or YouTube URL"
+              className="flex-1 bg-black border border-green-700 p-1 text-sm outline-none text-green-400"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const url = e.currentTarget.value;
+                  if (url) addMusic(url);
+                }
+              }}
+              onBlur={(e) => {
+                if (e.target.value) addMusic(e.target.value);
+                else setShowMusicInput(false);
+              }}
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={() => setShowMusicInput(false)}
+              className="p-1 hover:bg-red-900/30 text-red-400"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Add Media Buttons */}
+        {mediaFiles.length < 4 && !showMusicInput && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingMedia}
+              className="flex items-center gap-2 text-xs ascii-dim hover:ascii-highlight border border-green-700 px-2 py-1 disabled:opacity-50"
+            >
+              {uploadingMedia ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-3 h-3" />
+                  Add Photo/Video
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowMusicInput(true)}
+              className="flex items-center gap-2 text-xs ascii-dim hover:ascii-highlight border border-green-700 px-2 py-1"
+            >
+              <Music className="w-3 h-3" />
+              Add Music
+            </button>
+          </div>
         )}
       </div>
 

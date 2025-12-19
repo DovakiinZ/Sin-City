@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
+import MusicEmbed from "../MusicEmbed";
 
 interface LightboxMedia {
     url: string;
-    type: 'image' | 'video';
+    type: 'image' | 'video' | 'music';
 }
 
 interface AsciiLightboxProps {
@@ -114,6 +115,10 @@ const AsciiLightbox = ({ media, initialIndex = 0, isOpen, onClose }: AsciiLightb
                                 autoPlay
                                 className="max-w-full max-h-[75vh] object-contain"
                             />
+                        ) : currentMedia.type === 'music' ? (
+                            <div className="w-[80vw] max-w-lg bg-black border border-green-800 p-4 rounded">
+                                <MusicEmbed url={currentMedia.url} />
+                            </div>
                         ) : (
                             <img
                                 src={currentMedia.url}

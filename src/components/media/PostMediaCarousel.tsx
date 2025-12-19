@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Play, Maximize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Maximize2, Music } from "lucide-react";
 import AsciiLightbox from "../ui/AsciiLightbox";
+import MusicEmbed from "../MusicEmbed";
 
 interface MediaItem {
     url: string;
-    type: 'image' | 'video';
+    type: 'image' | 'video' | 'music';
 }
 
 interface MediaCarouselProps {
@@ -54,7 +55,7 @@ export default function PostMediaCarousel({ media, compact = false }: MediaCarou
                                     className="w-full h-auto max-h-[320px] md:max-h-[500px] object-cover transition-transform duration-300 group-hover:scale-105"
                                     style={{ width: '100%', objectPosition: 'center' }}
                                 />
-                            ) : (
+                            ) : media[0].type === 'video' ? (
                                 <div className="relative w-full max-h-[320px] md:max-h-[500px]">
                                     <video
                                         src={media[0].url}
@@ -64,11 +65,16 @@ export default function PostMediaCarousel({ media, compact = false }: MediaCarou
                                         playsInline
                                         controls={false}
                                     />
-                                    <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                         <div className="bg-black/50 p-3 rounded-full border border-white/20 backdrop-blur-sm">
                                             <Play className="w-8 h-8 text-white fill-white" />
                                         </div>
                                     </div>
+                                </div>
+                            ) : (
+                                // Music (Full width in single view)
+                                <div className="w-full p-2 bg-black border border-green-900 rounded" onClick={(e) => e.stopPropagation()}>
+                                    <MusicEmbed url={media[0].url} />
                                 </div>
                             )}
                         </div>
@@ -79,11 +85,18 @@ export default function PostMediaCarousel({ media, compact = false }: MediaCarou
                                 <div key={index} className="relative w-full h-full" onClick={(e) => { e.stopPropagation(); openLightbox(index); }}>
                                     {item.type === 'image' ? (
                                         <img src={item.url} alt={`Media ${index + 1}`} className="w-full h-full object-cover" loading="lazy" />
-                                    ) : (
+                                    ) : item.type === 'video' ? (
                                         <div className="relative w-full h-full bg-black">
                                             <video src={item.url} className="w-full h-full object-cover opacity-80" preload="metadata" muted />
-                                            <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                                 <Play className="w-6 h-6 text-white fill-white opacity-80" />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center w-full h-full bg-black border border-green-900 overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
+                                                {/* Render compact player if possible, or icon */}
+                                                <MusicEmbed url={item.url} compact />
                                             </div>
                                         </div>
                                     )}
@@ -96,11 +109,17 @@ export default function PostMediaCarousel({ media, compact = false }: MediaCarou
                             <div className="row-span-2 relative w-full h-full" onClick={(e) => { e.stopPropagation(); openLightbox(0); }}>
                                 {media[0].type === 'image' ? (
                                     <img src={media[0].url} alt="Media 1" className="w-full h-full object-cover" loading="lazy" />
-                                ) : (
+                                ) : media[0].type === 'video' ? (
                                     <div className="relative w-full h-full bg-black">
                                         <video src={media[0].url} className="w-full h-full object-cover" preload="metadata" muted />
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <Play className="w-8 h-8 text-white fill-white" />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center w-full h-full bg-black border border-green-900 overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
+                                            <MusicEmbed url={media[0].url} compact />
                                         </div>
                                     </div>
                                 )}
@@ -110,11 +129,18 @@ export default function PostMediaCarousel({ media, compact = false }: MediaCarou
                                     <div key={index} className="relative w-full h-full" onClick={(e) => { e.stopPropagation(); openLightbox(index + 1); }}>
                                         {item.type === 'image' ? (
                                             <img src={item.url} alt={`Media ${index + 2}`} className="w-full h-full object-cover" loading="lazy" />
-                                        ) : (
+                                        ) : item.type === 'video' ? (
                                             <div className="relative w-full h-full bg-black">
                                                 <video src={item.url} className="w-full h-full object-cover" preload="metadata" muted />
                                                 <div className="absolute inset-0 flex items-center justify-center">
                                                     <Play className="w-6 h-6 text-white fill-white" />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-center w-full h-full bg-black border border-green-900">
+                                                <div className="flex flex-col items-center justify-center">
+                                                    <Music className="w-6 h-6 text-green-400 mb-1" />
+                                                    <span className="text-[10px] text-green-400/80">Music</span>
                                                 </div>
                                             </div>
                                         )}
@@ -129,11 +155,18 @@ export default function PostMediaCarousel({ media, compact = false }: MediaCarou
                                 <div key={index} className="relative w-full h-full" onClick={(e) => { e.stopPropagation(); openLightbox(index); }}>
                                     {item.type === 'image' ? (
                                         <img src={item.url} alt={`Media ${index + 1}`} className="w-full h-full object-cover" loading="lazy" />
-                                    ) : (
+                                    ) : item.type === 'video' ? (
                                         <div className="relative w-full h-full bg-black">
                                             <video src={item.url} className="w-full h-full object-cover" preload="metadata" muted />
                                             <div className="absolute inset-0 flex items-center justify-center">
                                                 <Play className="w-6 h-6 text-white fill-white" />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center w-full h-full bg-black border border-green-900">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <Music className="w-6 h-6 text-green-400 mb-1" />
+                                                <span className="text-[10px] text-green-400/80">Music</span>
                                             </div>
                                         </div>
                                     )}
@@ -180,7 +213,7 @@ export default function PostMediaCarousel({ media, compact = false }: MediaCarou
                             alt={`Media ${currentIndex + 1}`}
                             className="max-w-full max-h-[600px] object-contain"
                         />
-                    ) : (
+                    ) : currentMedia.type === 'video' ? (
                         <video
                             src={currentMedia.url}
                             className="max-w-full max-h-[600px] object-contain"
@@ -190,6 +223,10 @@ export default function PostMediaCarousel({ media, compact = false }: MediaCarou
                             // For full post, we might allow controls, but lightbox is better for focus.
                             onClick={(e) => { e.stopPropagation(); }}
                         />
+                    ) : (
+                        <div className="w-full max-w-2xl px-4" onClick={(e) => e.stopPropagation()}>
+                            <MusicEmbed url={currentMedia.url} />
+                        </div>
                     )}
                 </div>
 

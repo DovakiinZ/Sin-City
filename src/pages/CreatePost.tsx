@@ -9,7 +9,8 @@ import { createThread } from "@/hooks/useSupabasePosts";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { X, Plus, Image, Film, Loader2, Link2 } from "lucide-react";
+import { X, Plus, Image, Film, Loader2, Link2, Music } from "lucide-react";
+import MusicEmbed from "@/components/MusicEmbed";
 
 type PostMode = "single" | "thread";
 
@@ -29,9 +30,15 @@ export default function CreatePost() {
     const [slug, setSlug] = useState("");
 
     // Multi-media attachments state
-    const [mediaFiles, setMediaFiles] = useState<{ url: string; type: 'image' | 'video'; file?: File }[]>([]);
+    const [mediaFiles, setMediaFiles] = useState<{ url: string; type: 'image' | 'video' | 'music'; file?: File }[]>([]);
     const [uploadingMedia, setUploadingMedia] = useState(false);
+    const [showMusicInput, setShowMusicInput] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const addMusic = (url: string) => {
+        setMediaFiles(prev => [...prev, { url, type: 'music' }]);
+        setShowMusicInput(false);
+    };
 
 
 
@@ -347,61 +354,112 @@ export default function CreatePost() {
                                 className="hidden"
                             />
 
-                            {/* Media Preview Grid */}
                             <div className={`grid gap-2 mb-3 ${mediaFiles.length === 1 ? 'grid-cols-1' :
                                 mediaFiles.length === 2 ? 'grid-cols-2' :
                                     mediaFiles.length >= 3 ? 'grid-cols-2' : ''
                                 }`}>
                                 {mediaFiles.map((media, index) => (
-                                    <div key={index} className="relative aspect-video ascii-box overflow-hidden bg-black">
+                                    <div key={index} className="relative ascii-box overflow-hidden bg-black border border-ascii-border">
                                         {media.type === 'image' ? (
-                                            <img
-                                                src={media.url}
-                                                alt={`Attachment ${index + 1}`}
-                                                className="w-full h-full object-cover"
-                                            />
+                                            <div className="aspect-video">
+                                                <img
+                                                    src={media.url}
+                                                    alt={`Attachment ${index + 1}`}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                        ) : media.type === 'video' ? (
+                                            <div className="aspect-video">
+                                                <video
+                                                    src={media.url}
+                                                    className="w-full h-full object-cover"
+                                                    controls
+                                                />
+                                            </div>
                                         ) : (
-                                            <video
-                                                src={media.url}
-                                                className="w-full h-full object-cover"
-                                                controls
-                                            />
+                                            <div className="p-4">
+                                                <MusicEmbed url={media.url} compact />
+                                            </div>
                                         )}
                                         <button
                                             onClick={() => removeMedia(index)}
-                                            className="absolute top-2 right-2 bg-black/70 p-1 rounded hover:bg-red-600 transition-colors"
+                                            className="absolute top-2 right-2 bg-black/70 p-1 rounded hover:bg-red-600 transition-colors z-10"
                                         >
                                             <X className="w-4 h-4" />
                                         </button>
-                                        <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs flex items-center gap-1">
-                                            {media.type === 'image' ? <Image className="w-3 h-3" /> : <Film className="w-3 h-3" />}
+                                        <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs flex items-center gap-1 z-10">
+                                            {media.type === 'image' ? <Image className="w-3 h-3" /> : media.type === 'video' ? <Film className="w-3 h-3" /> : <Music className="w-3 h-3" />}
                                             {media.type}
                                         </div>
                                     </div>
                                 ))}
                             </div>
 
-                            {/* Add Media Button */}
-                            {mediaFiles.length < 4 && (
-                                <Button
-                                    type="button"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={uploadingMedia}
-                                    variant="outline"
-                                    className="ascii-box flex items-center gap-2"
-                                >
-                                    {uploadingMedia ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                            Uploading...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Plus className="w-4 h-4" />
-                                            Add Photo/Video
-                                        </>
-                                    )}
-                                </Button>
+                            {/* Music Input Field */}
+                            {showMusicInput && (
+                                <div className="flex gap-2 mb-3">
+                                    <div className="flex-1 ascii-box flex items-center px-2">
+                                        <input
+                                            type="url"
+                                            placeholder="Paste Spotify or YouTube URL"
+                                            className="w-full bg-transparent border-none outline-none text-sm"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const url = e.currentTarget.value;
+                                                    if (url) addMusic(url);
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                if (e.target.value) addMusic(e.target.value);
+                                                else setShowMusicInput(false);
+                                            }}
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        onClick={() => setShowMusicInput(false)}
+                                        variant="outline"
+                                        className="px-3"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            )}
+
+                            {/* Add Media Buttons */}
+                            {mediaFiles.length < 4 && !showMusicInput && (
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploadingMedia}
+                                        variant="outline"
+                                        className="ascii-box flex items-center gap-2"
+                                    >
+                                        {uploadingMedia ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Uploading...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Plus className="w-4 h-4" />
+                                                Add Photo/Video
+                                            </>
+                                        )}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        onClick={() => setShowMusicInput(true)}
+                                        variant="outline"
+                                        className="ascii-box flex items-center gap-2"
+                                    >
+                                        <Music className="w-4 h-4" />
+                                        Add Music
+                                    </Button>
+                                </div>
                             )}
                         </div>
 

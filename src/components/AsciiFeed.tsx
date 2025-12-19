@@ -16,7 +16,7 @@ import { Pin, Paperclip, Eye } from "lucide-react";
 
 type Post = {
   title: string; date: string; content: string; slug: string; author?: string; authorAvatar?: string; isPinned?: boolean;
-  attachments?: { url: string; type: 'image' | 'video' }[];
+  attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
 };
 
 interface FrontMatterData {
@@ -86,7 +86,10 @@ const AsciiFeed = () => {
           authorUsername: p.author_username || undefined,
           isHtml: true, // Database posts are HTML
           isPinned: p.is_pinned || false,
-          attachments: (p.attachments as any[] | undefined)?.map((a: any) => ({ url: a.url || '', type: (a.type?.startsWith('video') ? 'video' : 'image') as 'image' | 'video' })).filter((a: any) => a.url) || undefined,
+          attachments: (p.attachments as any[] | undefined)?.map((a: any) => ({
+            url: a.url || '',
+            type: (a.type === 'music' ? 'music' : (a.type?.startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
+          })).filter((a: any) => a.url) || undefined,
         };
       }),
     ...markdownPosts.map(p => ({ ...p, rawDate: p.date, isHtml: false }))
