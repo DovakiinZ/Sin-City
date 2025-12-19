@@ -13,7 +13,29 @@ interface MediaCarouselProps {
     compact?: boolean; // For feed/home - shows smaller thumbnails
 }
 
-export default function PostMediaCarousel({ media, compact = false }: MediaCarouselProps) {
+export default function PostMediaCarousel({ media: rawMedia, compact = false }: MediaCarouselProps) {
+    // Helper to robustly determine media type from URL if provided type is suspicious
+    const getMediaType = (item: MediaItem): 'image' | 'video' | 'music' => {
+        const url = item.url.toLowerCase();
+        // If it's already music or video, trust it (unless we want to be super strict)
+        // But if it's 'image' (or anything else) and has a music URL, override it.
+        if (url.includes('spotify.com') || url.includes('soundcloud.com') || url.includes('youtu.be') || url.includes('youtube.com')) {
+            return 'music'; // MusicEmbed handles YouTube too
+        }
+
+        // Check for common video extensions if wrongly labeled as image
+        if (url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.mov')) {
+            return 'video';
+        }
+
+        return item.type;
+    };
+
+    const media = rawMedia?.map(item => ({
+        ...item,
+        type: getMediaType(item)
+    })) || [];
+
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 

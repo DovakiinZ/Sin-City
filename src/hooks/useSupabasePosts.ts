@@ -41,7 +41,8 @@ export function useSupabasePosts() {
                     .select("*")
                     .or("hidden.is.null,hidden.eq.false") // Filter out hidden posts
                     .order("is_pinned", { ascending: false, nullsFirst: false })
-                    .order("created_at", { ascending: false });
+                    .order("created_at", { ascending: false })
+                    .limit(50);
 
                 if (fetchError) throw fetchError;
 

@@ -23,7 +23,7 @@ type Post = {
     authorAvatar?: string;
     tags?: string[];
     viewCount?: number;
-    attachments?: { url: string; type: 'image' | 'video' }[];
+    attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
     threadId?: string;
     threadPosition?: number;
 };
@@ -89,7 +89,7 @@ export default function PostDetail() {
                         author: fetchedUsername || dbPost.author_name || undefined,
                         authorId: dbPost.user_id || undefined,
                         viewCount: (dbPost.view_count || 0) + 1,
-                        attachments: dbPost.attachments as { url: string; type: 'image' | 'video' }[] || undefined,
+                        attachments: dbPost.attachments as { url: string; type: 'image' | 'video' | 'music' }[] || undefined,
                         threadId: dbPost.thread_id || undefined,
                         threadPosition: dbPost.thread_position || undefined,
                     });
@@ -241,7 +241,7 @@ export default function PostDetail() {
 
                     {/* Media Gallery - Carousel with arrows */}
                     {post.attachments && post.attachments.length > 0 && (
-                        <MediaCarousel media={post.attachments as { url: string; type: 'image' | 'video' }[]} />
+                        <MediaCarousel media={post.attachments as { url: string; type: 'image' | 'video' | 'music' }[]} />
                     )}
 
                     <div className="prose prose-invert max-w-none mb-8">

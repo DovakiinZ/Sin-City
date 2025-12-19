@@ -88,7 +88,7 @@ const AsciiFeed = () => {
           isPinned: p.is_pinned || false,
           attachments: (p.attachments as any[] | undefined)?.map((a: any) => ({
             url: a.url || '',
-            type: (a.type === 'music' ? 'music' : (a.type?.startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
+            type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
           })).filter((a: any) => a.url) || undefined,
         };
       }),
