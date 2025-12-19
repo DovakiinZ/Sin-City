@@ -14,6 +14,11 @@ interface FollowUser {
     avatar_url: string | null;
 }
 
+const isValidUUID = (uuid: string) => {
+    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return regex.test(uuid);
+};
+
 export default function UserProfile() {
     const { username } = useParams<{ username: string }>();
     const navigate = useNavigate();
@@ -143,6 +148,7 @@ export default function UserProfile() {
             }
         };
 
+
         const normalize = (s: string) => s ? s.toLowerCase().trim() : '';
 
         lookupUser();
@@ -169,17 +175,22 @@ export default function UserProfile() {
 
             // Check if current user follows this profile
             if (user?.id && user.id !== profile.id) {
+                if (!isValidUUID(user.id) || !isValidUUID(profile.id)) {
+                    console.warn('[UserProfile] Invalid UUIDs for follow check:', { userId: user.id, profileId: profile.id });
+                    return;
+                }
+
                 const { data, error } = await supabase
                     .from('follows')
-                    .select('id')
+                    .select('follower_id')
                     .eq('follower_id', user.id)
                     .eq('following_id', profile.id)
                     .maybeSingle();
 
                 if (error) {
-                    console.error('[UserProfile] Error checking follow status:', error);
+                    console.error('[UserProfile] Error checking follow status:', JSON.stringify(error, null, 2));
                 }
-                console.log('[UserProfile] Follow check result:', { userId: user.id, profileId: profile.id, data, isFollowing: !!data });
+                console.log('[UserProfile] Follow check result:', { userId: user.id, profileId: profile.id, isFollowing: !!data });
                 setIsFollowing(!!data);
             }
         };
@@ -336,6 +347,34 @@ export default function UserProfile() {
         }
     };
 
+    const handleListUnfollow = async (targetUserId: string, e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!user?.id) return;
+
+        try {
+            const { error } = await supabase
+                .from('follows')
+                .delete()
+                .eq('follower_id', user.id)
+                .eq('following_id', targetUserId);
+
+            if (!error) {
+                // Update lists locally
+                setFollowingList(prev => prev.filter(u => u.id !== targetUserId));
+                setFollowingCount(prev => Math.max(0, prev - 1));
+
+                // If we are on the profile of the user we just unfollowed, update the main button too
+                if (targetUserId === profile?.id) {
+                    setIsFollowing(false);
+                    setFollowerCount(prev => Math.max(0, prev - 1));
+                }
+            }
+        } catch (err) {
+            console.error('List unfollow error:', err);
+        }
+    };
+
     // Modal component for followers/following list
     const FollowModal = ({
         title,
@@ -376,8 +415,17 @@ export default function UserProfile() {
                                 )}
                                 <div>
                                     <div className="ascii-highlight">@{u.username || "anonymous"}</div>
-                                    {/* {u.display_name && <div className="ascii-dim text-xs">{u.display_name}</div>} */}
+                                    {u.display_name && <div className="ascii-dim text-xs hidden">{u.display_name}</div>}
                                 </div>
+                                {title === "Following" && user?.id === profile?.id && (
+                                    <button
+                                        onClick={(e) => handleListUnfollow(u.id, e)}
+                                        className="ml-auto p-2 hover:bg-red-900/30 text-ascii-dim hover:text-red-400 rounded transition-colors group"
+                                        title="Unfollow"
+                                    >
+                                        <UserMinus className="w-4 h-4" />
+                                    </button>
+                                )}
                             </Link>
                         ))}
                     </div>
@@ -563,7 +611,7 @@ export default function UserProfile() {
 
                                 {/* Follow Button */}
                                 {user && user.id !== profile.id && (
-                                    <div className="mt-4 flex justify-center sm:justify-start">
+                                    <div className="mt-4 flex flex-col items-center sm:items-start gap-2">
                                         {isFollowing ? (
                                             <button
                                                 onClick={handleUnfollow}
@@ -603,7 +651,7 @@ export default function UserProfile() {
                             {userPosts.map((post) => (
                                 <div key={post.id} className="border-l-2 border-ascii-border pl-4">
                                     <Link
-                                        to={`/post/${post.id}`}
+                                        to={`/ post / ${post.id}`}
                                         className="ascii-highlight hover:underline"
                                     >
                                         {post.title}
@@ -619,22 +667,26 @@ export default function UserProfile() {
             </div>
 
             {/* Followers Modal - only for logged-in users */}
-            {user && showFollowersModal && (
-                <FollowModal
-                    title="Followers"
-                    users={followersList}
-                    onClose={() => setShowFollowersModal(false)}
-                />
-            )}
+            {
+                user && showFollowersModal && (
+                    <FollowModal
+                        title="Followers"
+                        users={followersList}
+                        onClose={() => setShowFollowersModal(false)}
+                    />
+                )
+            }
 
             {/* Following Modal - only for logged-in users */}
-            {user && showFollowingModal && (
-                <FollowModal
-                    title="Following"
-                    users={followingList}
-                    onClose={() => setShowFollowingModal(false)}
-                />
-            )}
-        </div>
+            {
+                user && showFollowingModal && (
+                    <FollowModal
+                        title="Following"
+                        users={followingList}
+                        onClose={() => setShowFollowingModal(false)}
+                    />
+                )
+            }
+        </div >
     );
 }

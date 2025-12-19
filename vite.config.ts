@@ -9,10 +9,10 @@ export default defineConfig(({ mode }) => ({
     host: "0.0.0.0",
     port: 8080,
     strictPort: true,
-    hmr: {
-      host: "localhost",
-      port: 8080,
-    },
+    // hmr: {
+    //   host: "localhost",
+    //   port: 8080,
+    // },
     proxy: {
       // Proxy Supabase requests to bypass CORS in development
       '/supabase-api': {

@@ -80,6 +80,14 @@ const TerminalCommand = ({ onClose }: TerminalCommandProps) => {
         "",
     ]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const bottomRef = useRef<HTMLDivElement>(null);
+
+    // Auto-scroll to bottom when history changes
+    useEffect(() => {
+        if (bottomRef.current) {
+            bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [history]);
 
     useEffect(() => {
         checkAdminStatus();
@@ -876,7 +884,7 @@ Engine: React + Vite`;
                 left: isMaximized ? 0 : position.x,
                 top: isMaximized ? 0 : position.y,
                 width: isMaximized ? '100vw' : size.w,
-                height: isMaximized ? '100vh' : size.h,
+                height: isMaximized ? '100dvh' : size.h,
                 backgroundColor: 'rgba(10, 10, 10, 0.95)',
                 border: '1px solid',
                 borderColor: textColor === 'green' ? '#22c55e' : textColor === 'red' ? '#dc2626' : '#ffffff' // basic border match
@@ -935,6 +943,7 @@ Engine: React + Vite`;
                         />
                     </form>
                 </div>
+                <div ref={bottomRef} />
             </div>
 
             {/* Footer / Resize Handle */}
