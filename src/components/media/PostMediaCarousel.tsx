@@ -78,7 +78,7 @@ export default function PostMediaCarousel({ media: rawMedia, compact = false }: 
                                     style={{ width: '100%', objectPosition: 'center' }}
                                 />
                             ) : media[0].type === 'video' ? (
-                                <div className="relative w-full aspect-[4/5] max-h-[280px] md:max-h-[360px] bg-black overflow-hidden">
+                                <div className="relative w-full aspect-video md:aspect-[4/5] max-h-[320px] bg-black overflow-hidden">
                                     <video
                                         src={media[0].url}
                                         className="w-full h-full object-cover opacity-90"
@@ -240,7 +240,7 @@ export default function PostMediaCarousel({ media: rawMedia, compact = false }: 
                     ) : currentMedia.type === 'video' ? (
                         <video
                             src={currentMedia.url}
-                            className="max-w-full max-h-[600px] object-contain"
+                            className="max-w-full max-h-[500px] object-contain"
                             controls
                             muted
                             playsInline

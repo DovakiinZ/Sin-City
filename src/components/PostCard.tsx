@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { Heart, MessageCircle, Pin, Send, X, Eye } from "lucide-react";
@@ -54,6 +54,31 @@ export default function PostCard({
     const [submitting, setSubmitting] = useState(false);
     const [toggling, setToggling] = useState(false);
     const commentInputRef = useRef<HTMLTextAreaElement>(null);
+
+    // Extract first image from content if no attachments
+    const contentImage = useMemo(() => {
+        if (post.attachments && post.attachments.length > 0) return null; // Prefer explicit attachments
+        if (!post.content) return null;
+
+        // Match HTML img src
+        const imgMatch = post.content.match(/<img[^>]+src="([^">]+)"/);
+        if (imgMatch && imgMatch[1]) return imgMatch[1];
+
+        // Match Markdown image
+        const mdMatch = post.content.match(/!\[.*?\]\((.*?)\)/);
+        if (mdMatch && mdMatch[1]) return mdMatch[1];
+
+        return null;
+    }, [post.content, post.attachments]);
+
+    // Effective media to display in carousel
+    const displayMedia = useMemo(() => {
+        if (post.attachments && post.attachments.length > 0) return post.attachments;
+        if (contentImage && !fullContent) {
+            return [{ url: contentImage, type: 'image' as const }];
+        }
+        return null;
+    }, [post.attachments, contentImage, fullContent]);
 
     // Calculate relative time
     const relativeTime = post.rawDate
@@ -223,19 +248,19 @@ export default function PostCard({
                 onClick={!fullContent ? () => navigate(`/post/${post.slug}`) : undefined}
                 className={!fullContent ? "cursor-pointer" : ""}
             >
-                {/* Title - Strong visual hierarchy: large, bold, high contrast */}
+                {/* Title - Compact, clean hierarchy */}
                 <h2
-                    className={`${fullContent ? 'text-2xl md:text-3xl' : 'text-xl'} font-bold text-green-50 mb-3 leading-snug tracking-tight ${titleIsArabic ? 'text-right arabic-text' : 'text-left'}`}
+                    className={`${fullContent ? 'text-xl md:text-2xl' : 'text-lg'} font-semibold text-green-50 mb-2 leading-snug tracking-normal ${titleIsArabic ? 'text-right arabic-text' : 'text-left'}`}
                     dir={titleIsArabic ? 'rtl' : 'ltr'}
                 >
                     {post.title}
                 </h2>
 
-                {/* Content - Softer contrast, normal weight, smaller than title */}
+                {/* Content - Compact reading size */}
                 {fullContent ? (
                     <div
                         dir={contentIsArabic ? 'rtl' : 'ltr'}
-                        className={`prose prose-invert prose-sm md:prose-base max-w-none text-gray-400 font-normal leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_p]:mb-4 ${contentIsArabic ? 'text-right arabic-text' : 'text-left'}`}
+                        className={`prose prose-invert prose-sm max-w-none text-gray-400 font-normal leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_p]:mb-3 ${contentIsArabic ? 'text-right arabic-text' : 'text-left'}`}
                         dangerouslySetInnerHTML={{ __html: decodeHtml(post.content) }}
                     />
                 ) : (
@@ -254,9 +279,9 @@ export default function PostCard({
             </div>
 
             {/* Media Carousel */}
-            {post.attachments && post.attachments.length > 0 && (
+            {displayMedia && displayMedia.length > 0 && (
                 <div className="my-4" onClick={(e) => e.stopPropagation()}>
-                    <MediaCarousel media={post.attachments} compact={!fullContent} />
+                    <MediaCarousel media={displayMedia} compact={!fullContent} />
                 </div>
             )}
 
