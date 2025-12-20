@@ -3,7 +3,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import SearchBar from "./search/SearchBar";
-import PopularPosts from "./analytics/PopularPosts";
 import BackButton from "@/components/BackButton";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import HearThisButton from "@/components/HearThisButton";
@@ -148,10 +147,6 @@ const AsciiSidebar = () => {
           )}
         </ul>
       </nav>
-
-      {/* Popular/Trending Posts */}
-      <PopularPosts />
-
 
 
       {/* System Info */}

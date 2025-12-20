@@ -179,6 +179,13 @@
     color: hsl(var(--ascii-dim));
   }
 
+  /* Arabic text styling - uses IBM Plex Sans Arabic for readability */
+  .arabic-text {
+    font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
+    line-height: 1.8;
+    font-weight: 400;
+  }
+
   .ascii-nav-link {
     @apply transition-colors duration-200;
     color: hsl(var(--ascii-text));

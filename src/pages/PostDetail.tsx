@@ -1,29 +1,26 @@
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { Eye } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import matter from "gray-matter";
 import BackButton from "@/components/BackButton";
-import CommentList from "@/components/comments/CommentList";
-import ReactionButtons from "@/components/reactions/ReactionButtons";
-import BookmarkButton from "@/components/bookmarks/BookmarkButton";
-import ShareButtons from "@/components/sharing/ShareButtons";
-import MediaCarousel from "@/components/media/PostMediaCarousel";
+import PostCard from "@/components/PostCard";
 import ThreadNavigation from "@/components/thread/ThreadNavigation";
 import { listPostsFromDb } from "@/data/posts";
-import { estimateReadTime } from "@/lib/markdown";
 import { supabase } from "@/lib/supabase";
 
 type Post = {
-    title: string;
-    date: string;
-    content: string;
     slug: string;
+    postId: string;
+    title: string;
+    content: string;
+    date: string;
+    rawDate?: string;
     author?: string;
-    authorId?: string;
     authorAvatar?: string;
-    tags?: string[];
+    authorUsername?: string;
+    userId?: string;
     viewCount?: number;
     attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
+    isHtml?: boolean;
     threadId?: string;
     threadPosition?: number;
 };
@@ -34,8 +31,6 @@ export default function PostDetail() {
     const [post, setPost] = useState<Post | null>(null);
     const [loading, setLoading] = useState(true);
     const hasIncrementedView = useRef(false);
-    const [authorUsername, setAuthorUsername] = useState<string | null>(null);
-    const [authorAvatar, setAuthorAvatar] = useState<string | null>(null);
     const [threadTotal, setThreadTotal] = useState<number>(0);
 
     useEffect(() => {
@@ -50,6 +45,7 @@ export default function PostDetail() {
                 if (dbPost) {
                     // Get the author's username for the profile link
                     let fetchedUsername = null;
+                    let fetchedAvatar = null;
                     if (dbPost.user_id) {
                         const { data } = await supabase
                             .from('profiles')
@@ -58,10 +54,9 @@ export default function PostDetail() {
                             .single();
                         if (data?.username) {
                             fetchedUsername = data.username;
-                            setAuthorUsername(data.username);
                         }
                         if (data?.avatar_url) {
-                            setAuthorAvatar(data.avatar_url);
+                            fetchedAvatar = data.avatar_url;
                         }
                     }
 
@@ -81,15 +76,32 @@ export default function PostDetail() {
                         setThreadTotal(threadTotalCount);
                     }
 
+                    const createdDate = dbPost.created_at ? new Date(dbPost.created_at) : null;
+                    const formattedDate = createdDate
+                        ? createdDate.toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                        })
+                        : '';
+
                     setPost({
+                        slug: dbPost.slug || dbPost.id || slug || '',
+                        postId: dbPost.id || '',
                         title: dbPost.title,
-                        date: dbPost.created_at ? new Date(dbPost.created_at).toISOString().split("T")[0] : "",
-                        content: dbPost.content || "",
-                        slug: dbPost.id || slug || "",
+                        content: dbPost.content || '',
+                        date: formattedDate,
+                        rawDate: dbPost.created_at || '',
                         author: fetchedUsername || dbPost.author_name || undefined,
-                        authorId: dbPost.user_id || undefined,
+                        authorAvatar: fetchedAvatar || dbPost.author_avatar || undefined,
+                        authorUsername: fetchedUsername || undefined,
+                        userId: dbPost.user_id || undefined,
                         viewCount: (dbPost.view_count || 0) + 1,
-                        attachments: dbPost.attachments as { url: string; type: 'image' | 'video' | 'music' }[] || undefined,
+                        attachments: dbPost.attachments?.map((a: any) => ({
+                            url: a.url || '',
+                            type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
+                        })).filter((a: any) => a.url) || undefined,
+                        isHtml: true,
                         threadId: dbPost.thread_id || undefined,
                         threadPosition: dbPost.thread_position || undefined,
                     });
@@ -110,12 +122,13 @@ export default function PostDetail() {
                     const text = await res.text();
                     const { data, content } = matter(text);
                     setPost({
+                        slug: slug || '',
+                        postId: slug || '',
                         title: String(data.title || slug),
-                        date: String(data.date || ""),
                         content,
-                        slug: slug || "",
+                        date: String(data.date || ''),
                         author: data.author ? String(data.author) : undefined,
-                        tags: Array.isArray(data.tags) ? data.tags.map(String) : undefined,
+                        isHtml: false,
                     });
                 } else {
                     setPost(null);
@@ -131,15 +144,15 @@ export default function PostDetail() {
         if (slug) {
             loadPost();
         }
-    }, [slug]);
+    }, [slug, navigate]);
 
     if (loading) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center p-4">
-                <div className="w-full max-w-4xl mx-auto">
-                    <div className="ascii-box p-8 text-center">
-                        <div className="ascii-highlight text-xl mb-2">Loading post...</div>
-                        <div className="ascii-dim">Please wait</div>
+                <div className="w-full max-w-3xl mx-auto">
+                    <div className="bg-black/30 border border-green-700/50 rounded-lg p-8 text-center">
+                        <div className="inline-block w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin mb-3" />
+                        <div className="text-gray-400 text-sm">Loading post...</div>
                     </div>
                 </div>
             </div>
@@ -149,16 +162,16 @@ export default function PostDetail() {
     if (!post) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center p-4">
-                <div className="w-full max-w-4xl mx-auto">
+                <div className="w-full max-w-3xl mx-auto space-y-6">
                     <BackButton />
-                    <div className="ascii-box p-8 text-center mt-4">
-                        <div className="text-red-400 text-xl mb-2">Post not found</div>
-                        <div className="ascii-dim mb-4">The requested post does not exist</div>
+                    <div className="bg-black/30 border border-red-900/50 rounded-lg p-8 text-center">
+                        <div className="text-red-400 text-xl mb-2 font-bold">Post not found</div>
+                        <div className="text-gray-500 mb-4">The requested post does not exist</div>
                         <button
                             onClick={() => navigate("/posts")}
-                            className="ascii-nav-link hover:ascii-highlight"
+                            className="text-green-400 hover:text-green-300 text-sm"
                         >
-                            ← Back to posts
+                            ← Back to all posts
                         </button>
                     </div>
                 </div>
@@ -166,11 +179,9 @@ export default function PostDetail() {
         );
     }
 
-    const readTime = estimateReadTime(post.content);
-
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-            <div className="w-full max-w-4xl mx-auto space-y-6">
+        <div className="min-h-screen bg-background p-4">
+            <div className="w-full max-w-3xl mx-auto space-y-6">
                 <BackButton />
 
                 {/* Thread Navigation - show if post is part of a thread */}
@@ -183,88 +194,17 @@ export default function PostDetail() {
                     />
                 )}
 
-                <div className="ascii-box p-6">
-                    {/* Thread indicator badge */}
-                    {post.threadId && post.threadPosition && threadTotal > 1 && (
-                        <div className="mb-4 flex items-center gap-2">
-                            <span className="ascii-box px-2 py-1 text-xs bg-green-500/10 text-green-400 border-green-500/30">
-                                📎 Thread [{post.threadPosition}/{threadTotal}]
-                            </span>
-                        </div>
-                    )}
+                {/* UNIFIED POST LAYOUT - Uses PostCard with fullContent */}
+                <PostCard
+                    post={post}
+                    fullContent={true}
+                    showComments={true}
+                />
 
-                    {post.title && <pre className="ascii-highlight text-2xl mb-4">{post.title}</pre>}
-
-                    {/* Author section with avatar */}
-                    <div className="flex items-start gap-4 mb-6">
-                        {/* Author Avatar */}
-                        <Link to={`/user/${authorUsername || post.author}`} className="flex-shrink-0">
-                            {authorAvatar ? (
-                                <img
-                                    src={authorAvatar}
-                                    alt={post.author || "Author"}
-                                    className="w-14 h-14 rounded-lg border-2 border-green-600 object-cover"
-                                />
-                            ) : (
-                                <div className="w-14 h-14 rounded-lg border-2 border-green-600 bg-green-900/30 flex items-center justify-center">
-                                    <span className="text-2xl text-green-500">
-                                        {(post.author || "?")[0]?.toUpperCase()}
-                                    </span>
-                                </div>
-                            )}
-                        </Link>
-
-                        {/* Author info and meta */}
-                        <div className="flex-1">
-                            {post.author && (
-                                <Link
-                                    to={`/user/${authorUsername || post.author}`}
-                                    className="text-green-400 hover:underline text-sm"
-                                >
-                                    @{authorUsername || post.author}
-                                </Link>
-                            )}
-                            <div className="ascii-dim text-xs flex flex-wrap gap-3 mt-1">
-                                {post.date && <span>{post.date}</span>}
-                                <span>{readTime} min read</span>
-                                {post.viewCount !== undefined && (
-                                    <div className="flex items-center gap-1.5" title="Total Views">
-                                        <Eye className="w-4 h-4" />
-                                        <span>{post.viewCount} views</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-
-
-                    {/* Media Gallery - Carousel with arrows */}
-                    {post.attachments && post.attachments.length > 0 && (
-                        <MediaCarousel media={post.attachments as { url: string; type: 'image' | 'video' | 'music' }[]} />
-                    )}
-
-                    <div className="prose prose-invert max-w-none mb-8">
-                        <div dir="auto" dangerouslySetInnerHTML={{ __html: post.content }} />
-                    </div>
-
-                    {/* Reactions & Bookmark */}
-                    <div className="mt-8 pt-6 border-t border-ascii-border flex items-center justify-between flex-wrap gap-4">
-                        <ReactionButtons postId={post.slug} />
-                        <BookmarkButton postId={post.slug} />
-                    </div>
-
-                    {/* Sharing */}
-                    <ShareButtons title={post.title} slug={post.slug} content={post.content} />
-                </div>
-
-                {/* Comments */}
-                <CommentList postId={post.slug} postAuthorId={post.authorId} />
-
-                <div className="text-center">
+                <div className="text-center pt-4">
                     <button
                         onClick={() => navigate("/posts")}
-                        className="ascii-nav-link hover:ascii-highlight"
+                        className="text-gray-500 hover:text-green-400 text-sm transition-colors"
                     >
                         ← Back to all posts
                     </button>

@@ -78,13 +78,15 @@ export default function PostMediaCarousel({ media: rawMedia, compact = false }: 
                                     style={{ width: '100%', objectPosition: 'center' }}
                                 />
                             ) : media[0].type === 'video' ? (
-                                <div className="relative w-full max-h-[320px] md:max-h-[500px]">
+                                <div className="relative w-full aspect-[4/5] max-h-[280px] md:max-h-[360px] bg-black overflow-hidden">
                                     <video
                                         src={media[0].url}
-                                        className="w-full h-full max-h-[320px] md:max-h-[500px] object-cover opacity-80"
+                                        className="w-full h-full object-cover opacity-90"
                                         preload="metadata"
                                         muted
                                         playsInline
+                                        autoPlay
+                                        loop
                                         controls={false}
                                     />
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -101,15 +103,15 @@ export default function PostMediaCarousel({ media: rawMedia, compact = false }: 
                             )}
                         </div>
                     ) : media.length === 2 ? (
-                        // Two items
-                        <div className="grid grid-cols-2 gap-0.5 h-64 md:h-96 w-full">
+                        // Two items - constrained height
+                        <div className="grid grid-cols-2 gap-0.5 h-48 md:h-64 w-full">
                             {media.slice(0, 2).map((item, index) => (
                                 <div key={index} className="relative w-full h-full" onClick={(e) => { e.stopPropagation(); openLightbox(index); }}>
                                     {item.type === 'image' ? (
                                         <img src={item.url} alt={`Media ${index + 1}`} className="w-full h-full object-cover" loading="lazy" />
                                     ) : item.type === 'video' ? (
-                                        <div className="relative w-full h-full bg-black">
-                                            <video src={item.url} className="w-full h-full object-cover opacity-80" preload="metadata" muted />
+                                        <div className="relative w-full h-full bg-black overflow-hidden">
+                                            <video src={item.url} className="w-full h-full object-cover opacity-90" preload="metadata" muted autoPlay loop playsInline />
                                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                                 <Play className="w-6 h-6 text-white fill-white opacity-80" />
                                             </div>
@@ -126,8 +128,8 @@ export default function PostMediaCarousel({ media: rawMedia, compact = false }: 
                             ))}
                         </div>
                     ) : media.length === 3 ? (
-                        // Three items
-                        <div className="grid grid-cols-2 gap-0.5 h-64 md:h-96 w-full">
+                        // Three items - constrained height
+                        <div className="grid grid-cols-2 gap-0.5 h-48 md:h-64 w-full">
                             <div className="row-span-2 relative w-full h-full" onClick={(e) => { e.stopPropagation(); openLightbox(0); }}>
                                 {media[0].type === 'image' ? (
                                     <img src={media[0].url} alt="Media 1" className="w-full h-full object-cover" loading="lazy" />
@@ -171,8 +173,8 @@ export default function PostMediaCarousel({ media: rawMedia, compact = false }: 
                             </div>
                         </div>
                     ) : (
-                        // Four+ items
-                        <div className="grid grid-cols-2 gap-0.5 h-64 md:h-96 w-full">
+                        // Four+ items - constrained height
+                        <div className="grid grid-cols-2 gap-0.5 h-48 md:h-64 w-full">
                             {media.slice(0, 4).map((item, index) => (
                                 <div key={index} className="relative w-full h-full" onClick={(e) => { e.stopPropagation(); openLightbox(index); }}>
                                     {item.type === 'image' ? (

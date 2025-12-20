@@ -1,6 +1,20 @@
 import { useRef, useState } from "react";
 
-export default function AvatarUploader({ value, onChange, isAdmin = false, onUpload }: { value?: string; onChange: (dataUrl?: string) => void; isAdmin?: boolean; onUpload?: (file: File) => Promise<string | null> }) {
+interface AvatarUploaderProps {
+  value?: string;
+  onChange: (dataUrl?: string) => void;
+  isAdmin?: boolean;
+  onUpload?: (file: File) => Promise<string | null>;
+  onFileSelect?: (file: File) => void; // Called when file is selected, before upload
+}
+
+export default function AvatarUploader({
+  value,
+  onChange,
+  isAdmin = false,
+  onUpload,
+  onFileSelect
+}: AvatarUploaderProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -8,13 +22,22 @@ export default function AvatarUploader({ value, onChange, isAdmin = false, onUpl
     const file = e.target.files?.[0];
     if (!file) return onChange(undefined);
 
-    // Initial check for GIF restriction
+    // Check for GIF restriction
     if (file.type === 'image/gif' && !isAdmin) {
       alert("Only admins can use GIF profile pictures.");
-      if (inputRef.current) inputRef.current.value = ''; // Reset input
+      if (inputRef.current) inputRef.current.value = '';
       return;
     }
 
+    // If onFileSelect is provided (for cropping), use it
+    // Skip cropper for GIFs (cropping breaks animation)
+    if (onFileSelect && file.type !== 'image/gif') {
+      onFileSelect(file);
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+
+    // Direct upload (for GIFs or when no cropper needed)
     if (onUpload) {
       setUploading(true);
       try {
@@ -30,6 +53,7 @@ export default function AvatarUploader({ value, onChange, isAdmin = false, onUpl
       return;
     }
 
+    // Fallback: read as data URL
     const reader = new FileReader();
     reader.onload = () => onChange(String(reader.result || undefined));
     reader.readAsDataURL(file);
@@ -58,4 +82,3 @@ export default function AvatarUploader({ value, onChange, isAdmin = false, onUpl
     </div>
   );
 }
-

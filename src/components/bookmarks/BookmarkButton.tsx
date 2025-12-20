@@ -6,9 +6,10 @@ import { Bookmark, BookmarkCheck } from "lucide-react";
 
 interface BookmarkButtonProps {
     postId: string;
+    compact?: boolean;
 }
 
-export default function BookmarkButton({ postId }: BookmarkButtonProps) {
+export default function BookmarkButton({ postId, compact = false }: BookmarkButtonProps) {
     const { user } = useAuth();
     const { toast } = useToast();
     const [bookmarked, setBookmarked] = useState(false);
@@ -57,6 +58,21 @@ export default function BookmarkButton({ postId }: BookmarkButtonProps) {
         }
     };
 
+    if (compact) {
+        return (
+            <button
+                onClick={handleToggle}
+                disabled={loading}
+                className={`flex items-center gap-1.5 text-sm transition-colors ${bookmarked ? "text-green-400" : "text-gray-500 hover:text-green-400"
+                    } ${loading ? "opacity-50" : ""}`}
+                title={bookmarked ? "Remove bookmark" : "Bookmark this post"}
+            >
+                {bookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                <span>{bookmarked ? "Saved" : "Save"}</span>
+            </button>
+        );
+    }
+
     return (
         <button
             onClick={handleToggle}
@@ -73,3 +89,4 @@ export default function BookmarkButton({ postId }: BookmarkButtonProps) {
         </button>
     );
 }
+

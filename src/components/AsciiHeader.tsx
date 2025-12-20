@@ -1,67 +1,110 @@
 import NotificationBell from "@/components/notifications/NotificationBell";
-import MobileMenu from "@/components/MobileMenu";
 import { useAuth } from "@/context/AuthContext";
 import { useDeviceDetect } from "@/hooks/useDeviceDetect";
+import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 const AsciiHeader = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { isMobile, isIOS, isAndroid } = useDeviceDetect();
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
 
-  // Different header for mobile (iOS/Android) vs desktop web
+  // Fetch user avatar
+  useEffect(() => {
+    async function fetchAvatar() {
+      if (!user?.id) return;
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("avatar_url")
+          .eq("id", user.id)
+          .single();
+        if (data?.avatar_url) {
+          setAvatarUrl(data.avatar_url);
+        }
+      } catch (error) {
+        console.error("Error fetching avatar:", error);
+      }
+    }
+    fetchAvatar();
+  }, [user?.id]);
+
   const isMobileDevice = isMobile || isIOS || isAndroid;
 
   return (
-    <header className="ascii-text mb-4 sm:mb-6">
-      <div className="relative">
-        <div className="ascii-box p-3 sm:p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+    <header className="mb-4 sm:mb-6">
+      <div className={`
+        bg-black/50 border border-green-800/40 rounded-lg
+        ${isMobileDevice ? 'px-3 py-2' : 'px-6 py-4'}
+      `}>
+        {/* Unified 3-column layout: Logo Left | Cicada Center | Icons Right */}
+        <div className="flex items-center justify-between">
 
-          {/* Mobile Menu Button - Left side */}
-          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
-            <MobileMenu />
+          {/* Left: SIN CITY Text Logo */}
+          <div className="flex-shrink-0">
+            <h1 className={`
+              font-mono font-bold tracking-widest text-green-400
+              ${isMobileDevice ? 'text-lg' : 'text-2xl md:text-3xl lg:text-4xl'}
+            `}>
+              SIN CITY
+            </h1>
           </div>
 
-          {isMobileDevice ? (
-            /* MOBILE: Simple clean text header */
-            <div className="flex-1 text-center">
-              <h1 className="ascii-highlight font-mono font-bold tracking-widest text-xl">
-                ▓ SIN CITY ▓
-              </h1>
-            </div>
-          ) : (
-            /* DESKTOP: Simple SIN CITY text like original but clean */
-            <div className="flex-1">
-              <h1 className="ascii-highlight font-mono text-3xl md:text-4xl lg:text-5xl font-bold tracking-widest">
-                SIN CITY
-              </h1>
-              <div className="ascii-dim text-sm mt-1">
-                ═══════════════════════════════════════
-              </div>
-            </div>
-          )}
-
-          {/* Cicada Logo */}
-          <div className="flex items-center justify-center flex-shrink-0">
+          {/* Center: Cicada Logo - Larger for strong brand identity */}
+          <div className="flex-shrink-0">
             <img
               src="/images/cicada.png?v=3"
-              alt="Sin City Cicada Logo"
-              className={isMobileDevice
-                ? "w-16 h-16 object-contain opacity-90 hover:opacity-100 transition-opacity duration-300 mix-blend-screen brightness-75 contrast-150"
-                : "w-24 h-24 md:w-32 md:h-32 lg:w-40 lg:h-40 object-contain opacity-90 hover:opacity-100 transition-opacity duration-300 mix-blend-screen brightness-75 contrast-150"
-              }
+              alt="Cicada"
+              className={`
+                object-contain opacity-90 hover:opacity-100 transition-opacity duration-300
+                mix-blend-screen brightness-75 contrast-150
+                ${isMobileDevice ? 'w-20 h-20' : 'w-28 h-28 md:w-32 md:h-32 lg:w-36 lg:h-36'}
+              `}
             />
           </div>
-        </div>
 
-        {/* Notification Bell */}
-        {user && (
-          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-black/80 border-2 border-green-500 rounded-lg p-1 shadow-lg shadow-green-900/50 z-10">
-            <NotificationBell />
+          {/* Right: Notifications + Profile */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Notification Bell - Both mobile and desktop */}
+            {user && (
+              <div className="p-1">
+                <NotificationBell />
+              </div>
+            )}
+
+            {/* Profile Icon */}
+            {user && (
+              <button
+                onClick={() => navigate("/profile")}
+                className={`
+                  rounded-full overflow-hidden border-2 border-green-600 
+                  hover:border-green-400 transition-colors
+                  ${isMobileDevice ? 'w-8 h-8' : 'w-10 h-10'}
+                `}
+                title="Profile"
+              >
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-green-900/50 flex items-center justify-center">
+                    <span className={`text-green-400 font-medium ${isMobileDevice ? 'text-xs' : 'text-sm'}`}>
+                      {user.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || "?"}
+                    </span>
+                  </div>
+                )}
+              </button>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </header>
   );
 };
 
 export default AsciiHeader;
-

@@ -4,18 +4,26 @@ import { Link, useNavigate } from "react-router-dom";
 import AsciiNewPostForm, { NewPost } from "./AsciiNewPostForm";
 import UserPanel from "./UserPanel";
 import { useAuth } from "@/context/AuthContext";
-import { useSupabasePosts, createPost } from "@/hooks/useSupabasePosts";
+import { createPost } from "@/hooks/useSupabasePosts";
+import { listPostsFromDb } from "@/data/posts";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { decodeHtml, stripHtml } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
-import ReactionButtons from "@/components/reactions/ReactionButtons";
-import MediaCarousel from "@/components/media/PostMediaCarousel";
-import QuickActions from "@/components/QuickActions";
-import { Pin, Paperclip, Eye } from "lucide-react";
+import PostCard from "@/components/PostCard";
+import { Plus, SlidersHorizontal } from "lucide-react";
 
 type Post = {
-  title: string; date: string; content: string; slug: string; author?: string; authorAvatar?: string; isPinned?: boolean;
+  title: string;
+  date: string;
+  rawDate?: string;
+  content: string;
+  slug: string;
+  postId?: string;
+  author?: string;
+  authorAvatar?: string;
+  authorUsername?: string;
+  isPinned?: boolean;
+  isHtml?: boolean;
   attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
 };
 
@@ -30,13 +38,75 @@ const FILES = ["post1.md", "post2.md"]; // served from /public/posts
 const AsciiFeed = () => {
   const navigate = useNavigate();
   const [markdownPosts, setMarkdownPosts] = useState<Post[]>([]);
-  const { posts: dbPosts, loading } = useSupabasePosts();
+  const [dbPosts, setDbPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "title">("recent");
-  const [visibleCount, setVisibleCount] = useState(5); // Show 5 posts at a time
+  const [visibleCount, setVisibleCount] = useState(10);
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Load posts from database using listPostsFromDb (same as Posts.tsx for consistency)
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        // Fetch profiles for avatars and usernames
+        let userAvatars: Map<string, string> = new Map();
+        let userUsernames: Map<string, string> = new Map();
+
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, avatar_url, username');
+
+        if (profiles) {
+          profiles.forEach(p => {
+            if (p.avatar_url) userAvatars.set(p.id, p.avatar_url);
+            if (p.username) userUsernames.set(p.id, p.username);
+          });
+        }
+
+        // Use listPostsFromDb for consistent attachment normalization
+        const fromDb = await listPostsFromDb();
+        const mapped: Post[] = (fromDb || [])
+          .filter((p: any) => !p.hidden)
+          .map((p: any) => {
+            const createdDate = p.created_at ? new Date(p.created_at) : null;
+            const formattedDate = createdDate
+              ? createdDate.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+              : '';
+            return {
+              title: p.title,
+              date: formattedDate,
+              rawDate: p.created_at || '',
+              content: p.content || "",
+              slug: p.slug || p.id || p.title,
+              postId: p.id,
+              author: p.user_id ? userUsernames.get(p.user_id) || p.author_name : p.author_name || undefined,
+              authorAvatar: p.author_avatar || (p.user_id ? userAvatars.get(p.user_id) : undefined) || undefined,
+              authorUsername: p.user_id ? userUsernames.get(p.user_id) : undefined,
+              isHtml: true,
+              isPinned: p.is_pinned || false,
+              attachments: p.attachments?.map((a: any) => ({
+                url: a.url || '',
+                type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
+              })).filter((a: any) => a.url) || undefined,
+            };
+          });
+        setDbPosts(mapped);
+      } catch (error) {
+        console.error("[AsciiFeed] Error loading posts:", error);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // Load markdown posts
   useEffect(() => {
     (async () => {
       const loaded = await Promise.all(
@@ -59,251 +129,147 @@ const AsciiFeed = () => {
     })();
   }, []);
 
-  // Combine markdown posts with database posts (filter out hidden)
-  const allPosts = [
-    ...dbPosts
-      .filter(p => !p.hidden) // Filter hidden posts
-      .map(p => {
-        const createdDate = p.created_at ? new Date(p.created_at) : null;
-        const formattedDate = createdDate
-          ? createdDate.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-          })
-          : '';
-        return {
-          title: p.title,
-          date: formattedDate,
-          rawDate: p.created_at || '',
-          content: p.content || "",
-          slug: p.id || p.title,
-          author: p.author_username || p.author_name || undefined,
-          authorAvatar: p.author_avatar || undefined,
-          authorUsername: p.author_username || undefined,
-          isHtml: true, // Database posts are HTML
-          isPinned: p.is_pinned || false,
-          attachments: (p.attachments as any[] | undefined)?.map((a: any) => ({
-            url: a.url || '',
-            type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
-          })).filter((a: any) => a.url) || undefined,
-        };
-      }),
+  // Combine markdown posts with database posts
+  const allPosts: Post[] = [
+    ...dbPosts,
     ...markdownPosts.map(p => ({ ...p, rawDate: p.date, isHtml: false }))
   ];
 
   // Sort posts based on sortBy, but always pinned first
   const sortedPosts = useMemo(() => {
     const result = [...allPosts];
-    // First sort by the selected criteria
     switch (sortBy) {
       case "recent":
-        result.sort((a, b) => ((a as any).rawDate < (b as any).rawDate ? 1 : -1));
+        result.sort((a, b) => {
+          const dateA = a.rawDate || a.date || '';
+          const dateB = b.rawDate || b.date || '';
+          return dateB.localeCompare(dateA);
+        });
         break;
       case "oldest":
-        result.sort((a, b) => ((a as any).rawDate > (b as any).rawDate ? 1 : -1));
+        result.sort((a, b) => {
+          const dateA = a.rawDate || a.date || '';
+          const dateB = b.rawDate || b.date || '';
+          return dateA.localeCompare(dateB);
+        });
         break;
       case "title":
         result.sort((a, b) => a.title.localeCompare(b.title));
         break;
     }
-    // Then move pinned posts to top while preserving their relative order
-    return result.sort((a, b) => {
-      if ((a as any).isPinned && !(b as any).isPinned) return -1;
-      if (!(a as any).isPinned && (b as any).isPinned) return 1;
-      return 0;
-    });
+    // Always put pinned posts first
+    return result.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
   }, [allPosts, sortBy]);
 
+  const handleAdd = async (p: NewPost) => {
+    if (!user) {
+      toast({ title: "Error", description: "Must be logged in", variant: "destructive" });
+      return;
+    }
 
-  async function handleAdd(p: NewPost) {
     try {
-      // Get the Supabase user ID if available
-      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
-
-      // Allow post creation even without Supabase auth
-      // user_id will be null for anonymous posts
       await createPost({
         title: p.title,
         type: p.attachments && p.attachments.length > 0 ? "Image" : "Text",
         content: p.content,
+        attachments: p.attachments,
         draft: false,
-        author_name: user?.username || supabaseUser?.email || "Anonymous",
-        author_email: user?.email || supabaseUser?.email || "",
-        user_id: supabaseUser?.id || null,
-        attachments: p.attachments
+        author_name: user.username || user.email || "Anonymous",
+        author_email: user.email || "",
+        author_avatar: user.avatarDataUrl || null,
+        user_id: user.id,
       });
-
-      toast({
-        title: "Success",
-        description: "Post created successfully!",
-      });
-
+      toast({ title: "Success", description: "Post created!" });
       setShowForm(false);
+      // Reload posts
+      window.location.reload();
     } catch (error) {
       console.error("Error creating post:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create post. Please check your Supabase configuration.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to create post", variant: "destructive" });
     }
-  }
+  };
 
   return (
-    <main className="ascii-text flex-1">
-      <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
-        <h2 className="ascii-highlight text-2xl">Recent Posts</h2>
-        <div className="flex gap-2 items-center flex-wrap">
-          {/* Sorting buttons */}
-          <div className="flex gap-1 text-xs">
-            <span className="ascii-dim">Sort:</span>
-            {(["recent", "oldest", "title"] as const).map((option) => (
-              <button
-                key={option}
-                onClick={() => setSortBy(option)}
-                className={cn(
-                  "px-2 py-0.5 border border-green-600 transition-colors",
-                  sortBy === option ? "bg-green-600 text-black" : "hover:bg-green-600/20"
-                )}
-              >
-                {option === "recent" ? "Recent" : option === "oldest" ? "Oldest" : "A-Z"}
-              </button>
-            ))}
+    <main className="flex-1">
+      {/* Posts Header */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between gap-4">
+          {/* Sort Controls */}
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="w-4 h-4 text-gray-500" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="bg-black/50 border border-green-700/50 rounded px-2 py-1 text-sm text-green-400 focus:border-green-500 focus:outline-none"
+            >
+              <option value="recent">Recent</option>
+              <option value="oldest">Oldest</option>
+              <option value="title">Title</option>
+            </select>
           </div>
-          <button
-            className="ascii-nav-link hover:ascii-highlight border border-green-700 px-3 py-1"
-            onClick={() => setShowForm((s) => !s)}
-          >
-            {showForm ? "Close" : "Add Post"}
-          </button>
+
+          {/* Add Post Button */}
+          {user && (
+            <button
+              onClick={() => setShowForm((s) => !s)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-black text-sm font-medium rounded transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Post
+            </button>
+          )}
         </div>
       </div>
+
+      {/* User Panel */}
       <div className="mb-6">
         <UserPanel />
       </div>
+
+      {/* New Post Form */}
       {showForm && (
-        <div className="mb-6">
+        <div className="mb-6 p-4 bg-black/30 border border-green-700/50 rounded-lg">
           <AsciiNewPostForm onAdd={handleAdd} onClose={() => setShowForm(false)} />
         </div>
       )}
-      <div className="space-y-6">
+
+      {/* Posts Feed */}
+      <div className="bg-black/20 rounded-lg">
         {loading ? (
-          <div className="ascii-dim text-center">Loading posts...</div>
+          <div className="text-center py-12">
+            <div className="inline-block w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-gray-500 text-sm mt-3">Loading posts...</p>
+          </div>
         ) : allPosts.length === 0 ? (
-          <div className="ascii-dim">No posts yet. Add markdown files to /public/posts or create a post above.</div>
+          <div className="text-center py-12 text-gray-500">
+            No posts yet. Be the first to share something!
+          </div>
         ) : (
-          sortedPosts.slice(0, visibleCount).map((post) => (
-            <div
-              key={post.slug}
-              onClick={() => navigate(`/post/${post.slug}`)}
-              className="block cursor-pointer"
-            >
-              <article className="group relative border border-green-600 bg-black/60 p-4 hover:border-green-400 hover:bg-black/80 transition-colors">
-                {/* Quick Actions - appear on hover */}
-                <QuickActions
-                  postId={post.slug}
-                  postTitle={post.title}
-                  postSlug={post.slug}
-                  className="absolute top-2 right-2 z-10"
-                />
-
-                {/* Pinned label like Twitter */}
-                {(post as any).isPinned && (
-                  <div className="flex items-center gap-2 text-xs text-yellow-400 mb-2">
-                    <Pin className="w-3 h-3" />
-                    <span>Pinned post</span>
-                  </div>
-                )}
-                <div className="flex gap-4">
-                  {/* Author Avatar on Left with username below */}
-                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                    {(post as any).authorAvatar ? (
-                      <img
-                        src={(post as any).authorAvatar}
-                        alt={post.author || "Author"}
-                        className="w-14 h-14 rounded-lg border-2 border-green-600 object-cover"
-                      />
-                    ) : (
-                      <div className="w-14 h-14 rounded-lg border-2 border-green-600 bg-green-900/30 flex items-center justify-center">
-                        <span className="text-2xl text-green-500">
-                          {(post.author || "?")[0]?.toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-                    {post.author && (
-                      <Link
-                        to={`/user/${(post as any).authorUsername || post.author}`}
-                        className="text-xs text-green-400 text-center hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        @{(post as any).authorUsername || post.author}
-                      </Link>
-                    )}
-                  </div>
-                  {/* Post Content */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="ascii-highlight text-xl mb-1">
-                      {post.title}
-                    </h3>
-                    <div className="ascii-dim text-xs mb-3">
-                      {post.date}
-                    </div>
-                    <div className="prose prose-invert max-w-none text-green-400/80">
-                      {(post as any).isHtml ? (
-                        <div
-                          dir="auto"
-                          dangerouslySetInnerHTML={{
-                            __html: decodeHtml(post.content.length > 400
-                              ? stripHtml(post.content).slice(0, 400) + '...'
-                              : post.content)
-                          }}
-                        />
-                      ) : (
-                        <div>{post.content.length > 400 ? post.content.slice(0, 400) + '...' : post.content}</div>
-                      )}
-                    </div>
-
-                    {/* Media Carousel - inline media preview */}
-                    {(post as any).attachments && (post as any).attachments.length > 0 && (
-                      <div className="mt-4" onClick={(e) => e.preventDefault()}>
-                        <MediaCarousel media={(post as any).attachments} compact />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {/* Reactions */}
-                <div className="mt-3 pt-2 border-t border-green-600/30" onClick={(e) => e.stopPropagation()}>
-                  <ReactionButtons postId={post.slug} />
-                </div>
-              </article>
-            </div>
-          ))
+          <div>
+            {sortedPosts.slice(0, visibleCount).map((post) => (
+              <PostCard key={post.slug} post={post} />
+            ))}
+          </div>
         )}
 
-        {/* Show More Button */}
+        {/* Load More */}
         {sortedPosts.length > visibleCount && (
-          <div className="text-center py-4">
+          <div className="text-center py-4 border-t border-green-900/30">
             <button
-              onClick={() => setVisibleCount(prev => prev + 5)}
-              className="ascii-nav-link hover:ascii-highlight border border-green-600 px-6 py-2 text-sm"
+              onClick={() => setVisibleCount(prev => prev + 10)}
+              className="text-green-400 hover:text-green-300 text-sm"
             >
-              Show More ({visibleCount} of {sortedPosts.length} posts)
+              Show more ({sortedPosts.length - visibleCount} remaining)
             </button>
           </div>
         )}
-
-        {sortedPosts.length > 0 && visibleCount >= sortedPosts.length && (
-          <div className="text-center py-2 ascii-dim text-xs">
-            Showing all {sortedPosts.length} posts
-          </div>
-        )}
       </div>
-      <div className="mt-6">
-        <Link to="/posts" className="ascii-nav-link hover:ascii-highlight">View all posts</Link>
+
+      {/* View All Link */}
+      <div className="mt-6 text-center">
+        <Link to="/posts" className="text-gray-500 hover:text-green-400 text-sm">
+          View all posts →
+        </Link>
       </div>
     </main>
   );

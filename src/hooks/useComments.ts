@@ -6,10 +6,14 @@ export interface Comment {
     id: string;
     post_id: string;
     user_id?: string;
+    parent_id?: string | null;
     author_name: string;
+    author_username?: string;
+    author_avatar?: string;
     content: string;
     created_at: string;
     updated_at: string;
+    replies?: Comment[];
 }
 
 export function useComments(postId: string) {
@@ -27,7 +31,34 @@ export function useComments(postId: string) {
                 .order("created_at", { ascending: true });
 
             if (fetchError) throw fetchError;
-            setComments(data || []);
+
+            // Get unique user IDs to fetch avatars
+            const userIds = [...new Set((data || []).map(c => c.user_id).filter(Boolean))];
+
+            // Fetch avatars and usernames for all users in one query
+            let userMap: Record<string, { avatar_url?: string; username?: string }> = {};
+            if (userIds.length > 0) {
+                const { data: profiles } = await supabase
+                    .from("profiles")
+                    .select("id, avatar_url, username")
+                    .in("id", userIds);
+
+                if (profiles) {
+                    userMap = profiles.reduce((acc: Record<string, any>, p) => {
+                        acc[p.id] = { avatar_url: p.avatar_url, username: p.username };
+                        return acc;
+                    }, {});
+                }
+            }
+
+            // Map comments with avatars and usernames
+            const mappedComments = (data || []).map((comment: any) => ({
+                ...comment,
+                author_avatar: comment.user_id ? userMap[comment.user_id]?.avatar_url : undefined,
+                author_username: comment.user_id ? userMap[comment.user_id]?.username : undefined,
+            }));
+
+            setComments(mappedComments);
             setError(null);
         } catch (err) {
             console.error("Error fetching comments:", err);

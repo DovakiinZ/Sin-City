@@ -39,26 +39,7 @@ Status: ONLINE`}
           </pre>
         </div>
 
-        {/* Navigation */}
-        <div className="ascii-box bg-secondary/20 p-3 sm:p-4">
-          <pre className="ascii-highlight text-xs mb-2">QUICK LINKS</pre>
-          <pre className="ascii-text text-xs whitespace-pre-wrap break-words">
-            {`[HOME] [POSTS] [ABOUT]
-[LOGIN] [MANAGE] [CONTACT]`}
-          </pre>
-        </div>
 
-        {/* ASCII Art - Hidden on mobile for cleaner look */}
-        <div className="ascii-box bg-secondary/20 p-3 sm:p-4 hidden md:block">
-          <pre className="ascii-highlight text-xs">
-            {`   ___
-  /   \\
- | o o |
-  \\ ^ /
-   |||
-   |||`}
-          </pre>
-        </div>
       </div>
 
       {/* Footer bottom - simplified for mobile */}
