@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { X, Plus, Image, Film, Loader2, Link2, Music } from "lucide-react";
 import MusicEmbed from "@/components/MusicEmbed";
+import { useGuestFingerprint } from "@/hooks/useGuestFingerprint";
+import { useBehaviorTracking } from "@/hooks/useBehaviorTracking";
+import EmailGateModal from "@/components/EmailGateModal";
 
 type PostMode = "single" | "thread";
 
@@ -35,6 +38,23 @@ export default function CreatePost() {
     const [showMusicInput, setShowMusicInput] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Guest fingerprint for anonymous posts
+    const {
+        fingerprint,
+        guestId,
+        createOrUpdateGuest,
+        postCount: guestPostCount,
+        guestData,
+        refreshGuestData
+    } = useGuestFingerprint();
+
+    // Behavior tracking for trust scoring
+    const { startTracking, stopTracking, recordPaste, recordTyping } = useBehaviorTracking();
+
+    // Email gate modal state
+    const [showEmailModal, setShowEmailModal] = useState(false);
+    const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+
     const addMusic = (url: string) => {
         setMediaFiles(prev => [...prev, { url, type: 'music' }]);
         setShowMusicInput(false);
@@ -50,6 +70,22 @@ export default function CreatePost() {
             .replace(/(^-|-$)+/g, "");
         setSlug(generatedSlug);
     }, [title]);
+
+    // Start behavior tracking on mount (for guests only)
+    useEffect(() => {
+        if (!user) {
+            startTracking();
+        }
+    }, [user, startTracking]);
+
+    // Handle email verified from gate modal
+    const handleEmailVerified = async (email: string) => {
+        setShowEmailModal(false);
+        // Refresh guest data to get verified status
+        await refreshGuestData();
+        // Retry save with verified email
+        handleSave(false);
+    };
 
 
 
@@ -158,6 +194,47 @@ export default function CreatePost() {
             // Generate unique slug with timestamp to prevent conflicts
             const uniqueSlug = `${generatedSlug}-${Date.now().toString(36)}`;
 
+            // For anonymous users, create/update guest record and get guest_id
+            let guestId: string | null = null;
+            if (!user && fingerprint) {
+                const guestResult = await createOrUpdateGuest(pendingEmail || undefined);
+                guestId = guestResult.guestId;
+
+                // Check if guest is blocked or restricted
+                if (guestResult.status === 'blocked') {
+                    toast({
+                        title: "Posting Blocked",
+                        description: "You have been blocked from posting. Contact support if you believe this is an error.",
+                        variant: "destructive",
+                    });
+                    setSaving(false);
+                    return;
+                }
+
+                if (guestResult.status === 'restricted') {
+                    toast({
+                        title: "Posting Restricted",
+                        description: "Your posting privileges have been restricted. Please try again later.",
+                        variant: "destructive",
+                    });
+                    setSaving(false);
+                    return;
+                }
+
+                // Check if email verification is required (>= 2 posts without verified email)
+                console.log('Guest state:', guestResult);
+
+                // Block if guest needs verification (has 2+ posts AND email is not verified)
+                const needsVerification = guestResult.postCount >= 2 && !guestData?.email_verified;
+
+                if (needsVerification) {
+                    console.log('Showing email gate modal - verification required');
+                    setShowEmailModal(true);
+                    setSaving(false);
+                    return;
+                }
+            }
+
             // Post data - works for both logged in and anonymous users
             const postData = {
                 title: postTitle,
@@ -165,6 +242,7 @@ export default function CreatePost() {
                 type: mediaFiles.length > 0 ? 'Image' : 'Text',
                 slug: uniqueSlug,
                 user_id: user?.id || null, // Allow null for anonymous posts
+                guest_id: guestId, // Link to guest record for anonymous posts
                 author_name: user?.username || user?.email || "Anonymous",
                 author_email: user?.email || null,
                 author_avatar: user?.avatarDataUrl || null,
@@ -240,240 +318,252 @@ export default function CreatePost() {
     };
 
     return (
-        <div className="min-h-screen bg-background p-4">
-            <div className="max-w-4xl mx-auto space-y-6">
-                <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
-                    <div className="flex justify-between items-center w-full md:w-auto">
-                        <BackButton />
+        <>
+            <div className="min-h-screen bg-background p-4">
+                <div className="max-w-4xl mx-auto space-y-6">
+                    <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
+                        <div className="flex justify-between items-center w-full md:w-auto">
+                            <BackButton />
 
-                        {/* Mobile Actions - Visible only on mobile in single mode */}
-                        {mode === "single" && (
-                            <div className="flex gap-2 md:hidden">
-                                <Button
-                                    onClick={() => handleSave(true)}
-                                    disabled={saving}
-                                    variant="outline"
-                                    size="sm"
-                                    className="ascii-box px-3 h-9 text-xs"
+                            {/* Mobile Actions - Visible only on mobile in single mode */}
+                            {mode === "single" && (
+                                <div className="flex gap-2 md:hidden">
+                                    <Button
+                                        onClick={() => handleSave(true)}
+                                        disabled={saving}
+                                        variant="outline"
+                                        size="sm"
+                                        className="ascii-box px-3 h-9 text-xs"
+                                    >
+                                        Save
+                                    </Button>
+                                    <Button
+                                        onClick={() => handleSave(false)}
+                                        disabled={saving}
+                                        size="sm"
+                                        className="ascii-box bg-ascii-highlight text-black hover:bg-ascii-highlight/90 px-3 h-9 text-xs"
+                                    >
+                                        Publish
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Mode Toggle & Desktop Actions */}
+                        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                            <div className="ascii-box flex overflow-hidden w-full md:w-auto justify-center">
+                                <button
+                                    onClick={() => setMode("single")}
+                                    className={`flex-1 md:flex-none px-4 py-2 text-sm transition-colors ${mode === "single"
+                                        ? "bg-green-500/20 ascii-highlight"
+                                        : "ascii-dim hover:ascii-highlight"
+                                        }`}
                                 >
-                                    Save
-                                </Button>
-                                <Button
-                                    onClick={() => handleSave(false)}
-                                    disabled={saving}
-                                    size="sm"
-                                    className="ascii-box bg-ascii-highlight text-black hover:bg-ascii-highlight/90 px-3 h-9 text-xs"
+                                    Single Post
+                                </button>
+                                <button
+                                    onClick={() => setMode("thread")}
+                                    className={`flex-1 md:flex-none px-4 py-2 text-sm flex items-center justify-center gap-1 transition-colors border-l border-ascii-border ${mode === "thread"
+                                        ? "bg-green-500/20 ascii-highlight"
+                                        : "ascii-dim hover:ascii-highlight"
+                                        }`}
                                 >
-                                    Publish
-                                </Button>
+                                    <Link2 className="w-4 h-4" />
+                                    Thread
+                                </button>
                             </div>
-                        )}
+
+                            {mode === "single" && (
+                                <div className="hidden md:flex gap-2">
+                                    <Button
+                                        onClick={() => handleSave(true)}
+                                        disabled={saving}
+                                        variant="outline"
+                                        className="ascii-box"
+                                    >
+                                        Save Draft
+                                    </Button>
+                                    <Button
+                                        onClick={() => handleSave(false)}
+                                        disabled={saving}
+                                        className="ascii-box bg-ascii-highlight text-black hover:bg-ascii-highlight/90"
+                                    >
+                                        Publish
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Mode Toggle & Desktop Actions */}
-                    <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-                        <div className="ascii-box flex overflow-hidden w-full md:w-auto justify-center">
-                            <button
-                                onClick={() => setMode("single")}
-                                className={`flex-1 md:flex-none px-4 py-2 text-sm transition-colors ${mode === "single"
-                                    ? "bg-green-500/20 ascii-highlight"
-                                    : "ascii-dim hover:ascii-highlight"
-                                    }`}
-                            >
-                                Single Post
-                            </button>
-                            <button
-                                onClick={() => setMode("thread")}
-                                className={`flex-1 md:flex-none px-4 py-2 text-sm flex items-center justify-center gap-1 transition-colors border-l border-ascii-border ${mode === "thread"
-                                    ? "bg-green-500/20 ascii-highlight"
-                                    : "ascii-dim hover:ascii-highlight"
-                                    }`}
-                            >
-                                <Link2 className="w-4 h-4" />
-                                Thread
-                            </button>
-                        </div>
-
-                        {mode === "single" && (
-                            <div className="hidden md:flex gap-2">
-                                <Button
-                                    onClick={() => handleSave(true)}
-                                    disabled={saving}
-                                    variant="outline"
-                                    className="ascii-box"
-                                >
-                                    Save Draft
-                                </Button>
-                                <Button
-                                    onClick={() => handleSave(false)}
-                                    disabled={saving}
-                                    className="ascii-box bg-ascii-highlight text-black hover:bg-ascii-highlight/90"
-                                >
-                                    Publish
-                                </Button>
+                    {/* Thread Mode */}
+                    {mode === "thread" ? (
+                        <ThreadCreator
+                            onPublish={handleThreadPublish}
+                            onCancel={() => setMode("single")}
+                        />
+                    ) : (
+                        /* Single Post Mode */
+                        <div className="ascii-box p-6 space-y-6">
+                            <div>
+                                <label className="block ascii-dim text-xs mb-2">TITLE</label>
+                                <Input
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    placeholder="Enter post title..."
+                                    className="ascii-box bg-transparent text-xl font-bold border-ascii-border focus-visible:ring-ascii-highlight"
+                                />
                             </div>
-                        )}
-                    </div>
-                </div>
 
-                {/* Thread Mode */}
-                {mode === "thread" ? (
-                    <ThreadCreator
-                        onPublish={handleThreadPublish}
-                        onCancel={() => setMode("single")}
-                    />
-                ) : (
-                    /* Single Post Mode */
-                    <div className="ascii-box p-6 space-y-6">
-                        <div>
-                            <label className="block ascii-dim text-xs mb-2">TITLE</label>
-                            <Input
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                placeholder="Enter post title..."
-                                className="ascii-box bg-transparent text-xl font-bold border-ascii-border focus-visible:ring-ascii-highlight"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block ascii-dim text-xs mb-2">SLUG</label>
-                            <div className="ascii-text text-sm opacity-70">/post/{slug}</div>
-                        </div>
+                            <div>
+                                <label className="block ascii-dim text-xs mb-2">SLUG</label>
+                                <div className="ascii-text text-sm opacity-70">/post/{slug}</div>
+                            </div>
 
 
 
-                        {/* Media Upload Section */}
-                        <div>
-                            <label className="block ascii-dim text-xs mb-2">MEDIA ATTACHMENTS (up to 4)</label>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*,video/*"
-                                multiple
-                                onChange={handleMediaUpload}
-                                className="hidden"
-                            />
+                            {/* Media Upload Section */}
+                            <div>
+                                <label className="block ascii-dim text-xs mb-2">MEDIA ATTACHMENTS (up to 4)</label>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*,video/*"
+                                    multiple
+                                    onChange={handleMediaUpload}
+                                    className="hidden"
+                                />
 
-                            <div className={`grid gap-2 mb-3 ${mediaFiles.length === 1 ? 'grid-cols-1' :
-                                mediaFiles.length === 2 ? 'grid-cols-2' :
-                                    mediaFiles.length >= 3 ? 'grid-cols-2' : ''
-                                }`}>
-                                {mediaFiles.map((media, index) => (
-                                    <div key={index} className="relative ascii-box overflow-hidden bg-black border border-ascii-border">
-                                        {media.type === 'image' ? (
-                                            <div className="aspect-video">
-                                                <img
-                                                    src={media.url}
-                                                    alt={`Attachment ${index + 1}`}
-                                                    className="w-full h-full object-cover"
-                                                />
+                                <div className={`grid gap-2 mb-3 ${mediaFiles.length === 1 ? 'grid-cols-1' :
+                                    mediaFiles.length === 2 ? 'grid-cols-2' :
+                                        mediaFiles.length >= 3 ? 'grid-cols-2' : ''
+                                    }`}>
+                                    {mediaFiles.map((media, index) => (
+                                        <div key={index} className="relative ascii-box overflow-hidden bg-black border border-ascii-border">
+                                            {media.type === 'image' ? (
+                                                <div className="aspect-video">
+                                                    <img
+                                                        src={media.url}
+                                                        alt={`Attachment ${index + 1}`}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                            ) : media.type === 'video' ? (
+                                                <div className="aspect-video">
+                                                    <video
+                                                        src={media.url}
+                                                        className="w-full h-full object-cover"
+                                                        controls
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="p-4">
+                                                    <MusicEmbed url={media.url} compact />
+                                                </div>
+                                            )}
+                                            <button
+                                                onClick={() => removeMedia(index)}
+                                                className="absolute top-2 right-2 bg-black/70 p-1 rounded hover:bg-red-600 transition-colors z-10"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                            <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs flex items-center gap-1 z-10">
+                                                {media.type === 'image' ? <Image className="w-3 h-3" /> : media.type === 'video' ? <Film className="w-3 h-3" /> : <Music className="w-3 h-3" />}
+                                                {media.type}
                                             </div>
-                                        ) : media.type === 'video' ? (
-                                            <div className="aspect-video">
-                                                <video
-                                                    src={media.url}
-                                                    className="w-full h-full object-cover"
-                                                    controls
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className="p-4">
-                                                <MusicEmbed url={media.url} compact />
-                                            </div>
-                                        )}
-                                        <button
-                                            onClick={() => removeMedia(index)}
-                                            className="absolute top-2 right-2 bg-black/70 p-1 rounded hover:bg-red-600 transition-colors z-10"
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Music Input Field */}
+                                {showMusicInput && (
+                                    <div className="flex gap-2 mb-3">
+                                        <div className="flex-1 ascii-box flex items-center px-2">
+                                            <input
+                                                type="url"
+                                                placeholder="Paste Spotify or YouTube URL"
+                                                className="w-full bg-transparent border-none outline-none text-sm"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const url = e.currentTarget.value;
+                                                        if (url) addMusic(url);
+                                                    }
+                                                }}
+                                                onBlur={(e) => {
+                                                    if (e.target.value) addMusic(e.target.value);
+                                                    else setShowMusicInput(false);
+                                                }}
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            onClick={() => setShowMusicInput(false)}
+                                            variant="outline"
+                                            className="px-3"
                                         >
                                             <X className="w-4 h-4" />
-                                        </button>
-                                        <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs flex items-center gap-1 z-10">
-                                            {media.type === 'image' ? <Image className="w-3 h-3" /> : media.type === 'video' ? <Film className="w-3 h-3" /> : <Music className="w-3 h-3" />}
-                                            {media.type}
-                                        </div>
+                                        </Button>
                                     </div>
-                                ))}
+                                )}
+
+                                {/* Add Media Buttons */}
+                                {mediaFiles.length < 4 && !showMusicInput && (
+                                    <div className="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={uploadingMedia}
+                                            variant="outline"
+                                            className="ascii-box flex items-center gap-2"
+                                        >
+                                            {uploadingMedia ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    Uploading...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Plus className="w-4 h-4" />
+                                                    Add Photo/Video
+                                                </>
+                                            )}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            onClick={() => setShowMusicInput(true)}
+                                            variant="outline"
+                                            className="ascii-box flex items-center gap-2"
+                                        >
+                                            <Music className="w-4 h-4" />
+                                            Add Music
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Music Input Field */}
-                            {showMusicInput && (
-                                <div className="flex gap-2 mb-3">
-                                    <div className="flex-1 ascii-box flex items-center px-2">
-                                        <input
-                                            type="url"
-                                            placeholder="Paste Spotify or YouTube URL"
-                                            className="w-full bg-transparent border-none outline-none text-sm"
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    const url = e.currentTarget.value;
-                                                    if (url) addMusic(url);
-                                                }
-                                            }}
-                                            onBlur={(e) => {
-                                                if (e.target.value) addMusic(e.target.value);
-                                                else setShowMusicInput(false);
-                                            }}
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        onClick={() => setShowMusicInput(false)}
-                                        variant="outline"
-                                        className="px-3"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                            )}
-
-                            {/* Add Media Buttons */}
-                            {mediaFiles.length < 4 && !showMusicInput && (
-                                <div className="flex gap-2">
-                                    <Button
-                                        type="button"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={uploadingMedia}
-                                        variant="outline"
-                                        className="ascii-box flex items-center gap-2"
-                                    >
-                                        {uploadingMedia ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                Uploading...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Plus className="w-4 h-4" />
-                                                Add Photo/Video
-                                            </>
-                                        )}
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        onClick={() => setShowMusicInput(true)}
-                                        variant="outline"
-                                        className="ascii-box flex items-center gap-2"
-                                    >
-                                        <Music className="w-4 h-4" />
-                                        Add Music
-                                    </Button>
-                                </div>
-                            )}
+                            <div>
+                                <label className="block ascii-dim text-xs mb-2">CONTENT</label>
+                                <RichTextEditor
+                                    content={content}
+                                    onChange={setContent}
+                                    placeholder="Write your post content..."
+                                />
+                            </div>
                         </div>
-
-                        <div>
-                            <label className="block ascii-dim text-xs mb-2">CONTENT</label>
-                            <RichTextEditor
-                                content={content}
-                                onChange={setContent}
-                                placeholder="Write your post content..."
-                            />
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
-        </div>
+
+            {showEmailModal && guestId && (
+                <EmailGateModal
+                    guestId={guestId}
+                    postCount={guestPostCount}
+                    onVerified={handleEmailVerified}
+                    onCancel={() => setShowEmailModal(false)}
+                />
+            )
+            }
+        </>
     );
 }

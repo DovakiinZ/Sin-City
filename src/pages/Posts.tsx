@@ -8,6 +8,7 @@ import { useLocation, useNavigate, Link } from "react-router-dom";
 import PostCard from "@/components/PostCard";
 import { supabase } from "@/lib/supabase";
 import { Search } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 type Post = {
   title: string;
@@ -26,6 +27,7 @@ type Post = {
   isPinned?: boolean;
   isHtml?: boolean;
   attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
+  hidden?: boolean;
 };
 
 const FILES = ["post1.md", "post2.md"];
@@ -42,6 +44,7 @@ export default function Posts() {
   const params = new URLSearchParams(location.search);
   const qParam = params.get("q") || "";
   const [query, setQuery] = useState(qParam);
+  const { toast } = useToast();
 
   const togglePin = async (postId: string, currentlyPinned: boolean) => {
     if (!currentUserIsAdmin) return;
@@ -62,6 +65,55 @@ export default function Posts() {
       }));
     } catch (error) {
       console.error("[Posts] Error toggling pin:", error);
+    }
+  };
+
+  const hidePost = async (postId: string) => {
+    if (!currentUserIsAdmin) return;
+    try {
+      const post = posts.find(p => p.postId === postId);
+      const newHidden = !post?.hidden;
+
+      const { error } = await supabase
+        .from('posts')
+        .update({ hidden: newHidden })
+        .eq('id', postId);
+
+      if (error) throw error;
+
+      setPosts(prev => prev.map(p =>
+        p.postId === postId ? { ...p, hidden: newHidden } : p
+      ));
+
+      toast({
+        title: newHidden ? "Post hidden" : "Post visible",
+        description: newHidden ? "Post is now hidden from public view" : "Post is now visible to everyone"
+      });
+    } catch (error) {
+      console.error("[Posts] Error hiding post:", error);
+      toast({ title: "Error", description: "Failed to update post visibility", variant: "destructive" });
+    }
+  };
+
+  const deletePost = async (postId: string) => {
+    if (!currentUserIsAdmin) return;
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId);
+
+      if (error) throw error;
+
+      setPosts(prev => prev.filter(p => p.postId !== postId));
+
+      toast({
+        title: "Post deleted",
+        description: "The post has been permanently removed"
+      });
+    } catch (error) {
+      console.error("[Posts] Error deleting post:", error);
+      toast({ title: "Error", description: "Failed to delete post", variant: "destructive" });
     }
   };
 
@@ -236,7 +288,10 @@ export default function Posts() {
                 fullContent={true}
                 showComments={true}
                 isAdmin={currentUserIsAdmin}
+                isHidden={post.hidden || false}
                 onTogglePin={togglePin}
+                onHide={hidePost}
+                onDelete={deletePost}
               />
             ))}
 

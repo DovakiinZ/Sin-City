@@ -6,9 +6,10 @@ import BackButton from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Shield, Users, FileText, Music, Eye, EyeOff, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Trash2, Shield, Users, FileText, Music, Eye, EyeOff, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, UserX } from "lucide-react";
 import MusicManager from "@/components/admin/MusicManager";
 import UserManagement from "@/components/admin/UserManagement";
+import GuestManagement from "@/components/admin/GuestManagement";
 
 const POSTS_PER_PAGE = 20;
 
@@ -18,7 +19,7 @@ export default function AdminDashboard() {
     const { toast } = useToast();
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({ posts: 0, users: 0, comments: 0 });
+    const [stats, setStats] = useState({ posts: 0, users: 0, comments: 0, guests: 0 });
     const [users, setUsers] = useState<any[]>([]);
     const [posts, setPosts] = useState<any[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -68,11 +69,13 @@ export default function AdminDashboard() {
             const { count: postsCount } = await supabase.from("posts").select("*", { count: "exact", head: true });
             const { count: usersCount } = await supabase.from("profiles").select("*", { count: "exact", head: true });
             const { count: commentsCount } = await supabase.from("comments").select("*", { count: "exact", head: true });
+            const { count: guestsCount } = await supabase.from("guests").select("*", { count: "exact", head: true });
 
             setStats({
                 posts: postsCount || 0,
                 users: usersCount || 0,
-                comments: commentsCount || 0
+                comments: commentsCount || 0,
+                guests: guestsCount || 0
             });
             setTotalPosts(postsCount || 0);
 
@@ -181,10 +184,14 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="ascii-box p-4">
                         <div className="ascii-dim text-xs mb-1">TOTAL USERS</div>
                         <div className="text-2xl ascii-highlight">{stats.users}</div>
+                    </div>
+                    <div className="ascii-box p-4">
+                        <div className="ascii-dim text-xs mb-1">GUESTS</div>
+                        <div className="text-2xl text-purple-400">{stats.guests}</div>
                     </div>
                     <div className="ascii-box p-4">
                         <div className="ascii-dim text-xs mb-1">TOTAL POSTS</div>
@@ -206,6 +213,9 @@ export default function AdminDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="permissions" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
                             <Shield className="w-4 h-4 mr-2" /> Permissions
+                        </TabsTrigger>
+                        <TabsTrigger value="guests" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
+                            <UserX className="w-4 h-4 mr-2" /> Guests
                         </TabsTrigger>
                         <TabsTrigger value="music" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
                             <Music className="w-4 h-4 mr-2" /> Music
@@ -358,6 +368,10 @@ export default function AdminDashboard() {
 
                     <TabsContent value="permissions" className="mt-4">
                         <UserManagement />
+                    </TabsContent>
+
+                    <TabsContent value="guests" className="mt-4">
+                        <GuestManagement />
                     </TabsContent>
 
                     <TabsContent value="music" className="mt-4">

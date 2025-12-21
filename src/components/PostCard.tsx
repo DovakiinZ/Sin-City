@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, MessageCircle, Pin, Send, X, Eye } from "lucide-react";
+import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useReactions, toggleReaction } from "@/hooks/useReactions";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +31,10 @@ interface PostCardProps {
     fullContent?: boolean; // Show full content instead of preview
     showComments?: boolean; // Show comments section
     onTogglePin?: (postId: string, isPinned: boolean) => void; // Admin pin toggle
+    onHide?: (postId: string) => void; // Admin hide post
+    onDelete?: (postId: string) => void; // Admin delete post
     isAdmin?: boolean;
+    isHidden?: boolean; // Track if post is hidden
 }
 
 export default function PostCard({
@@ -39,7 +42,10 @@ export default function PostCard({
     fullContent = false,
     showComments = false,
     onTogglePin,
-    isAdmin = false
+    onHide,
+    onDelete,
+    isAdmin = false,
+    isHidden = false
 }: PostCardProps) {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -323,6 +329,40 @@ export default function PostCard({
                     <MessageCircle className="w-4 h-4" />
                     <span>Comment</span>
                 </button>
+
+                {/* Admin Actions */}
+                {isAdmin && post.postId && (
+                    <div className="ml-auto flex items-center gap-2">
+                        {/* Hide/Show Button */}
+                        {onHide && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onHide(post.postId!);
+                                }}
+                                className={`p-1.5 rounded transition-colors ${isHidden ? 'text-yellow-500 hover:text-yellow-400' : 'text-gray-500 hover:text-yellow-500'}`}
+                                title={isHidden ? "Show post" : "Hide post"}
+                            >
+                                <EyeOff className="w-4 h-4" />
+                            </button>
+                        )}
+                        {/* Delete Button */}
+                        {onDelete && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Are you sure you want to delete this post?')) {
+                                        onDelete(post.postId!);
+                                    }
+                                }}
+                                className="p-1.5 rounded text-gray-500 hover:text-red-500 transition-colors"
+                                title="Delete post"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Inline Comment Input (for preview mode) */}
