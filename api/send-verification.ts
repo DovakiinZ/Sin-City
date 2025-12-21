@@ -114,23 +114,36 @@ export default async function handler(
             return res.status(400).json({ error: 'Valid email required' });
         }
 
+        // Check if env vars are configured
+        if (!supabaseUrl || !supabaseServiceKey) {
+            console.error('Missing Supabase config:', { supabaseUrl: !!supabaseUrl, supabaseServiceKey: !!supabaseServiceKey });
+            return res.status(500).json({ error: 'Server configuration error: Supabase' });
+        }
+
+        if (!RESEND_API_KEY) {
+            console.error('Missing RESEND_API_KEY');
+            return res.status(500).json({ error: 'Server configuration error: Email not configured' });
+        }
+
         // Generate OTP
         const otp = generateOTP();
         const otpHash = hashOTP(otp);
 
-        // Store in database
-        const { error: dbError } = await supabase.rpc('set_guest_verification_code', {
-            p_guest_id: guest_id,
-            p_code_hash: otpHash,
-            p_email: email,
-        });
+        // Store in database - use direct update instead of RPC for reliability
+        const { error: dbError } = await supabase
+            .from('guests')
+            .update({
+                email: email,
+                verification_code_hash: otpHash,
+                verification_expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+                verification_attempts: 0,
+                email_sent_at: new Date().toISOString()
+            })
+            .eq('id', guest_id);
 
         if (dbError) {
             console.error('Database error:', dbError);
-            if (dbError.message.includes('Rate limit')) {
-                return res.status(429).json({ error: 'Please wait 2 minutes before requesting another code' });
-            }
-            return res.status(500).json({ error: 'Failed to generate verification code' });
+            return res.status(500).json({ error: 'Database error: ' + dbError.message });
         }
 
         // Send email
@@ -145,8 +158,8 @@ export default async function handler(
             message: 'Verification code sent to your email',
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Send verification error:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal error: ' + (error.message || 'Unknown') });
     }
 }
