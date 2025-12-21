@@ -29,11 +29,10 @@ function isValidEmail(email: string): boolean {
     return emailRegex.test(email);
 }
 
-// Send email via Resend
-async function sendEmail(to: string, otp: string): Promise<boolean> {
+// Send email via Resend - returns error message or null on success
+async function sendEmail(to: string, otp: string): Promise<string | null> {
     if (!RESEND_API_KEY) {
-        console.error('RESEND_API_KEY not configured');
-        return false;
+        return 'RESEND_API_KEY not configured';
     }
 
     try {
@@ -75,13 +74,13 @@ async function sendEmail(to: string, otp: string): Promise<boolean> {
         if (!response.ok) {
             const error = await response.json();
             console.error('Resend API error:', error);
-            return false;
+            return `Resend error: ${error.message || JSON.stringify(error)}`;
         }
 
-        return true;
-    } catch (error) {
+        return null; // success
+    } catch (error: any) {
         console.error('Email send error:', error);
-        return false;
+        return `Email send failed: ${error.message || 'Unknown error'}`;
     }
 }
 
@@ -147,10 +146,10 @@ export default async function handler(
         }
 
         // Send email
-        const emailSent = await sendEmail(email, otp);
+        const emailError = await sendEmail(email, otp);
 
-        if (!emailSent) {
-            return res.status(500).json({ error: 'Failed to send verification email' });
+        if (emailError) {
+            return res.status(500).json({ error: emailError });
         }
 
         return res.status(200).json({
