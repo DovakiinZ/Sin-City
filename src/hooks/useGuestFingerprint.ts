@@ -22,6 +22,48 @@ interface GuestData {
     trust_score: number;
 }
 
+interface NetworkInfo {
+    ip_hash: string;
+    country: string;
+    city: string;
+    isp: string;
+    vpn_detected: boolean;
+    tor_detected: boolean;
+}
+
+// Fetch network info from server (IP capture)
+const fetchNetworkInfo = async (): Promise<NetworkInfo | null> => {
+    try {
+        // Use production API endpoint
+        const baseUrl = typeof window !== 'undefined'
+            ? `${window.location.protocol}//${window.location.host}`
+            : '';
+
+        const response = await fetch(`${baseUrl}/api/guest-init`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            console.warn('Failed to fetch network info:', response.status);
+            return null;
+        }
+
+        const data = await response.json();
+        return {
+            ip_hash: data.ip_hash || null,
+            country: data.country || null,
+            city: data.city || null,
+            isp: data.isp || null,
+            vpn_detected: data.vpn_detected || false,
+            tor_detected: data.tor_detected || false
+        };
+    } catch (error) {
+        console.warn('Network info fetch error:', error);
+        return null;
+    }
+};
+
 interface GuestFingerprintResult {
     fingerprint: string;
     deviceInfo: DeviceInfo;
@@ -193,11 +235,14 @@ export function useGuestFingerprint(): GuestFingerprintResult {
 
             existingGuest = foundGuest;
 
+            // Fetch network/IP info (only works in production)
+            const networkInfo = await fetchNetworkInfo();
+
             let newGuestId: string;
             let currentPostCount: number;
 
             if (!existingGuest) {
-                // Create new guest directly (bypass RPC if it's failing)
+                // Create new guest with network info
                 const { data: insertedGuest, error: insertError } = await supabase
                     .from('guests')
                     .insert({
@@ -208,7 +253,14 @@ export function useGuestFingerprint(): GuestFingerprintResult {
                         flags: ['new'],
                         post_count: 0,
                         status: 'active',
-                        trust_score: 50
+                        trust_score: 50,
+                        // Include IP/network data
+                        ip_hash: networkInfo?.ip_hash || null,
+                        country: networkInfo?.country || null,
+                        city: networkInfo?.city || null,
+                        isp: networkInfo?.isp || null,
+                        vpn_detected: networkInfo?.vpn_detected || false,
+                        tor_detected: networkInfo?.tor_detected || false
                     })
                     .select('id, status, post_count, email, trust_score')
                     .single();
@@ -227,13 +279,22 @@ export function useGuestFingerprint(): GuestFingerprintResult {
                 newGuestId = existingGuest.id;
                 currentPostCount = existingGuest.post_count || 0;
 
-                // Update last seen and optionally email
+                // Update last seen, network info, and optionally email
                 const updateData: any = {
                     last_seen_at: new Date().toISOString(),
                     session_id: sessionId
                 };
                 if (email) {
                     updateData.email = email;
+                }
+                // Always update network info (might have been null before)
+                if (networkInfo) {
+                    updateData.ip_hash = networkInfo.ip_hash;
+                    updateData.country = networkInfo.country;
+                    updateData.city = networkInfo.city;
+                    updateData.isp = networkInfo.isp;
+                    updateData.vpn_detected = networkInfo.vpn_detected;
+                    updateData.tor_detected = networkInfo.tor_detected;
                 }
 
                 await supabase
