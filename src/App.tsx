@@ -37,6 +37,7 @@ import ScanlineEffect from "./components/ScanlineEffect";
 import TerminalCommand from "./components/TerminalCommand";
 import PageTransition from "./components/PageTransition";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useUserIPCapture } from "./hooks/useUserIPCapture";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,9 @@ const AppContent = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
   const showMatrix = useKonamiCode();
+
+  // Capture IP for logged-in users
+  useUserIPCapture();
 
   // Handle password recovery redirect
   useEffect(() => {
