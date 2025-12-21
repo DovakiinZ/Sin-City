@@ -10,7 +10,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Resend API for sending emails
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const FROM_EMAIL = process.env.FROM_EMAIL || 'Sin City <noreply@sin.city>';
+// Use Resend's test sender if no custom domain is configured
+const FROM_EMAIL = process.env.FROM_EMAIL || 'Sin City <onboarding@resend.dev>';
 
 // Generate 6-digit OTP
 function generateOTP(): string {
