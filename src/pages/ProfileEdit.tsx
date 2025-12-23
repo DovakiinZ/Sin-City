@@ -7,6 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Camera, ImagePlus, Save, X, Check } from "lucide-react";
 
+import { useLogger } from "@/hooks/useLogger";
+
 export default function ProfileEdit() {
     const { user, updateProfile } = useAuth();
     const navigate = useNavigate();
@@ -24,6 +26,9 @@ export default function ProfileEdit() {
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
+    // Initialize secure logger
+    const logger = useLogger(isAdmin);
 
     // Username change tracking
     const [usernameChangesThisYear, setUsernameChangesThisYear] = useState(0);
@@ -237,9 +242,13 @@ export default function ProfileEdit() {
 
             toast({ title: "Saved", description: "Profile updated successfully" });
             navigate("/profile");
-        } catch (err) {
-            console.error("Save error:", err);
-            toast({ title: "Error", description: "Failed to save profile", variant: "destructive" });
+        } catch (err: any) {
+            logger.error("Save error:", err);
+            toast({
+                title: "Error",
+                description: `Failed to save profile: ${err.message || "Unknown error"}`,
+                variant: "destructive"
+            });
         } finally {
             setSaving(false);
         }
