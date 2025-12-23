@@ -380,7 +380,7 @@ export default function GuestDetailModal({ guest, onClose, onUpdate }: GuestDeta
                             </div>
                             {guest.ip_hash && (
                                 <div className="text-xs ascii-dim mt-2">
-                                    IP Hash: <span className="font-mono">{guest.ip_hash.substring(0, 16)}...</span>
+                                    IP Hash: <span className="font-mono select-all">{guest.ip_hash}</span>
                                 </div>
                             )}
                         </div>
