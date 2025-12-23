@@ -27,6 +27,7 @@ type Post = {
   isPinned?: boolean;
   isHtml?: boolean;
   attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
+  gif_url?: string;
   hidden?: boolean;
 };
 
@@ -175,6 +176,7 @@ export default function Posts() {
               url: a.url || '',
               type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
             })).filter((a: any) => a.url) || undefined,
+            gif_url: p.gif_url || undefined,
           };
         });
       } catch (error) {

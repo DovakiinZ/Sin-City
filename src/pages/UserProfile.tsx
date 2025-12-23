@@ -6,7 +6,9 @@ import BackButton from "@/components/BackButton";
 import PostCard from "@/components/PostCard";
 import { listPostsFromDb } from "@/data/posts";
 import { supabase } from "@/lib/supabase";
-import { UserPlus, UserMinus, Twitter, Instagram, X, Check, Edit2, LogOut } from "lucide-react";
+import { UserPlus, UserMinus, Twitter, Instagram, X, Check, Edit2, LogOut, MessageCircle } from "lucide-react";
+import { useSessions } from "@/hooks/useSessions";
+import MessagingPanel from "@/components/messaging/MessagingPanel";
 
 interface FollowUser {
     id: string;
@@ -62,6 +64,11 @@ export default function UserProfile() {
     const [followersList, setFollowersList] = useState<FollowUser[]>([]);
     const [followingList, setFollowingList] = useState<FollowUser[]>([]);
     const [loadingList, setLoadingList] = useState(false);
+
+    // DM state
+    const { startSession } = useSessions();
+    const [startingDM, setStartingDM] = useState(false);
+    const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
 
     // Look up user ID by username
     useEffect(() => {
@@ -341,6 +348,22 @@ export default function UserProfile() {
         }
     }
 
+    // Start DM session
+    const handleStartDM = async () => {
+        if (!profile?.id) return;
+        setStartingDM(true);
+        try {
+            const sessionId = await startSession(profile.id);
+            if (sessionId) {
+                setPendingSessionId(sessionId);
+            }
+        } catch (err) {
+            console.error('Error starting session:', err);
+        } finally {
+            setStartingDM(false);
+        }
+    };
+
     // Modal component for followers/following list
     const FollowModal = ({ title, users, onClose }: { title: string; users: FollowUser[]; onClose: () => void; }) => (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -526,30 +549,42 @@ export default function UserProfile() {
                         </div>
                     )}
 
-                    {/* Action Button: Follow/Unfollow for others */}
+                    {/* Action Buttons: Follow/Unfollow + Message for others */}
                     {user && !isOwnProfile && (
-                        <div className="mt-4 pt-4 border-t border-green-800/40">
-                            {isFollowing ? (
+                        <div className="mt-4 pt-4 border-t border-green-800/40 space-y-2">
+                            <div className="flex gap-2">
+                                {isFollowing ? (
+                                    <button
+                                        onClick={handleUnfollow}
+                                        disabled={followLoading}
+                                        className="flex-1 py-2 px-4 bg-green-900/30 border border-green-700/50 text-green-400 rounded-lg hover:bg-red-900/20 hover:border-red-700/50 hover:text-red-400 disabled:opacity-50 flex items-center justify-center gap-2 group"
+                                    >
+                                        <Check className="w-4 h-4 group-hover:hidden" />
+                                        <UserMinus className="w-4 h-4 hidden group-hover:block" />
+                                        <span className="group-hover:hidden">{followLoading ? "..." : "Following"}</span>
+                                        <span className="hidden group-hover:inline">{followLoading ? "..." : "Unfollow"}</span>
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleFollow}
+                                        disabled={followLoading}
+                                        className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-500 text-black font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        <UserPlus className="w-4 h-4" />
+                                        {followLoading ? "..." : "Follow"}
+                                    </button>
+                                )}
+                                {/* Message Button */}
                                 <button
-                                    onClick={handleUnfollow}
-                                    disabled={followLoading}
-                                    className="w-full py-2 px-4 bg-green-900/30 border border-green-700/50 text-green-400 rounded-lg hover:bg-red-900/20 hover:border-red-700/50 hover:text-red-400 disabled:opacity-50 flex items-center justify-center gap-2 group"
+                                    onClick={handleStartDM}
+                                    disabled={startingDM}
+                                    className="py-2 px-4 bg-gray-800 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-700 hover:border-green-500/50 disabled:opacity-50 flex items-center justify-center gap-2"
+                                    title="Send Message"
                                 >
-                                    <Check className="w-4 h-4 group-hover:hidden" />
-                                    <UserMinus className="w-4 h-4 hidden group-hover:block" />
-                                    <span className="group-hover:hidden">{followLoading ? "..." : "Following"}</span>
-                                    <span className="hidden group-hover:inline">{followLoading ? "..." : "Unfollow"}</span>
+                                    <MessageCircle className="w-4 h-4" />
+                                    {startingDM ? "..." : "Message"}
                                 </button>
-                            ) : (
-                                <button
-                                    onClick={handleFollow}
-                                    disabled={followLoading}
-                                    className="w-full py-2 px-4 bg-green-600 hover:bg-green-500 text-black font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    <UserPlus className="w-4 h-4" />
-                                    {followLoading ? "..." : "Follow"}
-                                </button>
-                            )}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -585,6 +620,14 @@ export default function UserProfile() {
             )}
             {user && showFollowingModal && (
                 <FollowModal title="Following" users={followingList} onClose={() => setShowFollowingModal(false)} />
+            )}
+
+            {/* Messaging Panel - opens when session is started */}
+            {pendingSessionId && (
+                <MessagingPanel
+                    initialSessionId={pendingSessionId}
+                    onSessionOpened={() => setPendingSessionId(null)}
+                />
             )}
         </div>
     );

@@ -20,6 +20,7 @@ type Post = {
     userId?: string;
     viewCount?: number;
     attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
+    gif_url?: string;
     isHtml?: boolean;
     threadId?: string;
     threadPosition?: number;
@@ -102,6 +103,7 @@ export default function PostDetail() {
                             type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
                         })).filter((a: any) => a.url) || undefined,
                         isHtml: true,
+                        gif_url: dbPost.gif_url || undefined,
                         threadId: dbPost.thread_id || undefined,
                         threadPosition: dbPost.thread_position || undefined,
                     });

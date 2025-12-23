@@ -3,13 +3,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import RichTextEditor from "@/components/editor/RichTextEditor";
-import BackButton from "@/components/BackButton";
 import ThreadCreator from "@/components/thread/ThreadCreator";
 import { createThread } from "@/hooks/useSupabasePosts";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { X, Plus, Image, Film, Loader2, Link2, Music } from "lucide-react";
+import { X, Plus, Image, Film, Loader2, Link2, Music, Smile, ChevronDown, ChevronUp, ArrowLeft, Save } from "lucide-react";
+import GifPicker from "@/components/GifPicker";
 import MusicEmbed from "@/components/MusicEmbed";
 import { useGuestFingerprint } from "@/hooks/useGuestFingerprint";
 import { useBehaviorTracking } from "@/hooks/useBehaviorTracking";
@@ -23,22 +21,24 @@ export default function CreatePost() {
     const { toast } = useToast();
     const [searchParams] = useSearchParams();
 
-    // Mode toggle - can be set from URL param (?mode=thread)
+    // Mode toggle
     const initialMode = searchParams.get("mode") === "thread" ? "thread" : "single";
     const [mode, setMode] = useState<PostMode>(initialMode);
 
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
     const [saving, setSaving] = useState(false);
-    const [slug, setSlug] = useState("");
 
-    // Multi-media attachments state
+    // Media state
     const [mediaFiles, setMediaFiles] = useState<{ url: string; type: 'image' | 'video' | 'music'; file?: File }[]>([]);
     const [uploadingMedia, setUploadingMedia] = useState(false);
     const [showMusicInput, setShowMusicInput] = useState(false);
+    const [showGifPicker, setShowGifPicker] = useState(false);
+    const [selectedGif, setSelectedGif] = useState<string | null>(null);
+    const [mediaExpanded, setMediaExpanded] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Guest fingerprint for anonymous posts
+    // Guest fingerprint
     const {
         fingerprint,
         guestId,
@@ -48,120 +48,75 @@ export default function CreatePost() {
         refreshGuestData
     } = useGuestFingerprint();
 
-    // Behavior tracking for trust scoring
-    const { startTracking, stopTracking, recordPaste, recordTyping } = useBehaviorTracking();
+    // Behavior tracking
+    const { startTracking } = useBehaviorTracking();
 
-    // Email gate modal state
+    // Email gate
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+
+    // Auto-expand media section when media is added
+    useEffect(() => {
+        if (mediaFiles.length > 0 || selectedGif) {
+            setMediaExpanded(true);
+        }
+    }, [mediaFiles.length, selectedGif]);
+
+    // Start behavior tracking for guests
+    useEffect(() => {
+        if (!user) startTracking();
+    }, [user, startTracking]);
 
     const addMusic = (url: string) => {
         setMediaFiles(prev => [...prev, { url, type: 'music' }]);
         setShowMusicInput(false);
     };
 
-
-
-    // Auto-generate slug from title
-    useEffect(() => {
-        const generatedSlug = title
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/(^-|-$)+/g, "");
-        setSlug(generatedSlug);
-    }, [title]);
-
-    // Start behavior tracking on mount (for guests only)
-    useEffect(() => {
-        if (!user) {
-            startTracking();
-        }
-    }, [user, startTracking]);
-
-    // Handle email verified from gate modal
     const handleEmailVerified = async (email: string) => {
         setShowEmailModal(false);
-        // Refresh guest data to get verified status
         await refreshGuestData();
-        // Retry save with verified email
         handleSave(false);
     };
 
-
-
-    // Handle media file upload
     const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
-        // Limit to 4 media files like Twitter
         if (mediaFiles.length + files.length > 4) {
-            toast({
-                title: "Too many files",
-                description: "You can only attach up to 4 media files",
-                variant: "destructive",
-            });
+            toast({ title: "Limit reached", description: "Max 4 files", variant: "destructive" });
             return;
         }
 
         setUploadingMedia(true);
         try {
             for (const file of Array.from(files)) {
-                // Validate file type
                 const isImage = file.type.startsWith('image/');
                 const isVideo = file.type.startsWith('video/');
 
                 if (!isImage && !isVideo) {
-                    toast({
-                        title: "Invalid file type",
-                        description: "Only images and videos are allowed",
-                        variant: "destructive",
-                    });
+                    toast({ title: "Invalid type", description: "Images/videos only", variant: "destructive" });
                     continue;
                 }
 
-                // Upload to Supabase Storage
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
                 const filePath = `post-media/${user?.id || 'anonymous'}/${fileName}`;
 
-                const { error: uploadError } = await supabase.storage
-                    .from('media')
-                    .upload(filePath, file);
+                const { error: uploadError } = await supabase.storage.from('media').upload(filePath, file);
 
                 if (uploadError) {
-                    console.error("Upload error:", uploadError);
-                    toast({
-                        title: "Upload failed",
-                        description: uploadError.message,
-                        variant: "destructive",
-                    });
+                    toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" });
                     continue;
                 }
 
-                // Get public URL
-                const { data: { publicUrl } } = supabase.storage
-                    .from('media')
-                    .getPublicUrl(filePath);
-
-                setMediaFiles(prev => [...prev, {
-                    url: publicUrl,
-                    type: isImage ? 'image' : 'video',
-                    file
-                }]);
+                const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
+                setMediaFiles(prev => [...prev, { url: publicUrl, type: isImage ? 'image' : 'video', file }]);
             }
         } catch (error) {
-            console.error("Error uploading media:", error);
-            toast({
-                title: "Upload error",
-                description: "Failed to upload media",
-                variant: "destructive",
-            });
+            toast({ title: "Error", description: "Upload failed", variant: "destructive" });
         } finally {
             setUploadingMedia(false);
-            if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-            }
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -170,122 +125,75 @@ export default function CreatePost() {
     };
 
     const handleSave = async (draft: boolean = true) => {
-        // Title is now optional - if not provided, we'll auto-generate one
-        if (!content.trim() && mediaFiles.length === 0) {
-            toast({
-                title: "Content required",
-                description: "Please add some text or media to your post",
-                variant: "destructive",
-            });
+        if (!content.trim() && mediaFiles.length === 0 && !selectedGif) {
+            toast({ title: "Empty post", description: "Add some content", variant: "destructive" });
             return;
         }
 
         setSaving(true);
         try {
-            // Use empty title if not provided (cleaner for media-only posts)
             const postTitle = title.trim() || "";
-            // Generate slug from title or use timestamp-based slug for untitled posts
             const generatedSlug = postTitle
-                ? postTitle
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]+/g, "-")
-                    .replace(/(^-|-$)+/g, "")
+                ? postTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "")
                 : "post";
-            // Generate unique slug with timestamp to prevent conflicts
             const uniqueSlug = `${generatedSlug}-${Date.now().toString(36)}`;
 
-            // For anonymous users, create/update guest record and get guest_id
-            let guestId: string | null = null;
+            let guestIdLocal: string | null = null;
             if (!user && fingerprint) {
                 const guestResult = await createOrUpdateGuest(pendingEmail || undefined);
-                guestId = guestResult.guestId;
+                guestIdLocal = guestResult.guestId;
 
-                // Check if guest is blocked or restricted
                 if (guestResult.status === 'blocked') {
-                    toast({
-                        title: "Posting Blocked",
-                        description: "You have been blocked from posting. Contact support if you believe this is an error.",
-                        variant: "destructive",
-                    });
+                    toast({ title: "Blocked", description: "Posting blocked", variant: "destructive" });
                     setSaving(false);
                     return;
                 }
 
                 if (guestResult.status === 'restricted') {
-                    toast({
-                        title: "Posting Restricted",
-                        description: "Your posting privileges have been restricted. Please try again later.",
-                        variant: "destructive",
-                    });
+                    toast({ title: "Restricted", description: "Try again later", variant: "destructive" });
                     setSaving(false);
                     return;
                 }
 
-                // Check if email verification is required (>= 2 posts without verified email)
-                console.log('Guest state:', guestResult);
-
-                // Block if guest needs verification (has 2+ posts AND email is not verified)
-                const needsVerification = guestResult.postCount >= 2 && !guestData?.email_verified;
-
-                if (needsVerification) {
-                    console.log('Showing email gate modal - verification required');
+                if (guestResult.postCount >= 2 && !guestData?.email_verified) {
                     setShowEmailModal(true);
                     setSaving(false);
                     return;
                 }
             }
 
-            // Post data - works for both logged in and anonymous users
             const postData = {
                 title: postTitle,
                 content,
                 type: mediaFiles.length > 0 ? 'Image' : 'Text',
                 slug: uniqueSlug,
-                user_id: user?.id || null, // Allow null for anonymous posts
-                guest_id: guestId, // Link to guest record for anonymous posts
+                user_id: user?.id || null,
+                guest_id: guestIdLocal,
                 author_name: user?.username || user?.email || "Anonymous",
                 author_email: user?.email || null,
                 author_avatar: user?.avatarDataUrl || null,
-                draft: draft,
+                draft,
                 attachments: mediaFiles.length > 0 ? mediaFiles.map(m => ({ url: m.url, type: m.type })) : null,
+                gif_url: selectedGif || null,
             };
 
-            console.log('Saving post:', postData);
+            const { data: post, error } = await supabase.from("posts").insert(postData).select().single();
 
-            const { data: post, error } = await supabase
-                .from("posts")
-                .insert(postData)
-                .select()
-                .single();
-
-            if (error) {
-                console.error("Error saving post:", error);
-                throw error;
-            }
-
-
+            if (error) throw error;
 
             toast({
-                title: draft ? "Draft saved" : "Post published",
-                description: draft ? "Your draft has been saved" : "Your post is now live!",
+                title: draft ? "Draft saved" : "Published!",
+                description: draft ? "Saved as draft" : "Your post is live",
             });
 
-            if (!draft && post) {
-                navigate(`/post/${post.slug}`);
-            }
+            if (!draft && post) navigate(`/post/${post.slug}`);
         } catch (error) {
-            console.error("Error saving post:", error);
-            toast({
-                title: "Error",
-                description: "Failed to save post",
-                variant: "destructive",
-            });
+            toast({ title: "Error", description: "Failed to save", variant: "destructive" });
         } finally {
             setSaving(false);
         }
     };
 
-    // Handle thread publish
     const handleThreadPublish = async (items: { id: string; title: string; content: string; attachments: { url: string; type: 'image' | 'video' }[] }[]) => {
         try {
             const threadPosts = items.map(item => ({
@@ -300,261 +208,259 @@ export default function CreatePost() {
                 author_email: user?.email,
             });
 
-            toast({
-                title: "Thread published!",
-                description: `Created ${posts?.length || 0} connected posts`,
-            });
-
-            // Navigate to thread view
+            toast({ title: "Thread created!", description: `${posts?.length || 0} posts` });
             navigate(`/thread/${threadId}`);
         } catch (error) {
-            console.error("Error creating thread:", error);
-            toast({
-                title: "Error",
-                description: "Failed to create thread",
-                variant: "destructive",
-            });
+            toast({ title: "Error", description: "Failed to create thread", variant: "destructive" });
         }
     };
 
+    const mediaCount = mediaFiles.length + (selectedGif ? 1 : 0);
+
     return (
         <>
-            <div className="min-h-screen bg-background p-4">
-                <div className="max-w-4xl mx-auto space-y-6">
-                    <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
-                        <div className="flex justify-between items-center w-full md:w-auto">
-                            <BackButton />
+            <div className="min-h-screen bg-black flex flex-col">
+                {/* STICKY TOP BAR */}
+                <header className="sticky top-0 z-40 bg-black/95 backdrop-blur border-b border-green-900/30">
+                    <div className="flex items-center justify-between px-4 py-3 max-w-4xl mx-auto">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="flex items-center gap-1 text-gray-400 hover:text-green-400 transition-colors"
+                        >
+                            <ArrowLeft className="w-5 h-5" />
+                            <span className="hidden sm:inline text-sm">Back</span>
+                        </button>
 
-                            {/* Mobile Actions - Visible only on mobile in single mode */}
-                            {mode === "single" && (
-                                <div className="flex gap-2 md:hidden">
-                                    <Button
-                                        onClick={() => handleSave(true)}
-                                        disabled={saving}
-                                        variant="outline"
-                                        size="sm"
-                                        className="ascii-box px-3 h-9 text-xs"
-                                    >
-                                        Save
-                                    </Button>
-                                    <Button
-                                        onClick={() => handleSave(false)}
-                                        disabled={saving}
-                                        size="sm"
-                                        className="ascii-box bg-ascii-highlight text-black hover:bg-ascii-highlight/90 px-3 h-9 text-xs"
-                                    >
-                                        Publish
-                                    </Button>
-                                </div>
-                            )}
+                        <h1 className="font-mono text-green-400 text-sm font-medium">
+                            {mode === "thread" ? "New Thread" : "New Post"}
+                        </h1>
+
+                        {/* Desktop publish button */}
+                        <button
+                            onClick={() => handleSave(false)}
+                            disabled={saving}
+                            className="hidden md:flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-400 text-black font-medium text-sm rounded transition-colors disabled:opacity-50"
+                        >
+                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                            Publish
+                        </button>
+
+                        {/* Mobile placeholder for alignment */}
+                        <div className="w-12 md:hidden" />
+                    </div>
+                </header>
+
+                {/* MAIN CONTENT AREA */}
+                <main className="flex-1 overflow-y-auto pb-24 md:pb-8">
+                    <div className="max-w-4xl mx-auto px-4 py-4 space-y-4">
+                        {/* POST TYPE SELECTOR */}
+                        <div className="grid grid-cols-2 bg-gray-900/50 rounded-lg overflow-hidden border border-green-900/30">
+                            <button
+                                onClick={() => setMode("single")}
+                                className={`py-3 text-sm font-medium transition-colors ${mode === "single"
+                                    ? "bg-green-500/20 text-green-400"
+                                    : "text-gray-500 hover:text-gray-300"
+                                    }`}
+                            >
+                                Single Post
+                            </button>
+                            <button
+                                onClick={() => setMode("thread")}
+                                className={`py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors border-l border-green-900/30 ${mode === "thread"
+                                    ? "bg-green-500/20 text-green-400"
+                                    : "text-gray-500 hover:text-gray-300"
+                                    }`}
+                            >
+                                <Link2 className="w-4 h-4" />
+                                Thread
+                            </button>
                         </div>
 
-                        {/* Mode Toggle & Desktop Actions */}
-                        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-                            <div className="ascii-box flex overflow-hidden w-full md:w-auto justify-center">
-                                <button
-                                    onClick={() => setMode("single")}
-                                    className={`flex-1 md:flex-none px-4 py-2 text-sm transition-colors ${mode === "single"
-                                        ? "bg-green-500/20 ascii-highlight"
-                                        : "ascii-dim hover:ascii-highlight"
-                                        }`}
-                                >
-                                    Single Post
-                                </button>
-                                <button
-                                    onClick={() => setMode("thread")}
-                                    className={`flex-1 md:flex-none px-4 py-2 text-sm flex items-center justify-center gap-1 transition-colors border-l border-ascii-border ${mode === "thread"
-                                        ? "bg-green-500/20 ascii-highlight"
-                                        : "ascii-dim hover:ascii-highlight"
-                                        }`}
-                                >
-                                    <Link2 className="w-4 h-4" />
-                                    Thread
-                                </button>
-                            </div>
-
-                            {mode === "single" && (
-                                <div className="hidden md:flex gap-2">
-                                    <Button
-                                        onClick={() => handleSave(true)}
-                                        disabled={saving}
-                                        variant="outline"
-                                        className="ascii-box"
-                                    >
-                                        Save Draft
-                                    </Button>
-                                    <Button
-                                        onClick={() => handleSave(false)}
-                                        disabled={saving}
-                                        className="ascii-box bg-ascii-highlight text-black hover:bg-ascii-highlight/90"
-                                    >
-                                        Publish
-                                    </Button>
+                        {mode === "thread" ? (
+                            <ThreadCreator
+                                onPublish={handleThreadPublish}
+                                onCancel={() => setMode("single")}
+                            />
+                        ) : (
+                            <>
+                                {/* TITLE INPUT */}
+                                <div>
+                                    <input
+                                        value={title}
+                                        onChange={(e) => setTitle(e.target.value)}
+                                        placeholder="Post title (optional)"
+                                        className="w-full bg-transparent text-lg font-medium text-gray-100 placeholder-gray-600 border-b border-green-900/30 pb-3 focus:outline-none focus:border-green-500/50 transition-colors"
+                                    />
                                 </div>
-                            )}
+
+                                {/* MEDIA SECTION - Collapsible */}
+                                <div className="border border-green-900/30 rounded-lg overflow-hidden">
+                                    <button
+                                        onClick={() => setMediaExpanded(!mediaExpanded)}
+                                        className="w-full flex items-center justify-between px-4 py-3 bg-gray-900/30 hover:bg-gray-900/50 transition-colors"
+                                    >
+                                        <span className="text-sm font-medium text-gray-400">
+                                            Media {mediaCount > 0 && `(${mediaCount}/4)`}
+                                        </span>
+                                        {mediaExpanded ? (
+                                            <ChevronUp className="w-4 h-4 text-gray-500" />
+                                        ) : (
+                                            <ChevronDown className="w-4 h-4 text-gray-500" />
+                                        )}
+                                    </button>
+
+                                    {mediaExpanded && (
+                                        <div className="p-4 space-y-3 bg-black/30">
+                                            {/* Hidden file input */}
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept="image/*,video/*"
+                                                multiple
+                                                onChange={handleMediaUpload}
+                                                className="hidden"
+                                            />
+
+                                            {/* Media Previews Grid */}
+                                            {(mediaFiles.length > 0 || selectedGif) && (
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {mediaFiles.map((media, index) => (
+                                                        <div key={index} className="relative aspect-square bg-gray-900 rounded-lg overflow-hidden">
+                                                            {media.type === 'image' ? (
+                                                                <img src={media.url} alt="" className="w-full h-full object-cover" />
+                                                            ) : media.type === 'video' ? (
+                                                                <video src={media.url} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center">
+                                                                    <Music className="w-8 h-8 text-green-500" />
+                                                                </div>
+                                                            )}
+                                                            <button
+                                                                onClick={() => removeMedia(index)}
+                                                                className="absolute top-1 right-1 w-6 h-6 bg-black/80 rounded-full flex items-center justify-center hover:bg-red-500 transition-colors"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                            <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/80 rounded text-[10px] text-gray-400">
+                                                                {media.type}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {selectedGif && (
+                                                        <div className="relative aspect-square bg-gray-900 rounded-lg overflow-hidden">
+                                                            <img src={selectedGif} alt="GIF" className="w-full h-full object-cover" />
+                                                            <button
+                                                                onClick={() => setSelectedGif(null)}
+                                                                className="absolute top-1 right-1 w-6 h-6 bg-black/80 rounded-full flex items-center justify-center hover:bg-red-500 transition-colors"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                            <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/80 rounded text-[10px] text-gray-400">
+                                                                gif
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Music Input */}
+                                            {showMusicInput && (
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="url"
+                                                        placeholder="Paste Spotify or YouTube URL"
+                                                        className="flex-1 bg-gray-900/50 border border-green-900/30 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-green-500/50"
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                if (e.currentTarget.value) addMusic(e.currentTarget.value);
+                                                            }
+                                                        }}
+                                                        autoFocus
+                                                    />
+                                                    <button
+                                                        onClick={() => setShowMusicInput(false)}
+                                                        className="p-2 text-gray-500 hover:text-red-400"
+                                                    >
+                                                        <X className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {/* Add Media Buttons */}
+                                            {mediaFiles.length < 4 && !showMusicInput && (
+                                                <div className="flex flex-wrap gap-2">
+                                                    <button
+                                                        onClick={() => fileInputRef.current?.click()}
+                                                        disabled={uploadingMedia}
+                                                        className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 border border-green-900/30 rounded-lg text-sm text-gray-400 hover:text-green-400 hover:border-green-500/50 transition-colors disabled:opacity-50"
+                                                    >
+                                                        {uploadingMedia ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Plus className="w-4 h-4" />
+                                                        )}
+                                                        Photo/Video
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setShowMusicInput(true)}
+                                                        className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 border border-green-900/30 rounded-lg text-sm text-gray-400 hover:text-green-400 hover:border-green-500/50 transition-colors"
+                                                    >
+                                                        <Music className="w-4 h-4" />
+                                                        Music
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setShowGifPicker(true)}
+                                                        className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 border border-green-900/30 rounded-lg text-sm text-gray-400 hover:text-green-400 hover:border-green-500/50 transition-colors"
+                                                    >
+                                                        <Smile className="w-4 h-4" />
+                                                        GIF
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* CONTENT EDITOR - Main Focus */}
+                                <div className="min-h-[300px]">
+                                    <RichTextEditor
+                                        content={content}
+                                        onChange={setContent}
+                                        placeholder="Write your post..."
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </main>
+
+                {/* STICKY BOTTOM ACTION BAR - Mobile Only */}
+                {mode === "single" && (
+                    <div className="fixed bottom-0 left-0 right-0 md:hidden bg-black/95 backdrop-blur border-t border-green-900/30 px-4 py-3 safe-area-bottom">
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => handleSave(true)}
+                                disabled={saving}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-900 border border-green-900/30 rounded-lg text-gray-400 font-medium text-sm hover:text-green-400 transition-colors disabled:opacity-50"
+                            >
+                                <Save className="w-4 h-4" />
+                                Save Draft
+                            </button>
+                            <button
+                                onClick={() => handleSave(false)}
+                                disabled={saving}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-500 rounded-lg text-black font-medium text-sm hover:bg-green-400 transition-colors disabled:opacity-50"
+                            >
+                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                Publish
+                            </button>
                         </div>
                     </div>
-
-                    {/* Thread Mode */}
-                    {mode === "thread" ? (
-                        <ThreadCreator
-                            onPublish={handleThreadPublish}
-                            onCancel={() => setMode("single")}
-                        />
-                    ) : (
-                        /* Single Post Mode */
-                        <div className="ascii-box p-6 space-y-6">
-                            <div>
-                                <label className="block ascii-dim text-xs mb-2">TITLE</label>
-                                <Input
-                                    value={title}
-                                    onChange={(e) => setTitle(e.target.value)}
-                                    placeholder="Enter post title..."
-                                    className="ascii-box bg-transparent text-xl font-bold border-ascii-border focus-visible:ring-ascii-highlight"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block ascii-dim text-xs mb-2">SLUG</label>
-                                <div className="ascii-text text-sm opacity-70">/post/{slug}</div>
-                            </div>
-
-
-
-                            {/* Media Upload Section */}
-                            <div>
-                                <label className="block ascii-dim text-xs mb-2">MEDIA ATTACHMENTS (up to 4)</label>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/*,video/*"
-                                    multiple
-                                    onChange={handleMediaUpload}
-                                    className="hidden"
-                                />
-
-                                <div className={`grid gap-2 mb-3 ${mediaFiles.length === 1 ? 'grid-cols-1' :
-                                    mediaFiles.length === 2 ? 'grid-cols-2' :
-                                        mediaFiles.length >= 3 ? 'grid-cols-2' : ''
-                                    }`}>
-                                    {mediaFiles.map((media, index) => (
-                                        <div key={index} className="relative ascii-box overflow-hidden bg-black border border-ascii-border">
-                                            {media.type === 'image' ? (
-                                                <div className="aspect-video">
-                                                    <img
-                                                        src={media.url}
-                                                        alt={`Attachment ${index + 1}`}
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                </div>
-                                            ) : media.type === 'video' ? (
-                                                <div className="aspect-video">
-                                                    <video
-                                                        src={media.url}
-                                                        className="w-full h-full object-cover"
-                                                        controls
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <div className="p-4">
-                                                    <MusicEmbed url={media.url} compact />
-                                                </div>
-                                            )}
-                                            <button
-                                                onClick={() => removeMedia(index)}
-                                                className="absolute top-2 right-2 bg-black/70 p-1 rounded hover:bg-red-600 transition-colors z-10"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                            <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs flex items-center gap-1 z-10">
-                                                {media.type === 'image' ? <Image className="w-3 h-3" /> : media.type === 'video' ? <Film className="w-3 h-3" /> : <Music className="w-3 h-3" />}
-                                                {media.type}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Music Input Field */}
-                                {showMusicInput && (
-                                    <div className="flex gap-2 mb-3">
-                                        <div className="flex-1 ascii-box flex items-center px-2">
-                                            <input
-                                                type="url"
-                                                placeholder="Paste Spotify or YouTube URL"
-                                                className="w-full bg-transparent border-none outline-none text-sm"
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        const url = e.currentTarget.value;
-                                                        if (url) addMusic(url);
-                                                    }
-                                                }}
-                                                onBlur={(e) => {
-                                                    if (e.target.value) addMusic(e.target.value);
-                                                    else setShowMusicInput(false);
-                                                }}
-                                                autoFocus
-                                            />
-                                        </div>
-                                        <Button
-                                            type="button"
-                                            onClick={() => setShowMusicInput(false)}
-                                            variant="outline"
-                                            className="px-3"
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                )}
-
-                                {/* Add Media Buttons */}
-                                {mediaFiles.length < 4 && !showMusicInput && (
-                                    <div className="flex gap-2">
-                                        <Button
-                                            type="button"
-                                            onClick={() => fileInputRef.current?.click()}
-                                            disabled={uploadingMedia}
-                                            variant="outline"
-                                            className="ascii-box flex items-center gap-2"
-                                        >
-                                            {uploadingMedia ? (
-                                                <>
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                    Uploading...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Plus className="w-4 h-4" />
-                                                    Add Photo/Video
-                                                </>
-                                            )}
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            onClick={() => setShowMusicInput(true)}
-                                            variant="outline"
-                                            className="ascii-box flex items-center gap-2"
-                                        >
-                                            <Music className="w-4 h-4" />
-                                            Add Music
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block ascii-dim text-xs mb-2">CONTENT</label>
-                                <RichTextEditor
-                                    content={content}
-                                    onChange={setContent}
-                                    placeholder="Write your post content..."
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
 
+            {/* Email Gate Modal */}
             {showEmailModal && guestId && (
                 <EmailGateModal
                     guestId={guestId}
@@ -562,8 +468,18 @@ export default function CreatePost() {
                     onVerified={handleEmailVerified}
                     onCancel={() => setShowEmailModal(false)}
                 />
-            )
-            }
+            )}
+
+            {/* GIF Picker */}
+            {showGifPicker && (
+                <GifPicker
+                    onSelect={(url) => {
+                        setSelectedGif(url);
+                        setShowGifPicker(false);
+                    }}
+                    onClose={() => setShowGifPicker(false)}
+                />
+            )}
         </>
     );
 }

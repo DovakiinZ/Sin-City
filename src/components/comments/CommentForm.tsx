@@ -4,7 +4,8 @@ import { createComment } from "@/hooks/useComments";
 import { replyAsThreadPost } from "@/hooks/useSupabasePosts";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { Send, X } from "lucide-react";
+import { Send, X, Smile } from "lucide-react";
+import GifPicker from "@/components/GifPicker";
 
 interface CommentFormProps {
     postId: string;
@@ -23,6 +24,10 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
     const [content, setContent] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
+
+    // GIF state
+    const [showGifPicker, setShowGifPicker] = useState(false);
+    const [selectedGif, setSelectedGif] = useState<string | null>(null);
 
     // Thread mode state
     const [asThread, setAsThread] = useState(false);
@@ -128,10 +133,20 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
         }, 0);
     };
 
+    const handleGifSelect = (url: string, id: string) => {
+        setSelectedGif(url);
+        setShowGifPicker(false);
+    };
+
+    const removeGif = () => {
+        setSelectedGif(null);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!content.trim()) return;
+        // Allow submit if there's text OR a GIF
+        if (!content.trim() && !selectedGif) return;
 
         if (!user) {
             toast({ title: "Error", description: "Login required", variant: "destructive" });
@@ -157,12 +172,14 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
                     user_id: user.id,
                     author_name: user.username || "Anonymous",
                     content: content.trim(),
+                    gif_url: selectedGif || undefined,
                 });
 
                 toast({ title: "Posted", description: "Comment added!" });
             }
 
             setContent("");
+            setSelectedGif(null);
             setIsExpanded(false);
             onSuccess?.();
         } catch (error) {
@@ -175,6 +192,7 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
 
     const handleCancel = () => {
         setContent("");
+        setSelectedGif(null);
         setIsExpanded(false);
         setShowSuggestions(false);
     };
@@ -226,8 +244,8 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
                                 type="button"
                                 onClick={() => setAsThread(!asThread)}
                                 className={`text-xs px-2 py-1 rounded transition-colors ${asThread
-                                        ? "bg-green-500/20 text-green-400 border border-green-500/50"
-                                        : "text-gray-500 hover:text-gray-400"
+                                    ? "bg-green-500/20 text-green-400 border border-green-500/50"
+                                    : "text-gray-500 hover:text-gray-400"
                                     }`}
                             >
                                 {asThread ? "✓ Thread" : "As Thread"}
@@ -274,23 +292,56 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
                         )}
                     </div>
 
+                    {/* Selected GIF Preview */}
+                    {selectedGif && (
+                        <div className="px-4 pb-3">
+                            <div className="relative inline-block">
+                                <img
+                                    src={selectedGif}
+                                    alt="Selected GIF"
+                                    className="max-h-32 rounded-lg border border-green-500/30"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={removeGif}
+                                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-400"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Actions */}
                     <div className="flex items-center justify-between px-4 pb-3">
-                        <button
-                            type="button"
-                            onClick={handleCancel}
-                            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-400 transition-colors"
-                        >
-                            <X className="w-3 h-3" />
-                            Cancel
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={handleCancel}
+                                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-400 transition-colors"
+                            >
+                                <X className="w-3 h-3" />
+                                Cancel
+                            </button>
+
+                            {/* GIF Button */}
+                            <button
+                                type="button"
+                                onClick={() => setShowGifPicker(true)}
+                                className="flex items-center gap-1 text-xs text-gray-500 hover:text-green-400 transition-colors ml-2"
+                                title="Add GIF"
+                            >
+                                <Smile className="w-4 h-4" />
+                                GIF
+                            </button>
+                        </div>
 
                         <button
                             type="submit"
-                            disabled={submitting || !content.trim()}
+                            disabled={submitting || (!content.trim() && !selectedGif)}
                             className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${asThread
-                                    ? "bg-green-600 hover:bg-green-500 text-black"
-                                    : "bg-green-600 hover:bg-green-500 text-black"
+                                ? "bg-green-600 hover:bg-green-500 text-black"
+                                : "bg-green-600 hover:bg-green-500 text-black"
                                 }`}
                         >
                             {submitting ? (
@@ -307,6 +358,14 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
                         </button>
                     </div>
                 </form>
+            )}
+
+            {/* GIF Picker Modal */}
+            {showGifPicker && (
+                <GifPicker
+                    onSelect={handleGifSelect}
+                    onClose={() => setShowGifPicker(false)}
+                />
             )}
         </div>
     );

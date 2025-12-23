@@ -38,6 +38,7 @@ import TerminalCommand from "./components/TerminalCommand";
 import PageTransition from "./components/PageTransition";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useUserIPCapture } from "./hooks/useUserIPCapture";
+import MessagingPanel from "./components/messaging/MessagingPanel";
 
 const queryClient = new QueryClient();
 
@@ -119,14 +120,8 @@ const AppContent = () => {
         <QuickCreateButton />
       </div>
 
-      {/* Mobile Terminal Toggle */}
-      <button
-        onClick={() => setShowTerminal(true)}
-        className="fixed bottom-4 right-4 z-50 p-3 bg-black border border-green-500 rounded-full text-green-500 shadow-[0_0_10px_rgba(0,255,0,0.5)] md:hidden hover:shadow-[0_0_20px_rgba(0,255,0,0.8)] transition-all"
-        aria-label="Open Terminal"
-      >
-        <Terminal size={24} />
-      </button>
+      {/* Messaging Panel */}
+      <MessagingPanel />
     </>
   );
 };

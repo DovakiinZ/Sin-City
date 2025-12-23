@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, GripVertical, Image, X, Loader2 } from "lucide-react";
+import { Plus, Trash2, Image, X, Loader2, Music, Smile, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface ThreadItem {
@@ -20,6 +20,7 @@ export default function ThreadCreator({ onPublish, onCancel }: ThreadCreatorProp
     ]);
     const [publishing, setPublishing] = useState(false);
     const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+    const [expandedMedia, setExpandedMedia] = useState<Set<number>>(new Set());
 
     const addItem = () => {
         setItems([...items, {
@@ -39,6 +40,15 @@ export default function ThreadCreator({ onPublish, onCancel }: ThreadCreatorProp
         setItems(items.map((item, i) =>
             i === index ? { ...item, [field]: value } : item
         ));
+    };
+
+    const toggleMediaExpanded = (index: number) => {
+        setExpandedMedia(prev => {
+            const next = new Set(prev);
+            if (next.has(index)) next.delete(index);
+            else next.add(index);
+            return next;
+        });
     };
 
     const handleMediaUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,6 +85,9 @@ export default function ThreadCreator({ onPublish, onCancel }: ThreadCreatorProp
                     ? { ...item, attachments: [...item.attachments, { url: publicUrl, type: mediaType }] }
                     : item
             ));
+
+            // Auto-expand media section when media is added
+            setExpandedMedia(prev => new Set(prev).add(index));
         } catch (error) {
             console.error("Upload error:", error);
             alert("Failed to upload file");
@@ -92,7 +105,6 @@ export default function ThreadCreator({ onPublish, onCancel }: ThreadCreatorProp
     };
 
     const handlePublish = async () => {
-        // Validate at least first item has content
         if (!items[0].content.trim()) {
             alert("First post must have content");
             return;
@@ -110,118 +122,115 @@ export default function ThreadCreator({ onPublish, onCancel }: ThreadCreatorProp
 
     return (
         <div className="space-y-4">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <pre className="ascii-highlight text-lg">CREATE THREAD</pre>
-                    <span className="ascii-dim text-sm">({items.length} posts)</span>
-                </div>
-                <button
-                    onClick={onCancel}
-                    className="ascii-dim hover:ascii-highlight"
-                >
-                    [Cancel]
-                </button>
-            </div>
-
-            {/* Thread Items */}
-            <div className="space-y-4">
+            {/* Thread Posts */}
+            <div className="space-y-3">
                 {items.map((item, index) => (
-                    <div key={item.id} className="ascii-box p-4 relative">
-                        {/* Thread Position Badge */}
-                        <div className="absolute -left-3 -top-3 bg-background ascii-box px-2 py-1 text-xs ascii-highlight">
-                            {index + 1}/{items.length}
+                    <div key={item.id} className="bg-gray-900/30 border border-green-900/30 rounded-lg overflow-hidden">
+                        {/* Post Header */}
+                        <div className="flex items-center justify-between px-4 py-2 bg-gray-900/50 border-b border-green-900/20">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-mono text-green-400 bg-green-500/10 px-2 py-0.5 rounded">
+                                    {index + 1}/{items.length}
+                                </span>
+                                {index === 0 && (
+                                    <span className="text-xs text-gray-500">First post</span>
+                                )}
+                            </div>
+                            {items.length > 1 && (
+                                <button
+                                    onClick={() => removeItem(index)}
+                                    className="p-1 text-gray-500 hover:text-red-400 transition-colors"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Post Content */}
+                        <div className="p-4 space-y-3">
+                            {/* Title */}
+                            <input
+                                type="text"
+                                value={item.title}
+                                onChange={(e) => updateItem(index, 'title', e.target.value)}
+                                placeholder={index === 0 ? "Thread title (optional)" : "Post title (optional)"}
+                                className="w-full bg-transparent text-sm text-gray-100 placeholder-gray-600 border-b border-green-900/30 pb-2 focus:outline-none focus:border-green-500/50 transition-colors"
+                            />
+
+                            {/* Content */}
+                            <textarea
+                                value={item.content}
+                                onChange={(e) => updateItem(index, 'content', e.target.value)}
+                                placeholder={`Write post ${index + 1}...`}
+                                className="w-full bg-transparent text-sm text-gray-200 placeholder-gray-600 focus:outline-none min-h-[100px] resize-y"
+                            />
+
+                            {/* Media Section - Collapsible */}
+                            <div className="border border-green-900/20 rounded-lg overflow-hidden">
+                                <button
+                                    onClick={() => toggleMediaExpanded(index)}
+                                    className="w-full flex items-center justify-between px-3 py-2 bg-gray-900/30 hover:bg-gray-900/50 transition-colors"
+                                >
+                                    <span className="text-xs text-gray-500">
+                                        Media {item.attachments.length > 0 && `(${item.attachments.length})`}
+                                    </span>
+                                    {expandedMedia.has(index) ? (
+                                        <ChevronUp className="w-3 h-3 text-gray-500" />
+                                    ) : (
+                                        <ChevronDown className="w-3 h-3 text-gray-500" />
+                                    )}
+                                </button>
+
+                                {expandedMedia.has(index) && (
+                                    <div className="p-3 space-y-2 bg-black/20">
+                                        {/* Media Previews */}
+                                        {item.attachments.length > 0 && (
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {item.attachments.map((media, mediaIndex) => (
+                                                    <div key={mediaIndex} className="relative aspect-square bg-gray-900 rounded overflow-hidden">
+                                                        {media.type === 'image' ? (
+                                                            <img src={media.url} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <video src={media.url} className="w-full h-full object-cover" />
+                                                        )}
+                                                        <button
+                                                            onClick={() => removeMedia(index, mediaIndex)}
+                                                            className="absolute top-1 right-1 w-5 h-5 bg-black/80 rounded-full flex items-center justify-center hover:bg-red-500 transition-colors"
+                                                        >
+                                                            <X className="w-2.5 h-2.5" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Add Media Button */}
+                                        <label className="flex items-center justify-center gap-2 py-2 px-3 bg-gray-900/50 border border-green-900/30 rounded text-xs text-gray-400 hover:text-green-400 hover:border-green-500/50 transition-colors cursor-pointer">
+                                            {uploadingIndex === index ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                <Plus className="w-3 h-3" />
+                                            )}
+                                            <span>Add Photo/Video</span>
+                                            <input
+                                                type="file"
+                                                accept="image/*,video/*"
+                                                onChange={(e) => handleMediaUpload(index, e)}
+                                                className="hidden"
+                                                disabled={uploadingIndex !== null}
+                                            />
+                                        </label>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Connection Line */}
                         {index < items.length - 1 && (
-                            <div className="absolute left-1/2 -bottom-4 h-4 border-l-2 border-dashed border-ascii-border" />
+                            <div className="h-4 flex justify-center">
+                                <div className="w-px h-full bg-green-900/50" />
+                            </div>
                         )}
-
-                        <div className="flex gap-3">
-                            {/* Drag Handle (placeholder for future reordering) */}
-                            <div className="ascii-dim pt-2">
-                                <GripVertical className="w-4 h-4" />
-                            </div>
-
-                            <div className="flex-1 space-y-3">
-                                {/* Title (optional) */}
-                                <input
-                                    type="text"
-                                    value={item.title}
-                                    onChange={(e) => updateItem(index, 'title', e.target.value)}
-                                    placeholder={`Title (optional)${index === 0 ? ' - Thread title' : ''}`}
-                                    className="w-full bg-transparent border border-ascii-border p-2 ascii-text text-sm focus:border-green-500 outline-none"
-                                />
-
-                                {/* Content */}
-                                <textarea
-                                    value={item.content}
-                                    onChange={(e) => updateItem(index, 'content', e.target.value)}
-                                    placeholder={`Post ${index + 1} content...`}
-                                    className="w-full bg-transparent border border-ascii-border p-2 ascii-text text-sm focus:border-green-500 outline-none min-h-[100px] resize-y"
-                                />
-
-                                {/* Media Preview */}
-                                {item.attachments.length > 0 && (
-                                    <div className="flex flex-wrap gap-2">
-                                        {item.attachments.map((media, mediaIndex) => (
-                                            <div key={mediaIndex} className="relative group">
-                                                {media.type === 'image' ? (
-                                                    <img
-                                                        src={media.url}
-                                                        alt=""
-                                                        className="w-20 h-20 object-cover rounded border border-ascii-border"
-                                                    />
-                                                ) : (
-                                                    <video
-                                                        src={media.url}
-                                                        className="w-20 h-20 object-cover rounded border border-ascii-border"
-                                                    />
-                                                )}
-                                                <button
-                                                    onClick={() => removeMedia(index, mediaIndex)}
-                                                    className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    <X className="w-3 h-3 text-white" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-3">
-                                    {/* Add Media */}
-                                    <label className="ascii-nav-link hover:ascii-highlight cursor-pointer flex items-center gap-1 text-xs">
-                                        {uploadingIndex === index ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <Image className="w-4 h-4" />
-                                        )}
-                                        <span>Add media</span>
-                                        <input
-                                            type="file"
-                                            accept="image/*,video/*"
-                                            onChange={(e) => handleMediaUpload(index, e)}
-                                            className="hidden"
-                                            disabled={uploadingIndex !== null}
-                                        />
-                                    </label>
-
-                                    {/* Remove Post */}
-                                    {items.length > 1 && (
-                                        <button
-                                            onClick={() => removeItem(index)}
-                                            className="ascii-dim hover:text-red-400 flex items-center gap-1 text-xs"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                            <span>Remove</span>
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 ))}
             </div>
@@ -229,35 +238,40 @@ export default function ThreadCreator({ onPublish, onCancel }: ThreadCreatorProp
             {/* Add Post Button */}
             <button
                 onClick={addItem}
-                className="w-full ascii-box p-3 border-dashed hover:border-green-500 transition-colors flex items-center justify-center gap-2 ascii-dim hover:ascii-highlight"
+                className="w-full py-3 border border-dashed border-green-900/50 rounded-lg text-sm text-gray-500 hover:text-green-400 hover:border-green-500/50 transition-colors flex items-center justify-center gap-2"
             >
                 <Plus className="w-4 h-4" />
-                <span>Add to thread</span>
+                Add to thread
             </button>
 
-            {/* Publish */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-ascii-border">
-                <button
-                    onClick={onCancel}
-                    className="ascii-nav-link hover:ascii-highlight px-4 py-2"
-                >
-                    Cancel
-                </button>
-                <button
-                    onClick={handlePublish}
-                    disabled={!canPublish || publishing}
-                    className="ascii-nav-link hover:ascii-highlight border border-green-700 px-4 py-2 disabled:opacity-50"
-                >
-                    {publishing ? (
-                        <span className="flex items-center gap-2">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Publishing...
-                        </span>
-                    ) : (
-                        `Publish Thread (${items.length} posts)`
-                    )}
-                </button>
+            {/* Bottom Actions - Sticky on mobile */}
+            <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto bg-black/95 backdrop-blur md:bg-transparent border-t border-green-900/30 md:border-t-0 px-4 py-3 md:px-0 md:pt-4 safe-area-bottom">
+                <div className="flex gap-3 max-w-4xl mx-auto">
+                    <button
+                        onClick={onCancel}
+                        className="flex-1 py-3 bg-gray-900 border border-green-900/30 rounded-lg text-gray-400 font-medium text-sm hover:text-gray-300 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handlePublish}
+                        disabled={!canPublish || publishing}
+                        className="flex-1 py-3 bg-green-500 rounded-lg text-black font-medium text-sm hover:bg-green-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        {publishing ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Publishing...
+                            </>
+                        ) : (
+                            `Publish (${items.length} posts)`
+                        )}
+                    </button>
+                </div>
             </div>
+
+            {/* Spacer for fixed bottom bar on mobile */}
+            <div className="h-20 md:h-0" />
         </div>
     );
 }

@@ -25,6 +25,7 @@ type Post = {
   isPinned?: boolean;
   isHtml?: boolean;
   attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
+  gif_url?: string;
 };
 
 interface FrontMatterData {
@@ -95,6 +96,7 @@ const AsciiFeed = () => {
                 url: a.url || '',
                 type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
               })).filter((a: any) => a.url) || undefined,
+              gif_url: p.gif_url || undefined,
             };
           });
         setDbPosts(mapped);
@@ -173,6 +175,7 @@ const AsciiFeed = () => {
         type: p.attachments && p.attachments.length > 0 ? "Image" : "Text",
         content: p.content,
         attachments: p.attachments,
+        gif_url: p.gif_url || null,
         draft: false,
         author_name: user.username || user.email || "Anonymous",
         author_email: user.email || "",

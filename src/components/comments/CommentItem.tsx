@@ -222,9 +222,22 @@ export default function CommentItem({ comment, postId, postAuthorId, depth = 0 }
                     </div>
                 ) : (
                     <>
-                        <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
-                            {parseMentions(comment.content)}
-                        </p>
+                        {comment.content && (
+                            <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                {parseMentions(comment.content)}
+                            </p>
+                        )}
+
+                        {/* GIF Display */}
+                        {comment.gif_url && (
+                            <div className="mt-2">
+                                <img
+                                    src={comment.gif_url}
+                                    alt="GIF"
+                                    className="max-h-40 rounded-lg border border-green-500/20"
+                                />
+                            </div>
+                        )}
 
                         {/* Reply Button */}
                         {user && depth < maxDepth && !isReplying && (

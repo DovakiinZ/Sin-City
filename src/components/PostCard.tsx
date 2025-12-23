@@ -25,6 +25,7 @@ interface PostCardProps {
         isPinned?: boolean;
         isHtml?: boolean;
         attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
+        gif_url?: string;
         userId?: string;
         viewCount?: number;
     };
@@ -288,6 +289,17 @@ export default function PostCard({
             {displayMedia && displayMedia.length > 0 && (
                 <div className="my-4" onClick={(e) => e.stopPropagation()}>
                     <MediaCarousel media={displayMedia} compact={!fullContent} />
+                </div>
+            )}
+
+            {/* GIF Display */}
+            {post.gif_url && (
+                <div className="my-4" onClick={(e) => e.stopPropagation()}>
+                    <img
+                        src={post.gif_url}
+                        alt="GIF"
+                        className="max-w-full max-h-80 rounded-lg border border-green-500/20"
+                    />
                 </div>
             )}
 

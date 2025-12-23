@@ -10,6 +10,7 @@ export interface Post {
     content?: string;
     slug?: string;
     attachments?: unknown;
+    gif_url?: string;
     draft?: boolean;
     hidden?: boolean;
     is_pinned?: boolean;

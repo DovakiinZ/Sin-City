@@ -11,6 +11,7 @@ export interface Comment {
     author_username?: string;
     author_avatar?: string;
     content: string;
+    gif_url?: string;
     created_at: string;
     updated_at: string;
     replies?: Comment[];
