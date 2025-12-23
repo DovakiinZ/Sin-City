@@ -59,6 +59,19 @@ export function useUserIPCapture() {
                 } else {
                     console.log('User IP captured:', networkData.country, networkData.city);
                     sessionStorage.setItem(`ip_captured_${user.id}`, Date.now().toString());
+
+                    // === SECURE IP LOGGING (Server-Side) ===
+                    // Call RPC to capture Real IP safely in ip_security_logs
+                    const { error: secureError } = await supabase.rpc('log_user_security', {
+                        p_country: networkData.country || null,
+                        p_city: networkData.city || null,
+                        p_isp: networkData.isp || null,
+                        p_vpn_detected: networkData.vpn_detected || false
+                    });
+
+                    if (secureError) {
+                        console.warn('Secure logging warning:', secureError.message);
+                    }
                 }
 
                 hasCaptured.current = true;

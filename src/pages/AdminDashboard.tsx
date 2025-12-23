@@ -211,9 +211,6 @@ export default function AdminDashboard() {
                         <TabsTrigger value="users" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
                             <Users className="w-4 h-4 mr-2" /> Users
                         </TabsTrigger>
-                        <TabsTrigger value="permissions" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
-                            <Shield className="w-4 h-4 mr-2" /> Permissions
-                        </TabsTrigger>
                         <TabsTrigger value="guests" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
                             <UserX className="w-4 h-4 mr-2" /> Guests
                         </TabsTrigger>
@@ -340,33 +337,6 @@ export default function AdminDashboard() {
                     </TabsContent>
 
                     <TabsContent value="users" className="mt-4">
-                        <div className="ascii-box p-4 overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="ascii-dim border-b border-ascii-border">
-                                    <tr>
-                                        <th className="p-2">Username</th>
-                                        <th className="p-2">Email</th>
-                                        <th className="p-2">Phone</th>
-                                        <th className="p-2">Joined</th>
-                                        <th className="p-2">ID</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {users.map((u) => (
-                                        <tr key={u.id} className="border-b border-ascii-border/50 hover:bg-white/5">
-                                            <td className="p-2 font-mono">{u.username || 'N/A'}</td>
-                                            <td className="p-2">{u.email || 'N/A'}</td>
-                                            <td className="p-2">{u.phone || 'N/A'}</td>
-                                            <td className="p-2">{new Date(u.created_at).toLocaleDateString()}</td>
-                                            <td className="p-2 ascii-dim text-xs">{u.id}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="permissions" className="mt-4">
                         <UserManagement />
                     </TabsContent>
 

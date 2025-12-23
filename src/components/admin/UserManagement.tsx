@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Shield, ShieldOff, Users as UsersIcon, Globe, MapPin, Wifi, AlertTriangle } from "lucide-react";
+import { Shield, ShieldOff, Users as UsersIcon, Globe, MapPin, Wifi, AlertTriangle, Ban, CheckCircle } from "lucide-react";
 
 interface UserProfile {
     id: string;
@@ -16,6 +16,7 @@ interface UserProfile {
     vpn_detected?: boolean;
     tor_detected?: boolean;
     last_ip_update?: string | null;
+    securityData?: { real_ip: string; ip_fingerprint: string; last_seen_at: string; is_blocked?: boolean } | null;
 }
 
 export default function UserManagement() {
@@ -30,13 +31,42 @@ export default function UserManagement() {
     const loadUsers = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
+            // Get profiles
+            const { data: profiles, error: profileError } = await supabase
                 .from("profiles")
                 .select("id, username, role, created_at, country, city, ip_hash, isp, vpn_detected, tor_detected, last_ip_update")
                 .order("created_at", { ascending: true });
 
-            if (error) throw error;
-            setUsers(data || []);
+            if (profileError) throw profileError;
+
+            // Get secure logs for these users
+            const { data: securityLogs, error: logError } = await supabase
+                .from("ip_security_logs")
+                .select("user_id, real_ip, ip_fingerprint, last_seen_at")
+                .not('user_id', 'is', null);
+
+            // Get blocked IPs
+            const { data: blockedIps, error: blockError } = await supabase
+                .from("blocked_ips")
+                .select("ip_address");
+
+            const blockedSet = new Set((blockedIps || []).map(b => b.ip_address));
+
+            // Merge data
+            const mergedUsers = (profiles || []).map(user => {
+                const logs = securityLogs?.find(log => log.user_id === user.id);
+                return {
+                    ...user,
+                    securityData: logs ? {
+                        real_ip: logs.real_ip,
+                        ip_fingerprint: logs.ip_fingerprint,
+                        last_seen_at: logs.last_seen_at,
+                        is_blocked: blockedSet.has(logs.real_ip)
+                    } : null
+                };
+            });
+
+            setUsers(mergedUsers);
         } catch (error: any) {
             toast({
                 title: "Error",
@@ -45,6 +75,39 @@ export default function UserManagement() {
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleBlockIP = async (ip: string, username: string) => {
+        if (!confirm(`Are you sure you want to BLOCK IP ${ip} for user ${username}?`)) return;
+
+        try {
+            const { error } = await supabase.rpc('block_ip', {
+                p_ip: ip,
+                p_reason: `Blocked via User Admin (User: ${username})`
+            });
+
+            if (error) throw error;
+
+            toast({ title: "IP Blocked", description: `IP for ${username} blocked successfully.` });
+            loadUsers();
+        } catch (error: any) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    };
+
+    const handleUnblockIP = async (ip: string) => {
+        if (!confirm(`Unblock IP ${ip}?`)) return;
+
+        try {
+            const { error } = await supabase.rpc('unblock_ip', { p_ip: ip });
+
+            if (error) throw error;
+
+            toast({ title: "IP Unblocked", description: "IP unblocked successfully." });
+            loadUsers();
+        } catch (error: any) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
         }
     };
 
@@ -121,6 +184,7 @@ export default function UserManagement() {
                             <th className="p-2">Username</th>
                             <th className="p-2">Role</th>
                             <th className="p-2">Location</th>
+                            <th className="p-2">Secure IP (Admin)</th>
                             <th className="p-2">Network</th>
                             <th className="p-2">Joined</th>
                             <th className="p-2">Actions</th>
@@ -153,6 +217,25 @@ export default function UserManagement() {
                                         </div>
                                     ) : (
                                         <span className="text-gray-600 text-xs">--</span>
+                                    )}
+                                </td>
+                                <td className="p-2">
+                                    {user.securityData ? (
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-1">
+                                                <span className={`font-mono font-bold text-xs select-all ${user.securityData.is_blocked ? 'text-red-500 line-through' : 'text-red-300'}`}>
+                                                    {user.securityData.real_ip}
+                                                </span>
+                                                {user.securityData.is_blocked && (
+                                                    <span className="text-[10px] text-red-500 font-bold">BLOCKED</span>
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] ascii-dim truncate max-w-[100px]" title={user.securityData.ip_fingerprint || ''}>
+                                                {user.securityData.ip_fingerprint?.substring(0, 8)}...
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-gray-600 text-xs italic">Not logged yet</span>
                                     )}
                                 </td>
                                 <td className="p-2">
@@ -203,6 +286,29 @@ export default function UserManagement() {
                                             <Shield className="w-4 h-4 mr-1" />
                                             Promote
                                         </Button>
+                                    )}
+                                    {user.securityData && (
+                                        user.securityData.is_blocked ? (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleUnblockIP(user.securityData!.real_ip)}
+                                                className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                                                title="Unblock IP"
+                                            >
+                                                <CheckCircle className="w-4 h-4" />
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleBlockIP(user.securityData!.real_ip, user.username)}
+                                                className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                                                title="Block IP"
+                                            >
+                                                <Ban className="w-4 h-4" />
+                                            </Button>
+                                        )
                                     )}
                                 </td>
                             </tr>

@@ -25,6 +25,8 @@ import {
     Activity,
     Zap
 } from "lucide-react";
+import IPContentModal from "./IPContentModal";
+import GuestTimeline from "./GuestTimeline";
 
 interface Guest {
     id: string;
@@ -91,11 +93,83 @@ export default function GuestDetailModal({ guest, onClose, onUpdate }: GuestDeta
     const [notes, setNotes] = useState(guest.notes || '');
     const [trustScore, setTrustScore] = useState(guest.trust_score);
     const [saving, setSaving] = useState(false);
+    const [securityData, setSecurityData] = useState<{
+        real_ip: string;
+        ip_fingerprint: string;
+        last_seen_at: string;
+        is_blocked?: boolean;
+        stats?: {
+            post_count: number;
+            comment_count: number;
+            guest_count: number;
+            user_count: number;
+        }
+    } | null>(null);
+    const [showIPContent, setShowIPContent] = useState<'posts' | 'comments' | null>(null);
+    const [showRealIP, setShowRealIP] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
         loadGuestPosts();
+        loadSecurityData();
     }, [guest.id]);
+
+    const loadSecurityData = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('ip_security_logs')
+                .select('real_ip, ip_fingerprint, last_seen_at')
+                .eq('guest_id', guest.id)
+                .maybeSingle();
+
+            if (!error && data) {
+                // Check if IP is blocked
+                const { data: isBlocked } = await supabase.rpc('is_ip_blocked', { p_ip: data.real_ip });
+
+                // Fetch IP stats
+                const { data: stats } = await supabase.rpc('get_ip_content_stats', { p_ip: data.real_ip });
+
+                setSecurityData({ ...data, is_blocked: isBlocked, stats });
+            }
+        } catch (err) {
+            console.error('Error loading security data:', err);
+        }
+    };
+
+    const handleBlockIP = async () => {
+        if (!securityData?.real_ip) return;
+        if (!confirm(`Are you sure you want to BLOCK this IP (${securityData.real_ip})?`)) return;
+
+        try {
+            const { error } = await supabase.rpc('block_ip', {
+                p_ip: securityData.real_ip,
+                p_reason: `Blocked via Guest Admin (GuestID: ${guest.id})`
+            });
+
+            if (error) throw error;
+
+            toast({ title: "IP Blocked", description: "The IP address has been blocked from posting." });
+            loadSecurityData(); // Refresh status
+        } catch (error: any) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    };
+
+    const handleUnblockIP = async () => {
+        if (!securityData?.real_ip) return;
+        if (!confirm(`Unblock IP ${securityData.real_ip}?`)) return;
+
+        try {
+            const { error } = await supabase.rpc('unblock_ip', { p_ip: securityData.real_ip });
+
+            if (error) throw error;
+
+            toast({ title: "IP Unblocked", description: "The IP address has been unblocked." });
+            loadSecurityData(); // Refresh status
+        } catch (error: any) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    };
 
     const loadGuestPosts = async () => {
         setLoadingPosts(true);
@@ -347,43 +421,162 @@ export default function GuestDetailModal({ guest, onClose, onUpdate }: GuestDeta
                     </div>
 
                     {/* Network Info - New Section */}
-                    {(guest.country || guest.isp) && (
+                    {/* Network Info - New Section */}
+                    {guest.country || guest.isp || securityData ? (
                         <div className="ascii-box p-4 space-y-3">
                             <h3 className="ascii-highlight text-sm border-b border-ascii-border pb-2 flex items-center gap-2">
                                 <Wifi className="w-4 h-4" />
                                 NETWORK INFO
                             </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                <div>
-                                    <div className="ascii-dim text-xs">Location</div>
-                                    <div className="flex items-center gap-1">
-                                        <MapPin className="w-3 h-3" />
-                                        {guest.city || 'Unknown'}, {guest.country || 'Unknown'}
+
+                            {(guest.country || guest.isp) && (
+                                <>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                        <div>
+                                            <div className="ascii-dim text-xs">Location</div>
+                                            <div className="flex items-center gap-1">
+                                                <MapPin className="w-3 h-3" />
+                                                {guest.city || 'Unknown'}, {guest.country || 'Unknown'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="ascii-dim text-xs">ISP</div>
+                                            <div>{guest.isp || 'Unknown'}</div>
+                                        </div>
+                                        <div>
+                                            <div className="ascii-dim text-xs">VPN Detected</div>
+                                            <div className={guest.vpn_detected ? 'text-red-400' : 'text-green-400'}>
+                                                {guest.vpn_detected ? '⚠ YES' : 'No'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="ascii-dim text-xs">Tor Detected</div>
+                                            <div className={guest.tor_detected ? 'text-red-400' : 'text-green-400'}>
+                                                {guest.tor_detected ? '⚠ YES' : 'No'}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div>
-                                    <div className="ascii-dim text-xs">ISP</div>
-                                    <div>{guest.isp || 'Unknown'}</div>
-                                </div>
-                                <div>
-                                    <div className="ascii-dim text-xs">VPN Detected</div>
-                                    <div className={guest.vpn_detected ? 'text-red-400' : 'text-green-400'}>
-                                        {guest.vpn_detected ? '⚠ YES' : 'No'}
+                                    {guest.ip_hash && (
+                                        <div className="text-xs ascii-dim mt-2">
+                                            Public Hash: <span className="font-mono select-all">{guest.ip_hash}</span>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
+                            {/* Security Data (Admin Only) */}
+                            {securityData && (
+                                <div className={`pt-3 ${guest.country || guest.isp ? 'mt-4 border-t border-ascii-border/50' : ''} bg-red-950/20 p-3 rounded border border-red-500/20`}>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <Shield className="w-3 h-3 text-red-400" />
+                                            <span className="text-xs text-red-300 font-bold tracking-wider">SECURE ADMIN DATA</span>
+                                        </div>
+                                        {securityData.is_blocked ? (
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                className="h-6 text-[10px] px-3 bg-red-600 hover:bg-red-700 font-bold"
+                                                onClick={handleUnblockIP}
+                                            >
+                                                UNBLOCK IP
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-6 text-[10px] px-3 border-red-500/50 text-red-400 hover:bg-red-500/20 hover:text-red-300 font-bold"
+                                                onClick={handleBlockIP}
+                                            >
+                                                BLOCK IP
+                                            </Button>
+                                        )}
                                     </div>
-                                </div>
-                                <div>
-                                    <div className="ascii-dim text-xs">Tor Detected</div>
-                                    <div className={guest.tor_detected ? 'text-red-400' : 'text-green-400'}>
-                                        {guest.tor_detected ? '⚠ YES' : 'No'}
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                                        <div>
+                                            <div className="ascii-dim text-[10px] uppercase mb-1 flex items-center gap-2">
+                                                Real IP Address
+                                                <button
+                                                    onClick={() => {
+                                                        const newValue = !showRealIP;
+                                                        setShowRealIP(newValue);
+                                                        if (newValue) {
+                                                            // Log IP Reveal Action
+                                                            supabase.rpc('log_admin_action', {
+                                                                p_action: 'reveal_ip',
+                                                                p_target_type: 'guest',
+                                                                p_target_id: guest.id,
+                                                                p_details: { ip: securityData.real_ip }
+                                                            }).then(({ error }) => {
+                                                                if (error) console.error('Audit log failed', error);
+                                                            });
+                                                        }
+                                                    }}
+                                                    className="text-ascii-dim hover:text-white"
+                                                    title={showRealIP ? "Hide IP" : "Reveal IP"}
+                                                >
+                                                    {showRealIP ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                                </button>
+                                            </div>
+                                            <div className={`font-mono select-all font-bold break-all text-sm ${securityData.is_blocked ? 'text-red-500 line-through' : 'text-red-200'}`}>
+                                                {showRealIP ? securityData.real_ip : securityData.real_ip.replace(/\.\d{1,3}\.\d{1,3}$/, '.***.***')}
+                                            </div>
+                                            {securityData.is_blocked && <span className="text-[10px] text-red-500 font-bold mt-1 block">BLOCKED</span>}
+                                        </div>
+                                        <div>
+                                            <div className="ascii-dim text-[10px] uppercase mb-1">Secure Fingerprint</div>
+                                            <div className="font-mono text-xs text-ascii-dim truncate" title={securityData.ip_fingerprint || ''}>
+                                                {securityData.ip_fingerprint?.substring(0, 16)}...
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                            {guest.ip_hash && (
-                                <div className="text-xs ascii-dim mt-2">
-                                    IP Hash: <span className="font-mono select-all">{guest.ip_hash}</span>
+
+                                    {/* IP Content Stats */}
+                                    {securityData.stats && (
+                                        <div className="border-t border-red-500/20 pt-3 mt-2">
+                                            <div className="text-[10px] uppercase text-red-300/70 mb-2 font-semibold">Activity from this IP (All Users)</div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    className="h-auto py-2 px-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/10 flex flex-col items-center gap-1"
+                                                    onClick={() => setShowIPContent('posts')}
+                                                >
+                                                    <span className="text-lg font-bold text-red-200">{securityData.stats.post_count}</span>
+                                                    <span className="text-[10px] text-red-300 uppercase">Posts</span>
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    className="h-auto py-2 px-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/10 flex flex-col items-center gap-1"
+                                                    onClick={() => setShowIPContent('comments')}
+                                                >
+                                                    <span className="text-lg font-bold text-red-200">{securityData.stats.comment_count}</span>
+                                                    <span className="text-[10px] text-red-300 uppercase">Comments</span>
+                                                </Button>
+                                            </div>
+                                            <div className="flex justify-between mt-2 text-[10px] text-red-400/60 px-1">
+                                                <span>Linked Guests: {securityData.stats.guest_count}</span>
+                                                <span>Linked Users: {securityData.stats.user_count}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="text-[10px] text-right mt-2 text-red-500/40 font-mono">
+                                        Last Check: {new Date(securityData.last_seen_at).toLocaleString()}
+                                    </div>
                                 </div>
                             )}
                         </div>
+                    ) : null}
+
+                    {/* IP Content Modal */}
+                    {securityData?.real_ip && (
+                        <IPContentModal
+                            isOpen={!!showIPContent}
+                            onClose={() => setShowIPContent(null)}
+                            ipAddress={securityData.real_ip}
+                            type={showIPContent || 'posts'}
+                        />
                     )}
 
                     {/* Behavior Metrics - New Section */}
@@ -578,6 +771,15 @@ export default function GuestDetailModal({ guest, onClose, onUpdate }: GuestDeta
                                 Unblock Guest
                             </Button>
                         )}
+                    </div>
+
+                    {/* Timeline */}
+                    <div className="ascii-box p-4">
+                        <h3 className="ascii-highlight text-sm border-b border-ascii-border pb-2 mb-3 flex items-center gap-2">
+                            <Clock className="w-4 h-4" />
+                            ACTIVITY TIMELINE
+                        </h3>
+                        <GuestTimeline guestId={guest.id} />
                     </div>
                 </div>
             </div>

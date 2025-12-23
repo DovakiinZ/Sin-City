@@ -309,6 +309,22 @@ export function useGuestFingerprint(): GuestFingerprintResult {
             // Cache the guest ID locally
             localStorage.setItem(`guest_id_${fingerprint}`, newGuestId);
 
+            // === SECURE IP LOGGING (Server-Side) ===
+            // Call RPC to capture Real IP safely in ip_security_logs
+            // This is critical for the Admin Panel security features
+            try {
+                await supabase.rpc('log_guest_security', {
+                    p_guest_id: newGuestId,
+                    p_country: networkInfo?.country || null,
+                    p_city: networkInfo?.city || null,
+                    p_isp: networkInfo?.isp || null,
+                    p_vpn_detected: networkInfo?.vpn_detected || false
+                });
+            } catch (rpcError) {
+                console.warn('Secure logging warning:', rpcError);
+                // Non-blocking error
+            }
+
             // Check if email is required (>= 2 posts and no email)
             const hasEmail = !!(email || existingGuest?.email);
             const requiresEmail = currentPostCount >= 2 && !hasEmail;
