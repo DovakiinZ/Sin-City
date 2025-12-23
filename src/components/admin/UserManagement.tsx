@@ -2,13 +2,20 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Shield, ShieldOff, Users as UsersIcon } from "lucide-react";
+import { Shield, ShieldOff, Users as UsersIcon, Globe, MapPin, Wifi, AlertTriangle } from "lucide-react";
 
 interface UserProfile {
     id: string;
     username: string;
     role: string;
     created_at: string;
+    country?: string | null;
+    city?: string | null;
+    ip_hash?: string | null;
+    isp?: string | null;
+    vpn_detected?: boolean;
+    tor_detected?: boolean;
+    last_ip_update?: string | null;
 }
 
 export default function UserManagement() {
@@ -25,7 +32,7 @@ export default function UserManagement() {
         try {
             const { data, error } = await supabase
                 .from("profiles")
-                .select("id, username, role, created_at")
+                .select("id, username, role, created_at, country, city, ip_hash, isp, vpn_detected, tor_detected, last_ip_update")
                 .order("created_at", { ascending: true });
 
             if (error) throw error;
@@ -113,6 +120,8 @@ export default function UserManagement() {
                         <tr>
                             <th className="p-2">Username</th>
                             <th className="p-2">Role</th>
+                            <th className="p-2">Location</th>
+                            <th className="p-2">Network</th>
                             <th className="p-2">Joined</th>
                             <th className="p-2">Actions</th>
                         </tr>
@@ -123,8 +132,8 @@ export default function UserManagement() {
                                 <td className="p-2 font-mono">{user.username || 'N/A'}</td>
                                 <td className="p-2">
                                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${user.role === 'admin'
-                                            ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30'
-                                            : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                                        ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30'
+                                        : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
                                         }`}>
                                         {user.role === 'admin' ? (
                                             <Shield className="w-3 h-3" />
@@ -133,6 +142,42 @@ export default function UserManagement() {
                                         )}
                                         {user.role.toUpperCase()}
                                     </span>
+                                </td>
+                                <td className="p-2">
+                                    {user.country ? (
+                                        <div className="flex items-center gap-1">
+                                            <Globe className="w-3 h-3 text-green-500" />
+                                            <span className="text-xs">
+                                                {user.city ? `${user.city}, ` : ''}{user.country}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-gray-600 text-xs">--</span>
+                                    )}
+                                </td>
+                                <td className="p-2">
+                                    <div className="flex items-center gap-1">
+                                        {user.vpn_detected && (
+                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-500/20 text-orange-400 rounded text-[10px]">
+                                                <Wifi className="w-2.5 h-2.5" />
+                                                VPN
+                                            </span>
+                                        )}
+                                        {user.tor_detected && (
+                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded text-[10px]">
+                                                <AlertTriangle className="w-2.5 h-2.5" />
+                                                TOR
+                                            </span>
+                                        )}
+                                        {!user.vpn_detected && !user.tor_detected && user.isp && (
+                                            <span className="text-gray-500 text-[10px] truncate max-w-[100px]" title={user.isp}>
+                                                {user.isp}
+                                            </span>
+                                        )}
+                                        {!user.vpn_detected && !user.tor_detected && !user.isp && (
+                                            <span className="text-gray-600 text-xs">--</span>
+                                        )}
+                                    </div>
                                 </td>
                                 <td className="p-2">{new Date(user.created_at).toLocaleDateString()}</td>
                                 <td className="p-2">
