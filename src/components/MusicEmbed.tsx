@@ -17,8 +17,10 @@ const MusicEmbed = ({ url, compact = false }: MusicEmbedProps) => {
         if (url.includes('spotify.com')) {
             setPlatform('spotify');
             // Extract type and ID
-            // https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT
-            const match = url.match(/spotify\.com\/(track|album|playlist|artist)\/([a-zA-Z0-9]+)/);
+            // Handles:
+            // https://open.spotify.com/track/ID
+            // https://open.spotify.com/intl-pt/track/ID
+            const match = url.match(/spotify\.com\/.*?(track|album|playlist|artist)\/([a-zA-Z0-9]+)/);
             if (match) {
                 const [_, type, id] = match;
                 setEmbedUrl(`https://open.spotify.com/embed/${type}/${id}`);
@@ -27,17 +29,42 @@ const MusicEmbed = ({ url, compact = false }: MusicEmbedProps) => {
         // Process YouTube URLs
         else if (url.includes('youtube.com') || url.includes('youtu.be')) {
             setPlatform('youtube');
-            // Extract Video ID
-            let videoId = '';
-            if (url.includes('youtu.be')) {
-                videoId = url.split('/').pop()?.split('?')[0] || '';
-            } else {
-                const urlParams = new URL(url).searchParams;
-                videoId = urlParams.get('v') || '';
-            }
+            try {
+                let videoId = '';
 
-            if (videoId) {
-                setEmbedUrl(`https://www.youtube.com/embed/${videoId}`);
+                // Handle youtu.be/ID
+                if (url.includes('youtu.be')) {
+                    videoId = url.split('youtu.be/')[1]?.split(/[?#]/)[0] || '';
+                }
+                // Handle youtube.com/embed/ID
+                else if (url.includes('/embed/')) {
+                    videoId = url.split('/embed/')[1]?.split(/[?#]/)[0] || '';
+                }
+                // Handle youtube.com/shorts/ID
+                else if (url.includes('/shorts/')) {
+                    videoId = url.split('/shorts/')[1]?.split(/[?#]/)[0] || '';
+                }
+                // Handle youtube.com/live/ID
+                else if (url.includes('/live/')) {
+                    videoId = url.split('/live/')[1]?.split(/[?#]/)[0] || '';
+                }
+                // Handle standard watch?v=ID (works for music.youtube.com too)
+                else {
+                    // Robust extraction for v= parameter
+                    // We don't rely solely on URL constructor which might fail on partial input
+                    const vMatch = url.match(/[?&]v=([^&#]+)/);
+                    if (vMatch) {
+                        videoId = vMatch[1];
+                    }
+                }
+
+                if (videoId) {
+                    setEmbedUrl(`https://www.youtube.com/embed/${videoId}`);
+                } else {
+                    console.warn('MusicEmbed: Could not extract YouTube ID from:', url);
+                }
+            } catch (e) {
+                console.error('MusicEmbed: Error parsing YouTube URL:', e);
             }
         }
     }, [url]);
