@@ -162,6 +162,32 @@ export function useSessions() {
         }
     };
 
+    // Admin-only: Permanently delete session and all messages
+    const deleteSession = async (sessionId: string): Promise<boolean> => {
+        try {
+            // First delete all messages in the session
+            const { error: msgError } = await supabase
+                .from("session_messages")
+                .delete()
+                .eq("session_id", sessionId);
+
+            if (msgError) throw msgError;
+
+            // Then delete the session itself
+            const { error: sessError } = await supabase
+                .from("message_sessions")
+                .delete()
+                .eq("id", sessionId);
+
+            if (sessError) throw sessError;
+            loadSessions();
+            return true;
+        } catch (error) {
+            console.error("Error deleting session:", error);
+            return false;
+        }
+    };
+
     useEffect(() => {
         loadSessions();
 
@@ -195,6 +221,7 @@ export function useSessions() {
         startSession,
         archiveSession,
         blockSession,
+        deleteSession,
         refresh: loadSessions,
     };
 }

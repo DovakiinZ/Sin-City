@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, ArrowLeft, Send, Image, Mic, Play, Pause, Plus, Camera, Film, Smile } from "lucide-react";
+import { MessageCircle, X, ArrowLeft, Send, Image, Mic, Play, Pause, Plus, Camera, Film, Smile, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSessions, Session } from "@/hooks/useSessions";
 import { useSessionMessages, SessionMessage } from "@/hooks/useSessionMessages";
@@ -635,23 +635,33 @@ interface SessionViewProps {
 function SessionView({ sessionId, onBack, isMobile }: SessionViewProps) {
     const { user } = useAuth();
     const { messages, loading, otherUser, myMaskedAlias, uploading, sendMessage, uploadMedia, uploadVoice } = useSessionMessages(sessionId);
+    const { deleteSession } = useSessions();
     const [inputText, setInputText] = useState("");
     const [useMask, setUseMask] = useState(false);
     const [sending, setSending] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
     const [showGiphy, setShowGiphy] = useState(false);
     const [showVoice, setShowVoice] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const [myUsername, setMyUsername] = useState('you');
     useEffect(() => {
         if (user?.id) {
             (async () => {
-                const { data } = await (await import('@/lib/supabase')).supabase.from('profiles').select('username').eq('id', user.id).single();
+                const { data } = await (await import('@/lib/supabase')).supabase.from('profiles').select('username, role').eq('id', user.id).single();
                 if (data?.username) setMyUsername(data.username);
+                if (data?.role === 'admin') setIsAdmin(true);
             })();
         }
     }, [user?.id]);
+
+    const handleDeleteChat = async () => {
+        const success = await deleteSession(sessionId);
+        if (success) onBack();
+        setShowDeleteConfirm(false);
+    };
 
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -682,13 +692,38 @@ function SessionView({ sessionId, onBack, isMobile }: SessionViewProps) {
 
     return (
         <div className={`flex flex-col bg-black ${isMobile ? 'h-[100dvh]' : 'h-full'}`}>
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" onClick={() => setShowDeleteConfirm(false)}>
+                    <div className="bg-gray-900 border border-red-500/50 rounded-xl p-5 max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-red-400 font-mono text-lg mb-2">Delete Chat</h3>
+                        <p className="text-gray-400 text-sm font-mono mb-4">
+                            This will permanently delete this chat and all messages for BOTH users. This cannot be undone.
+                        </p>
+                        <div className="flex gap-2 justify-end">
+                            <button onClick={() => setShowDeleteConfirm(false)} className="px-3 py-1.5 text-gray-400 hover:text-gray-200 font-mono text-sm">Cancel</button>
+                            <button onClick={handleDeleteChat} className="px-3 py-1.5 bg-red-600 text-white font-mono text-sm rounded hover:bg-red-500">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-green-500/30 flex-shrink-0">
                 <button onClick={onBack} className="text-green-400 hover:text-green-300 p-1"><ArrowLeft className="w-5 h-5" /></button>
                 <div className="w-8 h-8 rounded-full bg-black border border-green-500/40 flex items-center justify-center">
                     {otherUser?.avatar_url ? <img src={otherUser.avatar_url} alt="" className="w-full h-full rounded-full object-cover" /> : <span className="text-green-400 font-mono text-sm">{otherUser?.username?.[0]?.toUpperCase() || '?'}</span>}
                 </div>
-                <span className="font-mono text-green-400 text-sm">@{otherUser?.username || 'unknown'}</span>
+                <span className="font-mono text-green-400 text-sm flex-1">@{otherUser?.username || 'unknown'}</span>
+                {isAdmin && (
+                    <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="p-2 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                        title="Delete chat (Admin)"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                )}
             </div>
 
             {/* Messages */}
