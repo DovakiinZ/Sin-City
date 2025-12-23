@@ -55,15 +55,17 @@ const AsciiFeed = () => {
         // Fetch profiles for avatars and usernames
         let userAvatars: Map<string, string> = new Map();
         let userUsernames: Map<string, string> = new Map();
+        let userLastSeens: Map<string, string> = new Map();
 
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, avatar_url, username');
+          .select('id, avatar_url, username, last_seen');
 
         if (profiles) {
           profiles.forEach(p => {
             if (p.avatar_url) userAvatars.set(p.id, p.avatar_url);
             if (p.username) userUsernames.set(p.id, p.username);
+            if (p.last_seen) userLastSeens.set(p.id, p.last_seen);
           });
         }
 
@@ -90,6 +92,7 @@ const AsciiFeed = () => {
               author: p.user_id ? userUsernames.get(p.user_id) || p.author_name : p.author_name || undefined,
               authorAvatar: p.author_avatar || (p.user_id ? userAvatars.get(p.user_id) : undefined) || undefined,
               authorUsername: p.user_id ? userUsernames.get(p.user_id) : undefined,
+              authorLastSeen: p.user_id ? userLastSeens.get(p.user_id) : undefined,
               isHtml: true,
               isPinned: p.is_pinned || false,
               attachments: p.attachments?.map((a: any) => ({
@@ -164,10 +167,7 @@ const AsciiFeed = () => {
   }, [allPosts, sortBy]);
 
   const handleAdd = async (p: NewPost) => {
-    if (!user) {
-      toast({ title: "Error", description: "Must be logged in", variant: "destructive" });
-      return;
-    }
+    // Removed user check to allow guests
 
     try {
       await createPost({
@@ -177,10 +177,10 @@ const AsciiFeed = () => {
         attachments: p.attachments,
         gif_url: p.gif_url || null,
         draft: false,
-        author_name: user.username || user.email || "Anonymous",
-        author_email: user.email || "",
-        author_avatar: user.avatarDataUrl || null,
-        user_id: user.id,
+        author_name: user?.username || user?.email || "Anonymous",
+        author_email: user?.email || "",
+        author_avatar: user?.avatarDataUrl || null,
+        user_id: user?.id, // Optional
       });
       toast({ title: "Success", description: "Post created!" });
       setShowForm(false);
@@ -212,15 +212,13 @@ const AsciiFeed = () => {
           </div>
 
           {/* Add Post Button */}
-          {user && (
-            <button
-              onClick={() => setShowForm((s) => !s)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-black text-sm font-medium rounded transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Post
-            </button>
-          )}
+          <button
+            onClick={() => setShowForm((s) => !s)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-black text-sm font-medium rounded transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Post
+          </button>
         </div>
       </div>
 

@@ -18,6 +18,7 @@ export interface Post {
     author_email?: string;
     author_avatar?: string;
     author_username?: string;
+    author_last_seen?: string;
     view_count?: number;
     thread_id?: string;
     thread_position?: number;
@@ -69,7 +70,7 @@ export function useSupabasePosts() {
                 if (userIds.length > 0) {
                     const { data: userProfiles } = await supabase
                         .from('profiles')
-                        .select('id, username, display_name, avatar_url')
+                        .select('id, username, display_name, avatar_url, last_seen')
                         .in('id', userIds);
 
                     if (userProfiles) {
@@ -83,7 +84,7 @@ export function useSupabasePosts() {
                 if (authorNames.length > 0) {
                     const { data: matchedProfiles } = await supabase
                         .from('profiles')
-                        .select('id, username, display_name, avatar_url')
+                        .select('id, username, display_name, avatar_url, last_seen')
                         .or(authorNames.map(n => `display_name.ilike.${n},username.ilike.${n}`).join(','));
 
                     if (matchedProfiles) {
@@ -112,6 +113,7 @@ export function useSupabasePosts() {
                         ...post,
                         author_avatar: profile?.avatar_url || post.author_avatar || null,
                         author_username: profile?.username || null,
+                        author_last_seen: profile?.last_seen || null,
                         // Overwrite author_name with proper username if available
                         author_name: profile?.username || post.author_name || "Anonymous",
                     };

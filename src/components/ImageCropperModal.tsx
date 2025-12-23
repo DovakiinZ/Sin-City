@@ -145,10 +145,10 @@ export default function ImageCropperModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-            <div className="bg-black border border-green-600 rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 sm:p-4">
+            <div className="bg-black border-0 sm:border border-green-600 rounded-none sm:rounded-lg w-full max-w-2xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-green-600/50">
+                <div className="flex items-center justify-between p-4 border-b border-green-600/50 shrink-0">
                     <h3 className="ascii-highlight text-lg">Adjust Image</h3>
                     <button onClick={onCancel} className="text-green-600 hover:text-green-400">
                         <X className="w-5 h-5" />
@@ -156,7 +156,7 @@ export default function ImageCropperModal({
                 </div>
 
                 {/* Cropper Area */}
-                <div className="relative h-64 sm:h-80 bg-black">
+                <div className="relative flex-1 min-h-[50vh] bg-black touch-none">
                     <Cropper
                         image={image}
                         crop={crop}
@@ -170,6 +170,7 @@ export default function ImageCropperModal({
                         classes={{
                             containerClassName: 'bg-black',
                             cropAreaClassName: 'border-2 border-green-500',
+                            mediaClassName: 'object-contain', // Ensure image is contained
                         }}
                     />
                 </div>

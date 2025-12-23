@@ -85,13 +85,10 @@ export default function ProfileEdit() {
             return;
         }
 
-        // For other images, show cropper
-        const reader = new FileReader();
-        reader.onload = () => {
-            setPendingImage(reader.result as string);
-            setCropperMode("avatar");
-        };
-        reader.readAsDataURL(file);
+        // Use URL.createObjectURL for immediate preview
+        const objectUrl = URL.createObjectURL(file);
+        setPendingImage(objectUrl);
+        setCropperMode("avatar");
     }
 
     // Handle header file selection
@@ -105,13 +102,10 @@ export default function ProfileEdit() {
             return;
         }
 
-        // For other images, show cropper
-        const reader = new FileReader();
-        reader.onload = () => {
-            setPendingImage(reader.result as string);
-            setCropperMode("header");
-        };
-        reader.readAsDataURL(file);
+        // Use URL.createObjectURL for immediate preview
+        const objectUrl = URL.createObjectURL(file);
+        setPendingImage(objectUrl);
+        setCropperMode("header");
     }
 
     // Upload avatar
@@ -305,11 +299,11 @@ export default function ProfileEdit() {
                                 <ImagePlus className="w-8 h-8 text-gray-600" />
                             </div>
                         )}
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                             <Camera className="w-6 h-6 text-white" />
                         </div>
                         {uploadingHeader && (
-                            <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                            <div className="absolute inset-0 bg-black/70 flex items-center justify-center pointer-events-none">
                                 <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
                             </div>
                         )}
@@ -317,7 +311,7 @@ export default function ProfileEdit() {
                     <input
                         ref={headerInputRef}
                         type="file"
-                        accept={isAdmin ? "image/*" : "image/png,image/jpeg,image/jpg,image/webp"}
+                        accept={isAdmin ? "image/*" : "image/png,image/jpeg,image/jpg,image/webp,image/heic"}
                         className="hidden"
                         onChange={handleHeaderSelect}
                     />
@@ -337,11 +331,11 @@ export default function ProfileEdit() {
                                 <Camera className="w-6 h-6 text-gray-600" />
                             </div>
                         )}
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                             <Camera className="w-5 h-5 text-white" />
                         </div>
                         {uploadingAvatar && (
-                            <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                            <div className="absolute inset-0 bg-black/70 flex items-center justify-center pointer-events-none">
                                 <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
                             </div>
                         )}
@@ -349,7 +343,7 @@ export default function ProfileEdit() {
                     <input
                         ref={avatarInputRef}
                         type="file"
-                        accept={isAdmin ? "image/*" : "image/png,image/jpeg,image/jpg,image/webp"}
+                        accept={isAdmin ? "image/*" : "image/png,image/jpeg,image/jpg,image/webp,image/heic"}
                         className="hidden"
                         onChange={handleAvatarSelect}
                     />
@@ -438,10 +432,10 @@ export default function ProfileEdit() {
             {/* Image Cropper Modal */}
             {pendingImage && cropperMode && (
                 <ImageCropperModal
-                    imageSrc={pendingImage}
+                    image={pendingImage}
                     aspectRatio={cropperMode === "avatar" ? 1 : 3}
-                    onCrop={handleCroppedImage}
-                    onClose={() => {
+                    onCropComplete={handleCroppedImage}
+                    onCancel={() => {
                         setCropperMode(null);
                         setPendingImage(null);
                     }}

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { UserAvatarWithStatus } from "@/components/UserAvatarWithStatus";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2 } from "lucide-react";
@@ -22,6 +23,7 @@ interface PostCardProps {
         author?: string;
         authorAvatar?: string;
         authorUsername?: string;
+        authorLastSeen?: string; // New field for presence
         isPinned?: boolean;
         isHtml?: boolean;
         attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
@@ -193,19 +195,15 @@ export default function PostCard({
                     onClick={(e) => e.stopPropagation()}
                     className="flex-shrink-0"
                 >
-                    {post.authorAvatar ? (
-                        <img
-                            src={post.authorAvatar}
-                            alt={post.author || "Author"}
-                            className="w-10 h-10 rounded-full object-cover border border-green-700/50"
-                        />
-                    ) : (
-                        <div className="w-10 h-10 rounded-full bg-green-900/30 border border-green-700/50 flex items-center justify-center">
-                            <span className="text-lg font-medium text-green-400">
-                                {(post.author || "?")[0]?.toUpperCase()}
-                            </span>
-                        </div>
-                    )}
+                    <UserAvatarWithStatus
+                        profile={{
+                            avatar_url: post.authorAvatar,
+                            display_name: post.author,
+                            username: post.authorUsername,
+                            last_seen: post.authorLastSeen
+                        }}
+                        className="w-10 h-10 border border-green-700/50"
+                    />
                 </Link>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

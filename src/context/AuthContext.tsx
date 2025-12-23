@@ -8,6 +8,7 @@ export type User = {
   password: string; // unused with Supabase; retained for compatibility
   username: string;
   avatarDataUrl?: string;
+  mfaEnabled: boolean;
 };
 
 interface AuthContextType {
@@ -19,6 +20,13 @@ interface AuthContextType {
   updateProfile: (changes: Partial<Pick<User, "username" | "avatarDataUrl">>) => void;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
+  mfa: {
+    enroll: () => Promise<{ id: string; type: 'totp'; totp: { qr_code: string; secret: string; uri: string } }>;
+    verify: (factorId: string, code: string) => Promise<void>;
+    challenge: (factorId: string) => Promise<{ id: string;[key: string]: any }>;
+    verifyChallenge: (factorId: string, challengeId: string, code: string) => Promise<void>;
+    listFactors: () => Promise<any[]>;
+  };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,12 +51,15 @@ function mapSupabaseUser(u: SupabaseAuthUser | null): User | null {
   // Map username from metadata, fallback to email prefix
   const username = (u.user_metadata?.username as string | undefined) || u.email?.split("@")[0] || "User";
   const avatarDataUrl = (u.user_metadata?.avatarDataUrl as string | undefined) || undefined;
+  // Check if user has verified MFA factors
+  const mfaEnabled = u.factors?.some(f => f.status === 'verified') ?? false;
   return {
     id: u.id,
     email: u.email || "",
     password: "", // not stored when using Supabase
     username,
     avatarDataUrl,
+    mfaEnabled,
   } satisfies User;
 }
 
@@ -62,11 +73,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         if (supabase) {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const currentUser = mapSupabaseUser(sessionData.session?.user ?? null);
-          setUser(currentUser);
-          const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(mapSupabaseUser(session?.user ?? null));
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            // getUser() ensures we have the latest factors/metadata
+            const { data: { user } } = await supabase.auth.getUser();
+            setUser(mapSupabaseUser(user ?? session.user));
+          }
+
+          const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session?.user) {
+              // Optionally refetch user to get factors if missing
+              // const { data: { user } } = await supabase.auth.getUser();
+              setUser(mapSupabaseUser(session.user));
+            } else {
+              setUser(null);
+            }
             setLoading(false);
           });
           unsub = () => listener.subscription.unsubscribe();
@@ -124,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
         username,
         avatarDataUrl,
+        mfaEnabled: false,
       };
       users.push(newUser);
       saveUsers(users);
@@ -248,6 +270,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return updated;
       });
     },
+    mfa: {
+      async enroll(friendlyName) {
+        if (!supabase) throw new Error("MFA not supported in demo mode");
+        const { data, error } = await supabase.auth.mfa.enroll({
+          factorType: 'totp',
+          friendlyName
+        });
+        if (error) throw error;
+        return data;
+      },
+      async verify(factorId, code) {
+        if (!supabase) throw new Error("MFA not supported in demo mode");
+        const { data, error } = await supabase.auth.mfa.challenge({ factorId });
+        if (error) throw error;
+        const { error: verifyErr } = await supabase.auth.mfa.verify({
+          factorId,
+          challengeId: data.id,
+          code
+        });
+        if (verifyErr) throw verifyErr;
+        // Refresh user session to update factor verification status
+        await supabase.auth.refreshSession();
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        setUser(mapSupabaseUser(currentUser));
+      },
+      async challenge(factorId) {
+        if (!supabase) throw new Error("MFA not supported in demo mode");
+        const { data, error } = await supabase.auth.mfa.challenge({ factorId });
+        if (error) throw error;
+        return data;
+      },
+      async verifyChallenge(factorId, challengeId, code) {
+        if (!supabase) throw new Error("MFA not supported in demo mode");
+        const { error } = await supabase.auth.mfa.verify({
+          factorId,
+          challengeId,
+          code
+        });
+        if (error) throw error;
+      },
+      async listFactors() {
+        if (!supabase) return [];
+        const { data, error } = await supabase.auth.mfa.listFactors();
+        if (error) throw error;
+        return data.all;
+      },
+      async unenroll(factorId) {
+        if (!supabase) throw new Error("MFA not supported in demo mode");
+        const { error } = await supabase.auth.mfa.unenroll({ factorId });
+        if (error) throw error;
+      }
+    }
   }), [user, loading]);
 
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>;

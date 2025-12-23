@@ -52,6 +52,27 @@ export default function AdminDashboard() {
                 return;
             }
 
+            // Check MFA Status
+            if (!user.mfaEnabled) {
+                toast({
+                    title: "Security Update",
+                    description: "Admin accounts allow 2FA enforcement. Please set it up.",
+                });
+                navigate('/admin/mfa');
+                return;
+            }
+
+            // Verify Session Level (AAL2 required)
+            const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            if (aal && aal.currentLevel === 'aal1') {
+                toast({
+                    title: "Verification Required",
+                    description: "Please confirm your identity with 2FA to access the admin panel.",
+                });
+                navigate('/login'); // Login page will trigger 2FA challenge if mfaEnabled is true
+                return;
+            }
+
             setIsAdmin(true);
             setLoading(false);
             loadStats();

@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Shield, ShieldOff, Users as UsersIcon, Globe, MapPin, Wifi, AlertTriangle, Ban, CheckCircle } from "lucide-react";
+import { Shield, ShieldOff, Users as UsersIcon, Globe, MapPin, Wifi, AlertTriangle, Ban, CheckCircle, Eye } from "lucide-react";
+import UserDetailModal from "./UserDetailModal";
 
 interface UserProfile {
     id: string;
     username: string;
+    email?: string; // Added email
     role: string;
     created_at: string;
     country?: string | null;
@@ -31,11 +33,9 @@ export default function UserManagement() {
     const loadUsers = async () => {
         setLoading(true);
         try {
-            // Get profiles
+            // Get users with emails using secure RPC
             const { data: profiles, error: profileError } = await supabase
-                .from("profiles")
-                .select("id, username, role, created_at, country, city, ip_hash, isp, vpn_detected, tor_detected, last_ip_update")
-                .order("created_at", { ascending: true });
+                .rpc('get_users_with_email');
 
             if (profileError) throw profileError;
 
@@ -53,7 +53,7 @@ export default function UserManagement() {
             const blockedSet = new Set((blockedIps || []).map(b => b.ip_address));
 
             // Merge data
-            const mergedUsers = (profiles || []).map(user => {
+            const mergedUsers = (profiles || []).map((user: any) => {
                 const logs = securityLogs?.find(log => log.user_id === user.id);
                 return {
                     ...user,
@@ -143,7 +143,13 @@ export default function UserManagement() {
         }
     };
 
+    const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+
     const adminCount = users.filter(u => u.role === 'admin').length;
+
+    // ... (keep useEffect and loading logic)
+
+    // ... (keep handleBlockIP, etc.)
 
     if (loading) {
         return (
@@ -182,6 +188,7 @@ export default function UserManagement() {
                     <thead className="ascii-dim border-b border-ascii-border">
                         <tr>
                             <th className="p-2">Username</th>
+                            <th className="p-2">Email</th>
                             <th className="p-2">Role</th>
                             <th className="p-2">Location</th>
                             <th className="p-2">Secure IP (Admin)</th>
@@ -193,7 +200,15 @@ export default function UserManagement() {
                     <tbody>
                         {users.map((user) => (
                             <tr key={user.id} className="border-b border-ascii-border/50 hover:bg-white/5">
-                                <td className="p-2 font-mono">{user.username || 'N/A'}</td>
+                                <td className="p-2 font-mono">
+                                    <button
+                                        onClick={() => setSelectedUser(user)}
+                                        className="text-left hover:text-green-400 hover:underline"
+                                    >
+                                        {user.username || 'N/A'}
+                                    </button>
+                                </td>
+                                <td className="p-2 text-xs text-gray-400 select-all">{user.email || 'N/A'}</td>
                                 <td className="p-2">
                                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${user.role === 'admin'
                                         ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30'
@@ -223,9 +238,12 @@ export default function UserManagement() {
                                     {user.securityData ? (
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-1">
-                                                <span className={`font-mono font-bold text-xs select-all ${user.securityData.is_blocked ? 'text-red-500 line-through' : 'text-red-300'}`}>
+                                                <button
+                                                    onClick={() => setSelectedUser(user)}
+                                                    className={`hover:underline font-mono font-bold text-xs select-all ${user.securityData.is_blocked ? 'text-red-500 line-through' : 'text-red-300'}`}
+                                                >
                                                     {user.securityData.real_ip}
-                                                </span>
+                                                </button>
                                                 {user.securityData.is_blocked && (
                                                     <span className="text-[10px] text-red-500 font-bold">BLOCKED</span>
                                                 )}
@@ -263,7 +281,17 @@ export default function UserManagement() {
                                     </div>
                                 </td>
                                 <td className="p-2">{new Date(user.created_at).toLocaleDateString()}</td>
-                                <td className="p-2">
+                                <td className="p-2 flex items-center gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setSelectedUser(user)}
+                                        className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                                        title="View Details"
+                                    >
+                                        <Eye className="w-4 h-4" />
+                                    </Button>
+
                                     {user.role === 'admin' ? (
                                         <Button
                                             variant="ghost"
@@ -273,8 +301,7 @@ export default function UserManagement() {
                                             disabled={adminCount === 1}
                                             title={adminCount === 1 ? "Cannot demote the last admin" : "Demote to user"}
                                         >
-                                            <ShieldOff className="w-4 h-4 mr-1" />
-                                            Demote
+                                            <ShieldOff className="w-4 h-4" />
                                         </Button>
                                     ) : (
                                         <Button
@@ -282,33 +309,10 @@ export default function UserManagement() {
                                             size="sm"
                                             onClick={() => handleRoleChange(user.id, 'admin')}
                                             className="text-green-400 hover:text-green-300 hover:bg-green-900/20"
+                                            title="Promote to Admin"
                                         >
-                                            <Shield className="w-4 h-4 mr-1" />
-                                            Promote
+                                            <Shield className="w-4 h-4" />
                                         </Button>
-                                    )}
-                                    {user.securityData && (
-                                        user.securityData.is_blocked ? (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleUnblockIP(user.securityData!.real_ip)}
-                                                className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                                                title="Unblock IP"
-                                            >
-                                                <CheckCircle className="w-4 h-4" />
-                                            </Button>
-                                        ) : (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleBlockIP(user.securityData!.real_ip, user.username)}
-                                                className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                                                title="Block IP"
-                                            >
-                                                <Ban className="w-4 h-4" />
-                                            </Button>
-                                        )
                                     )}
                                 </td>
                             </tr>
@@ -336,6 +340,15 @@ export default function UserManagement() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* User Detail Modal */}
+            {selectedUser && (
+                <UserDetailModal
+                    user={selectedUser}
+                    onClose={() => setSelectedUser(null)}
+                    onUpdate={loadUsers}
+                />
             )}
         </div>
     );

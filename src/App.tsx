@@ -9,9 +9,11 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import MatrixRain from "@/components/effects/MatrixRain";
+import { usePresence } from "./hooks/usePresence";
 import useKonamiCode from "@/hooks/useKonamiCode";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import AdminMFAEnrollment from "./pages/AdminMFAEnrollment";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
@@ -116,6 +118,7 @@ const AppContent = () => {
           <Route path="/bookmarks" element={<Bookmarks />} />
           <Route path="/drafts" element={<Drafts />} />
           <Route path="/create" element={<CreatePost />} />
+          <Route path="/admin/mfa" element={<AdminMFAEnrollment />} />
           <Route path="/crowd" element={<AdminDashboard />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
