@@ -71,8 +71,12 @@ export default function CreatePost() {
     }, [user, startTracking]);
 
     const addMusic = async (url: string) => {
-        // Validate URL first
-        if (!url.includes('spotify.com') && !url.includes('youtube.com') && !url.includes('youtu.be') && !url.includes('music.apple.com') && !url.includes('music.youtube.com')) {
+        // Validate URL first - support all YouTube formats
+        if (!url.includes('spotify.com') &&
+            !url.includes('youtube.com') &&
+            !url.includes('youtu.be') &&
+            !url.includes('music.youtube.com') &&
+            !url.includes('music.apple.com')) {
             toast({ title: "Invalid URL", description: "Use Spotify, Apple Music, or YouTube Music links", variant: "destructive" });
             return;
         }
@@ -83,6 +87,7 @@ export default function CreatePost() {
         const createFallbackMetadata = (musicUrl: string): MusicMetadata => {
             let platform: 'spotify' | 'youtube' | 'apple' = 'youtube';
             let title = 'Music';
+            let coverImage = '';
 
             if (musicUrl.includes('spotify.com')) {
                 platform = 'spotify';
@@ -91,16 +96,25 @@ export default function CreatePost() {
                 platform = 'apple';
                 title = 'Apple Music Track';
             } else {
+                // YouTube - extract video ID and get thumbnail
                 platform = 'youtube';
                 title = 'YouTube Music';
+
+                // Import YouTube utilities dynamically
+                import('@/utils/youtube').then(({ extractYouTubeVideoId, getYouTubeThumbnailUrl }) => {
+                    const videoId = extractYouTubeVideoId(musicUrl);
+                    if (videoId) {
+                        coverImage = getYouTubeThumbnailUrl(videoId, 'hq');
+                    }
+                });
             }
 
             return {
                 url: musicUrl,
                 platform,
                 title,
-                artist: 'Tap to open',
-                cover_image: '', // No cover on localhost fallback
+                artist: 'Tap to play',
+                cover_image: coverImage,
             };
         };
 

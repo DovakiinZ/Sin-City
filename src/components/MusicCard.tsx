@@ -1,4 +1,4 @@
-import { Music, ExternalLink } from "lucide-react";
+import { Music } from "lucide-react";
 
 export interface MusicMetadata {
     url: string;
@@ -19,9 +19,10 @@ interface MusicCardProps {
 /**
  * Fallback card for music that always renders regardless of embed status.
  * Shows cover image, title, artist, and platform badge.
+ * Display-only component - no external links to prevent redirects.
  */
 export default function MusicCard({ metadata, compact = false }: MusicCardProps) {
-    const { title, artist, cover_image, platform, url } = metadata;
+    const { title, artist, cover_image, platform } = metadata;
 
     const platformConfig = {
         spotify: {
@@ -48,11 +49,8 @@ export default function MusicCard({ metadata, compact = false }: MusicCardProps)
 
     if (compact) {
         return (
-            <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex items-center gap-2 p-2 bg-black/80 border ${config.borderColor} rounded-lg hover:bg-black/60 transition-colors group`}
+            <div
+                className={`flex items-center gap-2 p-2 bg-black/80 border ${config.borderColor} rounded-lg`}
             >
                 {/* Mini Cover */}
                 <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-gray-900">
@@ -72,10 +70,7 @@ export default function MusicCard({ metadata, compact = false }: MusicCardProps)
                         {config.label}
                     </div>
                 </div>
-
-                {/* External Link Icon */}
-                <ExternalLink className="w-3 h-3 text-gray-500 group-hover:text-green-400 transition-colors" />
-            </a>
+            </div>
         );
     }
 
@@ -100,17 +95,6 @@ export default function MusicCard({ metadata, compact = false }: MusicCardProps)
                     {config.label}
                 </div>
             </div>
-
-            {/* External Link */}
-            <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-500 hover:text-green-400 p-2 transition-colors"
-                title={`Open in ${config.label}`}
-            >
-                <ExternalLink className="w-4 h-4" />
-            </a>
         </div>
     );
 }

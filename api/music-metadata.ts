@@ -54,40 +54,128 @@ async function fetchSpotifyMetadata(url: string): Promise<MusicMetadata | null> 
 }
 
 /**
- * Fetch YouTube metadata using oEmbed
+ * Extract YouTube video ID from various URL formats
+ */
+function extractYouTubeVideoId(url: string): string | null {
+    try {
+        // Pattern 1: youtu.be/VIDEO_ID
+        const youtuBePattern = /youtu\.be\/([a-zA-Z0-9_-]{11})/;
+        const youtuBeMatch = url.match(youtuBePattern);
+        if (youtuBeMatch) return youtuBeMatch[1];
+
+        // Pattern 2: youtube.com/watch?v=VIDEO_ID or music.youtube.com/watch?v=VIDEO_ID
+        const urlObj = new URL(url);
+        const videoId = urlObj.searchParams.get('v');
+        if (videoId && /^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+            return videoId;
+        }
+
+        // Pattern 3: youtube.com/embed/VIDEO_ID
+        const embedPattern = /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/;
+        const embedMatch = url.match(embedPattern);
+        if (embedMatch) return embedMatch[1];
+
+        return null;
+    } catch (error) {
+        return null;
+    }
+}
+
+/**
+ * Get YouTube thumbnail URL with quality fallback
+ */
+function getYouTubeThumbnailUrl(videoId: string, quality: 'maxres' | 'hq' | 'mq' = 'hq'): string {
+    const qualityMap = {
+        maxres: 'maxresdefault',
+        hq: 'hqdefault',
+        mq: 'mqdefault',
+    };
+    return `https://img.youtube.com/vi/${videoId}/${qualityMap[quality]}.jpg`;
+}
+
+/**
+ * Fetch the best available YouTube thumbnail
+ * Tries maxres first, falls back to hq if not available
+ */
+async function fetchBestYouTubeThumbnail(videoId: string): Promise<string> {
+    const thumbnails = [
+        getYouTubeThumbnailUrl(videoId, 'maxres'),
+        getYouTubeThumbnailUrl(videoId, 'hq'),
+        getYouTubeThumbnailUrl(videoId, 'mq'),
+    ];
+
+    for (const thumbnailUrl of thumbnails) {
+        try {
+            const response = await fetch(thumbnailUrl, { method: 'HEAD' });
+            if (response.ok) {
+                return thumbnailUrl;
+            }
+        } catch {
+            // Continue to next fallback
+        }
+    }
+
+    // Return hq as final fallback (always exists)
+    return getYouTubeThumbnailUrl(videoId, 'hq');
+}
+
+/**
+ * Fetch YouTube metadata using oEmbed with enhanced video ID extraction and thumbnails
  */
 async function fetchYouTubeMetadata(url: string): Promise<MusicMetadata | null> {
     try {
+        // Extract video ID first (supports all URL formats)
+        const videoId = extractYouTubeVideoId(url);
+        if (!videoId) {
+            console.error('Could not extract YouTube video ID from URL:', url);
+            return null;
+        }
+
+        // Fetch metadata from oEmbed
         const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
         const response = await fetch(oembedUrl);
-        if (!response.ok) return null;
 
-        const data = await response.json();
+        let title = 'YouTube Video';
+        let artist = 'YouTube';
+        let oembedThumbnail = '';
 
-        // Extract video ID
-        let videoId = '';
-        if (url.includes('youtu.be')) {
-            videoId = url.split('/').pop()?.split('?')[0] || '';
-        } else {
-            try {
-                const urlObj = new URL(url);
-                videoId = urlObj.searchParams.get('v') || '';
-            } catch {
-                // URL parsing failed
-            }
+        if (response.ok) {
+            const data = await response.json();
+            title = data.title || 'YouTube Video';
+            artist = data.author_name || 'YouTube';
+            oembedThumbnail = data.thumbnail_url || '';
         }
+
+        // Fetch best quality thumbnail (independent of oEmbed)
+        const coverImage = await fetchBestYouTubeThumbnail(videoId);
 
         return {
             url,
             platform: 'youtube',
-            title: data.title || 'Unknown Video',
-            artist: data.author_name || 'YouTube',
-            cover_image: data.thumbnail_url || '',
-            embed_url: videoId ? `https://www.youtube.com/embed/${videoId}` : '',
+            title,
+            artist,
+            cover_image: coverImage || oembedThumbnail,
+            // Use privacy-enhanced embed domain
+            embed_url: `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`,
             cached_at: new Date().toISOString(),
         };
     } catch (error) {
         console.error('YouTube metadata fetch error:', error);
+
+        // Fallback: Try to extract video ID and return basic metadata
+        const videoId = extractYouTubeVideoId(url);
+        if (videoId) {
+            return {
+                url,
+                platform: 'youtube',
+                title: 'YouTube Video',
+                artist: 'YouTube',
+                cover_image: getYouTubeThumbnailUrl(videoId, 'hq'),
+                embed_url: `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`,
+                cached_at: new Date().toISOString(),
+            };
+        }
+
         return null;
     }
 }
