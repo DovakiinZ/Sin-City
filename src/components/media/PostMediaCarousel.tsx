@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Play, Maximize2, Music } from "lucide-react";
 import AsciiLightbox from "../ui/AsciiLightbox";
 import MusicEmbed from "../MusicEmbed";
+import { MusicMetadata } from "../MusicCard";
 
 interface MediaItem {
     url: string;
@@ -11,15 +12,16 @@ interface MediaItem {
 interface MediaCarouselProps {
     media: MediaItem[];
     compact?: boolean; // For feed/home - shows smaller thumbnails
+    musicMetadata?: MusicMetadata | null; // Cached music metadata for fallback
 }
 
-export default function PostMediaCarousel({ media: rawMedia, compact = false }: MediaCarouselProps) {
+export default function PostMediaCarousel({ media: rawMedia, compact = false, musicMetadata }: MediaCarouselProps) {
     // Helper to robustly determine media type from URL if provided type is suspicious
     const getMediaType = (item: MediaItem): 'image' | 'video' | 'music' => {
         const url = item.url.toLowerCase();
         // If it's already music or video, trust it (unless we want to be super strict)
         // But if it's 'image' (or anything else) and has a music URL, override it.
-        if (url.includes('spotify.com') || url.includes('soundcloud.com') || url.includes('youtu.be') || url.includes('youtube.com')) {
+        if (url.includes('spotify.com') || url.includes('soundcloud.com') || url.includes('youtu.be') || url.includes('youtube.com') || url.includes('music.apple.com')) {
             return 'music'; // MusicEmbed handles YouTube too
         }
 
@@ -98,7 +100,7 @@ export default function PostMediaCarousel({ media: rawMedia, compact = false }: 
                             ) : (
                                 // Music (Full width in single view)
                                 <div className="w-full p-2 bg-black border border-green-900 rounded" onClick={(e) => e.stopPropagation()}>
-                                    <MusicEmbed url={media[0].url} />
+                                    <MusicEmbed url={media[0].url} metadata={musicMetadata} />
                                 </div>
                             )}
                         </div>
@@ -120,7 +122,7 @@ export default function PostMediaCarousel({ media: rawMedia, compact = false }: 
                                         <div className="flex items-center justify-center w-full h-full bg-black border border-green-900 overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
                                             <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
                                                 {/* Render compact player if possible, or icon */}
-                                                <MusicEmbed url={item.url} compact />
+                                                <MusicEmbed url={item.url} compact metadata={musicMetadata} />
                                             </div>
                                         </div>
                                     )}
@@ -143,7 +145,7 @@ export default function PostMediaCarousel({ media: rawMedia, compact = false }: 
                                 ) : (
                                     <div className="flex items-center justify-center w-full h-full bg-black border border-green-900 overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
                                         <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
-                                            <MusicEmbed url={media[0].url} compact />
+                                            <MusicEmbed url={media[0].url} compact metadata={musicMetadata} />
                                         </div>
                                     </div>
                                 )}
@@ -249,7 +251,7 @@ export default function PostMediaCarousel({ media: rawMedia, compact = false }: 
                         />
                     ) : (
                         <div className="w-full max-w-2xl px-4" onClick={(e) => e.stopPropagation()}>
-                            <MusicEmbed url={currentMedia.url} />
+                            <MusicEmbed url={currentMedia.url} metadata={musicMetadata} />
                         </div>
                     )}
                 </div>

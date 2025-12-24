@@ -11,6 +11,7 @@ import { decodeHtml, stripHtml } from "@/lib/markdown";
 import MediaCarousel from "@/components/media/PostMediaCarousel";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import CommentList from "@/components/comments/CommentList";
+import { MusicMetadata } from "@/components/MusicCard";
 
 interface PostCardProps {
     post: {
@@ -30,6 +31,7 @@ interface PostCardProps {
         gif_url?: string;
         userId?: string;
         viewCount?: number;
+        music_metadata?: MusicMetadata | null;  // Cached music metadata for fallback
     };
     fullContent?: boolean; // Show full content instead of preview
     showComments?: boolean; // Show comments section
@@ -286,7 +288,7 @@ export default function PostCard({
             {/* Media Carousel */}
             {displayMedia && displayMedia.length > 0 && (
                 <div className="my-4" onClick={(e) => e.stopPropagation()}>
-                    <MediaCarousel media={displayMedia} compact={!fullContent} />
+                    <MediaCarousel media={displayMedia} compact={!fullContent} musicMetadata={post.music_metadata} />
                 </div>
             )}
 

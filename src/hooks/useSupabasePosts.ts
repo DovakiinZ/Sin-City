@@ -11,6 +11,7 @@ export interface Post {
     slug?: string;
     attachments?: unknown;
     gif_url?: string;
+    music_metadata?: unknown; // Cached music metadata for fallback
     draft?: boolean;
     hidden?: boolean;
     is_pinned?: boolean;

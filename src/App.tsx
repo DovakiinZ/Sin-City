@@ -69,6 +69,9 @@ const AppContent = () => {
     }
   }, [loading, user, fingerprint, createOrUpdateGuest]);
 
+  // Track user presence (heartbeat every 30s)
+  usePresence();
+
   // Handle password recovery redirect
   useEffect(() => {
     const hash = window.location.hash;
@@ -115,6 +118,7 @@ const AppContent = () => {
           <Route path="/thread/:threadId" element={<ThreadView />} />
           <Route path="/search" element={<SearchResults />} />
           <Route path="/user/:username" element={<UserProfile />} />
+          <Route path="/u/:username" element={<UserProfile />} />
           <Route path="/bookmarks" element={<Bookmarks />} />
           <Route path="/drafts" element={<Drafts />} />
           <Route path="/create" element={<CreatePost />} />

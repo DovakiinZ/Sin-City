@@ -18,10 +18,14 @@ export interface OtherUser {
     avatar_url: string | null;
 }
 
+const PAGE_SIZE = 50;
+
 export function useMessages(conversationId: string | null) {
     const { user } = useAuth();
     const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
     const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
     const [showReadReceipts, setShowReadReceipts] = useState(true);
     const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -34,15 +38,20 @@ export function useMessages(conversationId: string | null) {
         }
 
         try {
-            // Get messages
+            // Get messages with pagination (newest first, then reverse for display)
             const { data, error } = await supabase
                 .from("messages")
                 .select("*")
                 .eq("conversation_id", conversationId)
-                .order("created_at", { ascending: true });
+                .order("created_at", { ascending: false })
+                .limit(PAGE_SIZE);
 
             if (error) throw error;
-            setMessages(data || []);
+
+            // Reverse for display (newest at bottom)
+            const reversedData = (data || []).reverse();
+            setMessages(reversedData);
+            setHasMore((data || []).length === PAGE_SIZE);
 
             // Get conversation to find other user
             const { data: convo } = await supabase
@@ -116,6 +125,37 @@ export function useMessages(conversationId: string | null) {
             console.error("Error marking messages as read:", error);
         }
     };
+
+    const loadMoreMessages = useCallback(async () => {
+        if (!conversationId || !user || messages.length === 0 || loadingMore || !hasMore) return;
+
+        setLoadingMore(true);
+        try {
+            const oldestMessage = messages[0];
+
+            const { data, error } = await supabase
+                .from("messages")
+                .select("*")
+                .eq("conversation_id", conversationId)
+                .lt("created_at", oldestMessage.created_at)
+                .order("created_at", { ascending: false })
+                .limit(PAGE_SIZE);
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                // Reverse and prepend older messages
+                setMessages(prev => [...data.reverse(), ...prev]);
+                setHasMore(data.length === PAGE_SIZE);
+            } else {
+                setHasMore(false);
+            }
+        } catch (error) {
+            console.error("Error loading more messages:", error);
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [conversationId, user, messages, loadingMore, hasMore]);
 
     const uploadAttachment = async (file: File): Promise<{ url: string; type: 'image' | 'video' | 'file'; name: string } | null> => {
         if (!user) return null;
@@ -207,11 +247,14 @@ export function useMessages(conversationId: string | null) {
     return {
         messages,
         loading,
+        loadingMore,
+        hasMore,
         otherUser,
         showReadReceipts,
         sendMessage,
         markAsRead,
         uploadAttachment,
+        loadMoreMessages,
         refresh: loadMessages,
     };
 }

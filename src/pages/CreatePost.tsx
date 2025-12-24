@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { X, Plus, Image, Film, Loader2, Link2, Music, Smile, ChevronDown, ChevronUp, ArrowLeft, Save } from "lucide-react";
 import GifPicker from "@/components/GifPicker";
 import MusicEmbed from "@/components/MusicEmbed";
+import { MusicMetadata } from "@/components/MusicCard";
 import { useGuestFingerprint } from "@/hooks/useGuestFingerprint";
 import { useBehaviorTracking } from "@/hooks/useBehaviorTracking";
 import EmailGateModal from "@/components/EmailGateModal";
@@ -36,6 +37,8 @@ export default function CreatePost() {
     const [showGifPicker, setShowGifPicker] = useState(false);
     const [selectedGif, setSelectedGif] = useState<string | null>(null);
     const [mediaExpanded, setMediaExpanded] = useState(false);
+    const [musicMetadata, setMusicMetadata] = useState<MusicMetadata | null>(null);
+    const [fetchingMusicMetadata, setFetchingMusicMetadata] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Guest fingerprint
@@ -67,9 +70,71 @@ export default function CreatePost() {
         if (!user) startTracking();
     }, [user, startTracking]);
 
-    const addMusic = (url: string) => {
-        setMediaFiles(prev => [...prev, { url, type: 'music' }]);
-        setShowMusicInput(false);
+    const addMusic = async (url: string) => {
+        // Validate URL first
+        if (!url.includes('spotify.com') && !url.includes('youtube.com') && !url.includes('youtu.be') && !url.includes('music.apple.com') && !url.includes('music.youtube.com')) {
+            toast({ title: "Invalid URL", description: "Use Spotify, Apple Music, or YouTube Music links", variant: "destructive" });
+            return;
+        }
+
+        setFetchingMusicMetadata(true);
+
+        // Helper to create basic metadata from URL when API is unavailable
+        const createFallbackMetadata = (musicUrl: string): MusicMetadata => {
+            let platform: 'spotify' | 'youtube' | 'apple' = 'youtube';
+            let title = 'Music';
+
+            if (musicUrl.includes('spotify.com')) {
+                platform = 'spotify';
+                title = 'Spotify Track';
+            } else if (musicUrl.includes('music.apple.com')) {
+                platform = 'apple';
+                title = 'Apple Music Track';
+            } else {
+                platform = 'youtube';
+                title = 'YouTube Music';
+            }
+
+            return {
+                url: musicUrl,
+                platform,
+                title,
+                artist: 'Tap to open',
+                cover_image: '', // No cover on localhost fallback
+            };
+        };
+
+        try {
+            // Fetch metadata from API
+            const response = await fetch('/api/music-metadata', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url }),
+            });
+
+            if (response.ok) {
+                const metadata: MusicMetadata = await response.json();
+                setMusicMetadata(metadata);
+                setMediaFiles(prev => [...prev, { url, type: 'music' }]);
+                toast({ title: "Music added", description: `${metadata.title} - ${metadata.artist}` });
+            } else {
+                // Create fallback metadata when API fails
+                const fallbackMeta = createFallbackMetadata(url);
+                setMusicMetadata(fallbackMeta);
+                setMediaFiles(prev => [...prev, { url, type: 'music' }]);
+                toast({ title: "Music added", description: "Link ready to share" });
+            }
+        } catch (error) {
+            // Create fallback metadata on network error (API only works on Vercel)
+            const fallbackMeta = createFallbackMetadata(url);
+            setMusicMetadata(fallbackMeta);
+            setMediaFiles(prev => [...prev, { url, type: 'music' }]);
+            toast({ title: "Music added", description: "Link ready to share" });
+            console.error('Music metadata fetch error:', error);
+        } finally {
+            setFetchingMusicMetadata(false);
+            setShowMusicInput(false);
+        }
     };
 
     const handleEmailVerified = async (email: string) => {
@@ -87,44 +152,37 @@ export default function CreatePost() {
             return;
         }
 
-        setUploadingMedia(true);
-        try {
-            for (const file of Array.from(files)) {
-                const isImage = file.type.startsWith('image/');
-                const isVideo = file.type.startsWith('video/');
+        // Store files locally with blob URLs for preview - upload happens during save
+        for (const file of Array.from(files)) {
+            const isImage = file.type.startsWith('image/');
+            const isVideo = file.type.startsWith('video/');
 
-                if (!isImage && !isVideo) {
-                    toast({ title: "Invalid type", description: "Images/videos only", variant: "destructive" });
-                    continue;
-                }
-
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-                const filePath = `post-media/${user?.id || 'anonymous'}/${fileName}`;
-
-                const { error: uploadError } = await supabase.storage.from('media').upload(filePath, file);
-
-                if (uploadError) {
-                    toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" });
-                    continue;
-                }
-
-                const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
-                setMediaFiles(prev => [...prev, { url: publicUrl, type: isImage ? 'image' : 'video', file }]);
+            if (!isImage && !isVideo) {
+                toast({ title: "Invalid type", description: "Images/videos only", variant: "destructive" });
+                continue;
             }
-        } catch (error) {
-            toast({ title: "Error", description: "Upload failed", variant: "destructive" });
-        } finally {
-            setUploadingMedia(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
+
+            // Create blob URL for local preview
+            const previewUrl = URL.createObjectURL(file);
+            setMediaFiles(prev => [...prev, {
+                url: previewUrl,
+                type: isImage ? 'image' : 'video',
+                file // Keep reference for later upload
+            }]);
         }
+
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
+
 
     const removeMedia = (index: number) => {
         setMediaFiles(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleSave = async (draft: boolean = true) => {
+        // Prevent double submission
+        if (saving) return;
+
         if (!content.trim() && mediaFiles.length === 0 && !selectedGif) {
             toast({ title: "Empty post", description: "Add some content", variant: "destructive" });
             return;
@@ -162,6 +220,7 @@ export default function CreatePost() {
                 }
             }
 
+            // Step 1: Create post first (without attachments for now)
             const postData = {
                 title: postTitle,
                 content,
@@ -173,13 +232,64 @@ export default function CreatePost() {
                 author_email: user?.email || null,
                 author_avatar: user?.avatarDataUrl || null,
                 draft,
-                attachments: mediaFiles.length > 0 ? mediaFiles.map(m => ({ url: m.url, type: m.type })) : null,
+                attachments: null, // Will update after upload
                 gif_url: selectedGif || null,
+                music_metadata: musicMetadata || null, // Cached music metadata for fallback
             };
 
             const { data: post, error } = await supabase.from("posts").insert(postData).select().single();
 
-            if (error) throw error;
+            if (error) {
+                console.error("Post creation error:", error);
+                throw new Error(error.message || "Failed to create post");
+            }
+
+            // Step 2: Upload media files (now we have post.id)
+            const uploadedMedia: { url: string; type: 'image' | 'video' | 'music' }[] = [];
+
+            for (const media of mediaFiles) {
+                if (media.file) {
+                    const fileExt = media.file.name.split('.').pop();
+                    const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+                    const filePath = `post-media/${user?.id || 'anonymous'}/${post.id}/${fileName}`;
+
+                    const { error: uploadError } = await supabase.storage
+                        .from('media')
+                        .upload(filePath, media.file);
+
+                    if (uploadError) {
+                        console.error("Media upload error:", uploadError);
+                        // Continue with other uploads even if one fails
+                        continue;
+                    }
+
+                    const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
+                    uploadedMedia.push({ url: publicUrl, type: media.type });
+                } else if (media.url && !media.url.startsWith('blob:')) {
+                    // Already uploaded (music links, etc.)
+                    uploadedMedia.push({ url: media.url, type: media.type });
+                }
+            }
+
+            // Step 3: Update post with uploaded attachments (if any)
+            if (uploadedMedia.length > 0) {
+                const { error: updateError } = await supabase
+                    .from("posts")
+                    .update({ attachments: uploadedMedia })
+                    .eq('id', post.id);
+
+                if (updateError) {
+                    console.error("Failed to update post with attachments:", updateError);
+                    // Post is created, just without attachments - don't fail completely
+                }
+            }
+
+            // Revoke blob URLs to free memory
+            mediaFiles.forEach(m => {
+                if (m.url.startsWith('blob:')) {
+                    URL.revokeObjectURL(m.url);
+                }
+            });
 
             toast({
                 title: draft ? "Draft saved" : "Published!",
@@ -187,12 +297,18 @@ export default function CreatePost() {
             });
 
             if (!draft && post) navigate(`/post/${post.slug}`);
-        } catch (error) {
-            toast({ title: "Error", description: "Failed to save", variant: "destructive" });
+        } catch (error: any) {
+            console.error("Save error:", error);
+            toast({
+                title: "Error",
+                description: error.message || "Failed to save post. Please try again.",
+                variant: "destructive"
+            });
         } finally {
             setSaving(false);
         }
     };
+
 
     const handleThreadPublish = async (items: { id: string; title: string; content: string; attachments: { url: string; type: 'image' | 'video' }[] }[]) => {
         try {
@@ -367,8 +483,9 @@ export default function CreatePost() {
                                             {showMusicInput && (
                                                 <div className="flex gap-2">
                                                     <input
+                                                        id="music-url-input"
                                                         type="url"
-                                                        placeholder="Paste Spotify or YouTube URL"
+                                                        placeholder="Paste Spotify, Apple Music, or YouTube URL"
                                                         className="flex-1 bg-gray-900/50 border border-green-900/30 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-green-500/50"
                                                         onKeyDown={(e) => {
                                                             if (e.key === 'Enter') {
@@ -378,6 +495,16 @@ export default function CreatePost() {
                                                         }}
                                                         autoFocus
                                                     />
+                                                    <button
+                                                        onClick={() => {
+                                                            const input = document.getElementById('music-url-input') as HTMLInputElement;
+                                                            if (input?.value) addMusic(input.value);
+                                                        }}
+                                                        disabled={fetchingMusicMetadata}
+                                                        className="px-3 py-2 bg-green-600 hover:bg-green-500 text-black text-sm font-medium rounded-lg disabled:opacity-50"
+                                                    >
+                                                        {fetchingMusicMetadata ? '...' : 'Add'}
+                                                    </button>
                                                     <button
                                                         onClick={() => setShowMusicInput(false)}
                                                         className="p-2 text-gray-500 hover:text-red-400"

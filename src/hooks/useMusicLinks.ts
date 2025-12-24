@@ -156,22 +156,28 @@ export function useMusicLinks() {
 // Utility function to validate music URLs
 export function validateMusicUrl(url: string): {
     valid: boolean;
-    platform?: "Spotify" | "YouTube Music";
+    platform?: "Spotify" | "YouTube Music" | "Apple Music";
     error?: string;
 } {
     // Spotify track URL pattern
-    const spotifyPattern = /^https:\/\/open\.spotify\.com\/track\/[a-zA-Z0-9]+/;
+    const spotifyPattern = /^https:\/\/open\.spotify\.com\/(track|album|playlist)\/[a-zA-Z0-9]+/;
     // YouTube Music URL pattern
     const youtubeMusicPattern = /^https:\/\/music\.youtube\.com\/watch\?v=[a-zA-Z0-9_-]+/;
+    // Regular YouTube pattern (also supported)
+    const youtubePattern = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]+/;
+    // Apple Music URL pattern
+    const appleMusicPattern = /^https:\/\/music\.apple\.com\/[a-z]{2}\/(album|song|playlist)\/[^/]+\/\d+/;
 
     if (spotifyPattern.test(url)) {
         return { valid: true, platform: "Spotify" };
-    } else if (youtubeMusicPattern.test(url)) {
+    } else if (youtubeMusicPattern.test(url) || youtubePattern.test(url)) {
         return { valid: true, platform: "YouTube Music" };
+    } else if (appleMusicPattern.test(url)) {
+        return { valid: true, platform: "Apple Music" };
     } else {
         return {
             valid: false,
-            error: "Invalid URL. Must be a Spotify track or YouTube Music song URL.",
+            error: "Invalid URL. Must be a Spotify, Apple Music, or YouTube Music URL.",
         };
     }
 }

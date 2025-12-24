@@ -26,6 +26,7 @@ type Post = {
   isHtml?: boolean;
   attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
   gif_url?: string;
+  music_metadata?: any; // Cached music metadata for fallback
 };
 
 interface FrontMatterData {
@@ -100,6 +101,7 @@ const AsciiFeed = () => {
                 type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
               })).filter((a: any) => a.url) || undefined,
               gif_url: p.gif_url || undefined,
+              music_metadata: p.music_metadata || undefined,
             };
           });
         setDbPosts(mapped);

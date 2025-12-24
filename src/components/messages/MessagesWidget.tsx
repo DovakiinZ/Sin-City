@@ -235,24 +235,32 @@ function ChatView({ conversationId, onBack, isMobile }: ChatViewProps) {
     };
 
     return (
-        <div className={`flex flex-col bg-black ${isMobile ? 'h-screen' : 'h-full'}`}>
+        <div className={`flex flex-col bg-black ${isMobile ? 'fixed inset-0 z-50' : 'h-full'}`}>
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-green-500/30">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-green-500/30 flex-shrink-0">
                 <button onClick={onBack} className="text-green-400 hover:text-green-300 p-1">
                     <ArrowLeft className="w-5 h-5" />
                 </button>
-                <div className="w-8 h-8 rounded-full bg-black border border-green-500/40 flex items-center justify-center">
+                <Link
+                    to={`/u/${otherUser?.username || ''}`}
+                    className="w-8 h-8 rounded-full bg-black border border-green-500/40 flex items-center justify-center hover:border-green-400 transition-colors"
+                >
                     {otherUser?.avatar_url ? (
                         <img src={otherUser.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
                     ) : (
                         <span className="text-green-400 font-mono text-sm">{otherUser?.username?.[0]?.toUpperCase() || '?'}</span>
                     )}
-                </div>
-                <span className="font-mono text-green-400">@{otherUser?.username || 'unknown'}</span>
+                </Link>
+                <Link
+                    to={`/u/${otherUser?.username || ''}`}
+                    className="font-mono text-green-400 hover:text-green-300 hover:underline transition-colors"
+                >
+                    @{otherUser?.username || 'unknown'}
+                </Link>
             </div>
 
             {/* Log Messages */}
-            <div className="flex-1 overflow-y-auto p-4 font-mono text-sm">
+            <div className="flex-1 overflow-y-auto p-4 font-mono text-sm overscroll-contain min-h-0">
                 {loading ? (
                     <div className="text-center text-gray-600 py-8">
                         <span className="animate-pulse">loading...</span>
@@ -358,8 +366,8 @@ function InboxView({ onSelectConversation, onClose, isMobile }: InboxViewProps) 
                 <button
                     onClick={() => setActiveTab('requests')}
                     className={`flex-1 py-2 px-4 font-mono text-sm transition-colors relative ${activeTab === 'requests'
-                            ? 'text-green-400 bg-green-500/10'
-                            : 'text-gray-500 hover:text-gray-400'
+                        ? 'text-green-400 bg-green-500/10'
+                        : 'text-gray-500 hover:text-gray-400'
                         }`}
                 >
                     Requests
@@ -372,8 +380,8 @@ function InboxView({ onSelectConversation, onClose, isMobile }: InboxViewProps) 
                 <button
                     onClick={() => setActiveTab('conversations')}
                     className={`flex-1 py-2 px-4 font-mono text-sm transition-colors ${activeTab === 'conversations'
-                            ? 'text-green-400 bg-green-500/10'
-                            : 'text-gray-500 hover:text-gray-400'
+                        ? 'text-green-400 bg-green-500/10'
+                        : 'text-gray-500 hover:text-gray-400'
                         }`}
                 >
                     Conversations
