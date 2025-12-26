@@ -77,8 +77,8 @@ export default function ChatLayout({
         // Navigate to profile if not anonymous
         if (!isAnonymousMode && activeSessionId) {
             const session = sessions.find(s => s.id === activeSessionId);
-            if (session) {
-                navigate(`/user/${session.otherUserId}`);
+            if (session && session.otherUserName && session.otherUserName !== 'Unknown') {
+                navigate(`/user/${session.otherUserName}`);
             }
         }
     };

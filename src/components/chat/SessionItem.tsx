@@ -69,7 +69,7 @@ export default function SessionItem({ session, isActive, onClick }: SessionItemP
             {/* Avatar with presence dot */}
             <div className="relative flex-shrink-0">
                 <Link
-                    to={`/user/${session.otherUserId}`}
+                    to={session.isAnonymous ? '#' : `/user/${session.otherUserName}`}
                     onClick={(e) => e.stopPropagation()}
                     className="block"
                 >
@@ -93,7 +93,7 @@ export default function SessionItem({ session, isActive, onClick }: SessionItemP
             <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                     <Link
-                        to={`/user/${session.otherUserId}`}
+                        to={session.isAnonymous ? '#' : `/user/${session.otherUserName}`}
                         onClick={(e) => e.stopPropagation()}
                         className="font-mono text-sm text-green-400 truncate hover:text-green-300"
                     >
