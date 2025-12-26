@@ -28,8 +28,10 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
   const [selectedGif, setSelectedGif] = useState<string | null>(null);
   const [mediaExpanded, setMediaExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const musicInputRef = useRef<HTMLInputElement>(null);
 
   const addMusic = (url: string) => {
+    if (!url.trim()) return;
     setMediaFiles(prev => [...prev, { url, type: 'music' }]);
     setShowMusicInput(false);
     setMediaExpanded(true);
@@ -84,19 +86,28 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!content.trim() && mediaFiles.length === 0 && !selectedGif) return;
+
+    // Check if there is pending music input
+    let currentMediaFiles = [...mediaFiles];
+    if (showMusicInput && musicInputRef.current?.value) {
+      currentMediaFiles.push({ url: musicInputRef.current.value, type: 'music' });
+      // We don't need to clear the input since we're closing/submitting
+    }
+
+    if (!content.trim() && currentMediaFiles.length === 0 && !selectedGif) return;
 
     onAdd({
       title: title.trim(),
       date: new Date().toISOString().slice(0, 10),
       content,
-      attachments: mediaFiles.length > 0 ? mediaFiles : undefined,
+      attachments: currentMediaFiles.length > 0 ? currentMediaFiles : undefined,
       gif_url: selectedGif || undefined,
     });
     setTitle("");
     setContent("");
     setMediaFiles([]);
     setSelectedGif(null);
+    setShowMusicInput(false);
     onClose?.();
   }
 
@@ -195,8 +206,9 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
 
               {/* Music Input */}
               {showMusicInput && (
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <input
+                    ref={musicInputRef}
                     type="url"
                     placeholder="Paste Spotify or YouTube URL"
                     className="flex-1 bg-gray-900/50 border border-green-900/30 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-green-500/50"
@@ -208,6 +220,18 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
                     }}
                     autoFocus
                   />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (musicInputRef.current?.value) {
+                        addMusic(musicInputRef.current.value);
+                      }
+                    }}
+                    className="p-2 bg-green-900/30 hover:bg-green-600/50 text-green-400 rounded transition-colors"
+                    title="Add Music Link"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => setShowMusicInput(false)}

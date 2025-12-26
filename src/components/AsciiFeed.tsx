@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import matter from "gray-matter";
 import { Link, useNavigate } from "react-router-dom";
-import AsciiNewPostForm, { NewPost } from "./AsciiNewPostForm";
+import AsciiNewPostForm, { NewPost } from "./MinimalPostForm";
 import UserPanel from "./UserPanel";
 import { useAuth } from "@/context/AuthContext";
 import { createPost } from "@/hooks/useSupabasePosts";

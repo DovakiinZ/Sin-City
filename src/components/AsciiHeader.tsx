@@ -4,6 +4,7 @@ import { useDeviceDetect } from "@/hooks/useDeviceDetect";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { MessageCircle } from "lucide-react";
 
 const AsciiHeader = () => {
   const { user } = useAuth();
@@ -42,18 +43,18 @@ const AsciiHeader = () => {
         {/* Unified 3-column layout: Logo Left | Cicada Center | Icons Right */}
         <div className="flex items-center justify-between">
 
-          {/* Left: SIN CITY Text Logo */}
-          <div className="flex-shrink-0">
+          {/* Left: SIN CITY Text Logo - Clickable */}
+          <button onClick={() => navigate("/")} className="flex-shrink-0 hover:opacity-80 transition-opacity">
             <h1 className={`
               font-mono font-bold tracking-widest text-green-400
               ${isMobileDevice ? 'text-lg' : 'text-2xl md:text-3xl lg:text-4xl'}
             `}>
               SIN CITY
             </h1>
-          </div>
+          </button>
 
-          {/* Center: Cicada Logo - Larger for strong brand identity */}
-          <div className="flex-shrink-0">
+          {/* Center: Cicada Logo - Clickable */}
+          <button onClick={() => navigate("/")} className="flex-shrink-0 hover:opacity-80 transition-opacity">
             <img
               src="/images/cicada.png?v=3"
               alt="Cicada"
@@ -63,7 +64,7 @@ const AsciiHeader = () => {
                 ${isMobileDevice ? 'w-20 h-20' : 'w-28 h-28 md:w-32 md:h-32 lg:w-36 lg:h-36'}
               `}
             />
-          </div>
+          </button>
 
           {/* Right: Notifications + Profile */}
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -72,6 +73,20 @@ const AsciiHeader = () => {
               <div className="p-1">
                 <NotificationBell />
               </div>
+            )}
+
+            {/* Messages Icon */}
+            {user && (
+              <button
+                onClick={() => navigate("/chat")}
+                className={`
+                  p-2 text-green-400 hover:text-green-300 hover:bg-green-900/30 
+                  rounded-lg transition-colors
+                `}
+                title="Messages"
+              >
+                <MessageCircle className={isMobileDevice ? 'w-5 h-5' : 'w-6 h-6'} />
+              </button>
             )}
 
             {/* Profile Icon */}

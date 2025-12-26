@@ -33,6 +33,7 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import AsciiTools from "./pages/AsciiTools";
 import ThreadView from "./pages/ThreadView";
+import ChatPage from "./pages/ChatPage";
 import QuickCreateButton from "./components/QuickCreateButton";
 import BootSequence from "./components/BootSequence";
 import ScanlineEffect from "./components/ScanlineEffect";
@@ -41,7 +42,6 @@ import PageTransition from "./components/PageTransition";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useUserIPCapture } from "./hooks/useUserIPCapture";
 import useGuestFingerprint from "./hooks/useGuestFingerprint";
-import MessagingPanel from "./components/messaging/MessagingPanel";
 
 const queryClient = new QueryClient();
 
@@ -133,6 +133,7 @@ const AppContent = () => {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/edit" element={<ProfileEdit />} />
+          <Route path="/chat" element={<ChatPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -143,8 +144,7 @@ const AppContent = () => {
         <QuickCreateButton />
       </div>
 
-      {/* Messaging Panel */}
-      <MessagingPanel />
+      {/* Chat is now accessed via /chat route */}
     </>
   );
 };

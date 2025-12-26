@@ -1,20 +1,267 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
-import RichTextEditor from "@/components/editor/RichTextEditor";
 import ThreadCreator from "@/components/thread/ThreadCreator";
 import { createThread } from "@/hooks/useSupabasePosts";
 import { useToast } from "@/hooks/use-toast";
-import { X, Plus, Image, Film, Loader2, Link2, Music, Smile, ChevronDown, ChevronUp, ArrowLeft, Save } from "lucide-react";
+import { useMarkdownPreview } from "@/hooks/useMarkdownPreview";
+import { X, Plus, Image, Film, Loader2, Link2, Music, Smile, ArrowLeft, Save, Send } from "lucide-react";
 import GifPicker from "@/components/GifPicker";
 import MusicEmbed from "@/components/MusicEmbed";
-import { MusicMetadata } from "@/components/MusicCard";
 import { useGuestFingerprint } from "@/hooks/useGuestFingerprint";
 import { useBehaviorTracking } from "@/hooks/useBehaviorTracking";
 import EmailGateModal from "@/components/EmailGateModal";
 
 type PostMode = "single" | "thread";
+
+// Minimal Single Post Editor Component
+interface MinimalEditorProps {
+    title: string;
+    setTitle: (v: string) => void;
+    content: string;
+    setContent: (v: string) => void;
+    mediaFiles: { url: string; type: 'image' | 'video' | 'music'; file?: File }[];
+    setMediaFiles: React.Dispatch<React.SetStateAction<{ url: string; type: 'image' | 'video' | 'music'; file?: File }[]>>;
+    selectedGif: string | null;
+    setSelectedGif: (v: string | null) => void;
+    showMusicInput: boolean;
+    setShowMusicInput: (v: boolean) => void;
+    showGifPicker: boolean;
+    setShowGifPicker: (v: boolean) => void;
+    uploadingMedia: boolean;
+    fileInputRef: React.RefObject<HTMLInputElement>;
+    handleMediaUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    removeMedia: (index: number) => void;
+    addMusic: (url: string) => void;
+    user: any;
+}
+
+function MinimalSinglePostEditor({
+    title, setTitle, content, setContent,
+    mediaFiles, setMediaFiles, selectedGif, setSelectedGif,
+    showMusicInput, setShowMusicInput, showGifPicker, setShowGifPicker,
+    uploadingMedia, fileInputRef, handleMediaUpload, removeMedia, addMusic, user
+}: MinimalEditorProps) {
+    const [showFab, setShowFab] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const musicInputRef = useRef<HTMLInputElement>(null);
+    const { detectUrls } = useMarkdownPreview();
+
+    // Auto-resize textarea
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = Math.max(200, textareaRef.current.scrollHeight) + 'px';
+        }
+    }, [content]);
+
+    // Detect music URLs in content
+    const detectedUrls = useMemo(() => detectUrls(content), [content, detectUrls]);
+    const musicPreviewUrl = detectedUrls.find(u => u.type === 'spotify' || u.type === 'youtube')?.url;
+
+    return (
+        <div className="space-y-4">
+            {/* Main Writing Area */}
+            <div className={`relative bg-black/40 border rounded-xl transition-all duration-300 ${isFocused
+                ? 'border-green-500/50 shadow-[0_0_30px_rgba(34,197,94,0.15)]'
+                : 'border-green-900/30'
+                }`}>
+
+                {/* Textarea */}
+                <textarea
+                    ref={textareaRef}
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    className="w-full min-h-[200px] max-h-[60vh] bg-transparent text-gray-100 placeholder-gray-600 p-5 pb-16 focus:outline-none resize-none text-base leading-relaxed"
+                    placeholder="What's on your mind?&#10;&#10;Use **bold**, _italic_, # heading, > quote..."
+                />
+
+                {/* Hidden file input */}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={handleMediaUpload}
+                    className="hidden"
+                />
+
+                {/* URL Preview (auto-detected music links) */}
+                {musicPreviewUrl && (
+                    <div className="px-5 pb-3">
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                            <Link2 className="w-3 h-3" />
+                            <span>Auto-detected music</span>
+                        </div>
+                        <MusicEmbed url={musicPreviewUrl} compact />
+                    </div>
+                )}
+
+                {/* Media Previews */}
+                {(mediaFiles.length > 0 || selectedGif) && (
+                    <div className="px-5 pb-3">
+                        <div className="flex flex-wrap gap-2">
+                            {mediaFiles.map((media, index) => (
+                                <div key={index} className="relative w-20 h-20 bg-gray-900 rounded-lg overflow-hidden group">
+                                    {media.type === 'image' ? (
+                                        <img src={media.url} alt="" className="w-full h-full object-cover" />
+                                    ) : media.type === 'video' ? (
+                                        <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                                            <Film className="w-6 h-6 text-green-500" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                                            <Music className="w-6 h-6 text-green-500" />
+                                        </div>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => removeMedia(index)}
+                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                                    >
+                                        <X className="w-5 h-5 text-red-400" />
+                                    </button>
+                                </div>
+                            ))}
+                            {selectedGif && (
+                                <div className="relative w-20 h-20 bg-gray-900 rounded-lg overflow-hidden group">
+                                    <img src={selectedGif} alt="GIF" className="w-full h-full object-cover" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedGif(null)}
+                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                                    >
+                                        <X className="w-5 h-5 text-red-400" />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Music URL Input (inline) */}
+                {showMusicInput && (
+                    <div className="px-5 pb-3 relative z-50">
+                        <div className="flex gap-2 items-center">
+                            <input
+                                ref={musicInputRef}
+                                type="url"
+                                placeholder="Paste Spotify or YouTube URL..."
+                                className="flex-1 bg-gray-900/50 border border-green-900/30 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-green-500/50"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        if (e.currentTarget.value) addMusic(e.currentTarget.value);
+                                    }
+                                    if (e.key === 'Escape') setShowMusicInput(false);
+                                }}
+                                autoFocus
+                            />
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (musicInputRef.current?.value) addMusic(musicInputRef.current.value);
+                                }}
+                                className="px-3 py-2 bg-green-600 hover:bg-green-500 text-black text-sm font-medium rounded-lg transition-colors"
+                            >
+                                Add
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowMusicInput(false)}
+                                className="p-2 text-gray-500 hover:text-red-400 transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Bottom Bar with FAB */}
+                <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-3 border-t border-green-900/20 bg-black/30 rounded-b-xl">
+                    {/* FAB */}
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setShowFab(!showFab)}
+                            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${showFab
+                                ? 'bg-green-500 text-black rotate-45'
+                                : 'bg-green-900/40 text-green-400 hover:bg-green-900/60'
+                                }`}
+                        >
+                            <Plus className="w-5 h-5" />
+                        </button>
+
+                        {/* FAB Menu */}
+                        {showFab && (
+                            <div className="absolute bottom-full left-0 mb-2 flex gap-1.5 p-1.5 bg-gray-900 border border-green-900/30 rounded-xl shadow-xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                {mediaFiles.length < 4 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { fileInputRef.current?.click(); setShowFab(false); }}
+                                        disabled={uploadingMedia}
+                                        className="p-2.5 text-gray-400 hover:text-green-400 hover:bg-green-900/30 rounded-lg transition-colors disabled:opacity-50"
+                                        title="Add Photo/Video"
+                                    >
+                                        {uploadingMedia ? <Loader2 className="w-5 h-5 animate-spin" /> : <Image className="w-5 h-5" />}
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowMusicInput(true); setShowFab(false); }}
+                                    className="p-2.5 text-gray-400 hover:text-green-400 hover:bg-green-900/30 rounded-lg transition-colors"
+                                    title="Add Music"
+                                >
+                                    <Music className="w-5 h-5" />
+                                </button>
+                                {!selectedGif && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowGifPicker(true); setShowFab(false); }}
+                                        className="p-2.5 text-gray-400 hover:text-green-400 hover:bg-green-900/30 rounded-lg transition-colors"
+                                        title="Add GIF"
+                                    >
+                                        <Smile className="w-5 h-5" />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Character count */}
+                    {content.length > 0 && content.length < 280 && !mediaFiles.length && !selectedGif && (
+                        <span className="text-xs text-gray-600">
+                            {280 - content.length} for quick thought
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            {/* Click outside to close FAB */}
+            {showFab && (
+                <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowFab(false)}
+                />
+            )}
+
+            {/* GIF Picker Modal */}
+            {showGifPicker && (
+                <GifPicker
+                    onSelect={(url) => {
+                        setSelectedGif(url);
+                        setShowGifPicker(false);
+                    }}
+                    onClose={() => setShowGifPicker(false)}
+                />
+            )}
+        </div>
+    );
+}
 
 export default function CreatePost() {
     const { user } = useAuth();
@@ -37,8 +284,6 @@ export default function CreatePost() {
     const [showGifPicker, setShowGifPicker] = useState(false);
     const [selectedGif, setSelectedGif] = useState<string | null>(null);
     const [mediaExpanded, setMediaExpanded] = useState(false);
-    const [musicMetadata, setMusicMetadata] = useState<MusicMetadata | null>(null);
-    const [fetchingMusicMetadata, setFetchingMusicMetadata] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Guest fingerprint
@@ -70,85 +315,9 @@ export default function CreatePost() {
         if (!user) startTracking();
     }, [user, startTracking]);
 
-    const addMusic = async (url: string) => {
-        // Validate URL first - support all YouTube formats
-        if (!url.includes('spotify.com') &&
-            !url.includes('youtube.com') &&
-            !url.includes('youtu.be') &&
-            !url.includes('music.youtube.com') &&
-            !url.includes('music.apple.com')) {
-            toast({ title: "Invalid URL", description: "Use Spotify, Apple Music, or YouTube Music links", variant: "destructive" });
-            return;
-        }
-
-        setFetchingMusicMetadata(true);
-
-        // Helper to create basic metadata from URL when API is unavailable
-        const createFallbackMetadata = (musicUrl: string): MusicMetadata => {
-            let platform: 'spotify' | 'youtube' | 'apple' = 'youtube';
-            let title = 'Music';
-            let coverImage = '';
-
-            if (musicUrl.includes('spotify.com')) {
-                platform = 'spotify';
-                title = 'Spotify Track';
-            } else if (musicUrl.includes('music.apple.com')) {
-                platform = 'apple';
-                title = 'Apple Music Track';
-            } else {
-                // YouTube - extract video ID and get thumbnail
-                platform = 'youtube';
-                title = 'YouTube Music';
-
-                // Import YouTube utilities dynamically
-                import('@/utils/youtube').then(({ extractYouTubeVideoId, getYouTubeThumbnailUrl }) => {
-                    const videoId = extractYouTubeVideoId(musicUrl);
-                    if (videoId) {
-                        coverImage = getYouTubeThumbnailUrl(videoId, 'hq');
-                    }
-                });
-            }
-
-            return {
-                url: musicUrl,
-                platform,
-                title,
-                artist: 'Tap to play',
-                cover_image: coverImage,
-            };
-        };
-
-        try {
-            // Fetch metadata from API
-            const response = await fetch('/api/music-metadata', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url }),
-            });
-
-            if (response.ok) {
-                const metadata: MusicMetadata = await response.json();
-                setMusicMetadata(metadata);
-                setMediaFiles(prev => [...prev, { url, type: 'music' }]);
-                toast({ title: "Music added", description: `${metadata.title} - ${metadata.artist}` });
-            } else {
-                // Create fallback metadata when API fails
-                const fallbackMeta = createFallbackMetadata(url);
-                setMusicMetadata(fallbackMeta);
-                setMediaFiles(prev => [...prev, { url, type: 'music' }]);
-                toast({ title: "Music added", description: "Link ready to share" });
-            }
-        } catch (error) {
-            // Create fallback metadata on network error (API only works on Vercel)
-            const fallbackMeta = createFallbackMetadata(url);
-            setMusicMetadata(fallbackMeta);
-            setMediaFiles(prev => [...prev, { url, type: 'music' }]);
-            toast({ title: "Music added", description: "Link ready to share" });
-            console.error('Music metadata fetch error:', error);
-        } finally {
-            setFetchingMusicMetadata(false);
-            setShowMusicInput(false);
-        }
+    const addMusic = (url: string) => {
+        setMediaFiles(prev => [...prev, { url, type: 'music' }]);
+        setShowMusicInput(false);
     };
 
     const handleEmailVerified = async (email: string) => {
@@ -166,37 +335,44 @@ export default function CreatePost() {
             return;
         }
 
-        // Store files locally with blob URLs for preview - upload happens during save
-        for (const file of Array.from(files)) {
-            const isImage = file.type.startsWith('image/');
-            const isVideo = file.type.startsWith('video/');
+        setUploadingMedia(true);
+        try {
+            for (const file of Array.from(files)) {
+                const isImage = file.type.startsWith('image/');
+                const isVideo = file.type.startsWith('video/');
 
-            if (!isImage && !isVideo) {
-                toast({ title: "Invalid type", description: "Images/videos only", variant: "destructive" });
-                continue;
+                if (!isImage && !isVideo) {
+                    toast({ title: "Invalid type", description: "Images/videos only", variant: "destructive" });
+                    continue;
+                }
+
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+                const filePath = `post-media/${user?.id || 'anonymous'}/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage.from('media').upload(filePath, file);
+
+                if (uploadError) {
+                    toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" });
+                    continue;
+                }
+
+                const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
+                setMediaFiles(prev => [...prev, { url: publicUrl, type: isImage ? 'image' : 'video', file }]);
             }
-
-            // Create blob URL for local preview
-            const previewUrl = URL.createObjectURL(file);
-            setMediaFiles(prev => [...prev, {
-                url: previewUrl,
-                type: isImage ? 'image' : 'video',
-                file // Keep reference for later upload
-            }]);
+        } catch (error) {
+            toast({ title: "Error", description: "Upload failed", variant: "destructive" });
+        } finally {
+            setUploadingMedia(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
-
-        if (fileInputRef.current) fileInputRef.current.value = '';
     };
-
 
     const removeMedia = (index: number) => {
         setMediaFiles(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleSave = async (draft: boolean = true) => {
-        // Prevent double submission
-        if (saving) return;
-
         if (!content.trim() && mediaFiles.length === 0 && !selectedGif) {
             toast({ title: "Empty post", description: "Add some content", variant: "destructive" });
             return;
@@ -234,7 +410,6 @@ export default function CreatePost() {
                 }
             }
 
-            // Step 1: Create post first (without attachments for now)
             const postData = {
                 title: postTitle,
                 content,
@@ -246,64 +421,13 @@ export default function CreatePost() {
                 author_email: user?.email || null,
                 author_avatar: user?.avatarDataUrl || null,
                 draft,
-                attachments: null, // Will update after upload
+                attachments: mediaFiles.length > 0 ? mediaFiles.map(m => ({ url: m.url, type: m.type })) : null,
                 gif_url: selectedGif || null,
-                music_metadata: musicMetadata || null, // Cached music metadata for fallback
             };
 
             const { data: post, error } = await supabase.from("posts").insert(postData).select().single();
 
-            if (error) {
-                console.error("Post creation error:", error);
-                throw new Error(error.message || "Failed to create post");
-            }
-
-            // Step 2: Upload media files (now we have post.id)
-            const uploadedMedia: { url: string; type: 'image' | 'video' | 'music' }[] = [];
-
-            for (const media of mediaFiles) {
-                if (media.file) {
-                    const fileExt = media.file.name.split('.').pop();
-                    const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-                    const filePath = `post-media/${user?.id || 'anonymous'}/${post.id}/${fileName}`;
-
-                    const { error: uploadError } = await supabase.storage
-                        .from('media')
-                        .upload(filePath, media.file);
-
-                    if (uploadError) {
-                        console.error("Media upload error:", uploadError);
-                        // Continue with other uploads even if one fails
-                        continue;
-                    }
-
-                    const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
-                    uploadedMedia.push({ url: publicUrl, type: media.type });
-                } else if (media.url && !media.url.startsWith('blob:')) {
-                    // Already uploaded (music links, etc.)
-                    uploadedMedia.push({ url: media.url, type: media.type });
-                }
-            }
-
-            // Step 3: Update post with uploaded attachments (if any)
-            if (uploadedMedia.length > 0) {
-                const { error: updateError } = await supabase
-                    .from("posts")
-                    .update({ attachments: uploadedMedia })
-                    .eq('id', post.id);
-
-                if (updateError) {
-                    console.error("Failed to update post with attachments:", updateError);
-                    // Post is created, just without attachments - don't fail completely
-                }
-            }
-
-            // Revoke blob URLs to free memory
-            mediaFiles.forEach(m => {
-                if (m.url.startsWith('blob:')) {
-                    URL.revokeObjectURL(m.url);
-                }
-            });
+            if (error) throw error;
 
             toast({
                 title: draft ? "Draft saved" : "Published!",
@@ -311,18 +435,12 @@ export default function CreatePost() {
             });
 
             if (!draft && post) navigate(`/post/${post.slug}`);
-        } catch (error: any) {
-            console.error("Save error:", error);
-            toast({
-                title: "Error",
-                description: error.message || "Failed to save post. Please try again.",
-                variant: "destructive"
-            });
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to save", variant: "destructive" });
         } finally {
             setSaving(false);
         }
     };
-
 
     const handleThreadPublish = async (items: { id: string; title: string; content: string; attachments: { url: string; type: 'image' | 'video' }[] }[]) => {
         try {
@@ -412,166 +530,26 @@ export default function CreatePost() {
                                 onCancel={() => setMode("single")}
                             />
                         ) : (
-                            <>
-                                {/* TITLE INPUT */}
-                                <div>
-                                    <input
-                                        value={title}
-                                        onChange={(e) => setTitle(e.target.value)}
-                                        placeholder="Post title (optional)"
-                                        className="w-full bg-transparent text-lg font-medium text-gray-100 placeholder-gray-600 border-b border-green-900/30 pb-3 focus:outline-none focus:border-green-500/50 transition-colors"
-                                    />
-                                </div>
-
-                                {/* MEDIA SECTION - Collapsible */}
-                                <div className="border border-green-900/30 rounded-lg overflow-hidden">
-                                    <button
-                                        onClick={() => setMediaExpanded(!mediaExpanded)}
-                                        className="w-full flex items-center justify-between px-4 py-3 bg-gray-900/30 hover:bg-gray-900/50 transition-colors"
-                                    >
-                                        <span className="text-sm font-medium text-gray-400">
-                                            Media {mediaCount > 0 && `(${mediaCount}/4)`}
-                                        </span>
-                                        {mediaExpanded ? (
-                                            <ChevronUp className="w-4 h-4 text-gray-500" />
-                                        ) : (
-                                            <ChevronDown className="w-4 h-4 text-gray-500" />
-                                        )}
-                                    </button>
-
-                                    {mediaExpanded && (
-                                        <div className="p-4 space-y-3 bg-black/30">
-                                            {/* Hidden file input */}
-                                            <input
-                                                ref={fileInputRef}
-                                                type="file"
-                                                accept="image/*,video/*"
-                                                multiple
-                                                onChange={handleMediaUpload}
-                                                className="hidden"
-                                            />
-
-                                            {/* Media Previews Grid */}
-                                            {(mediaFiles.length > 0 || selectedGif) && (
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    {mediaFiles.map((media, index) => (
-                                                        <div key={index} className="relative aspect-square bg-gray-900 rounded-lg overflow-hidden">
-                                                            {media.type === 'image' ? (
-                                                                <img src={media.url} alt="" className="w-full h-full object-cover" />
-                                                            ) : media.type === 'video' ? (
-                                                                <video src={media.url} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center">
-                                                                    <Music className="w-8 h-8 text-green-500" />
-                                                                </div>
-                                                            )}
-                                                            <button
-                                                                onClick={() => removeMedia(index)}
-                                                                className="absolute top-1 right-1 w-6 h-6 bg-black/80 rounded-full flex items-center justify-center hover:bg-red-500 transition-colors"
-                                                            >
-                                                                <X className="w-3 h-3" />
-                                                            </button>
-                                                            <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/80 rounded text-[10px] text-gray-400">
-                                                                {media.type}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {selectedGif && (
-                                                        <div className="relative aspect-square bg-gray-900 rounded-lg overflow-hidden">
-                                                            <img src={selectedGif} alt="GIF" className="w-full h-full object-cover" />
-                                                            <button
-                                                                onClick={() => setSelectedGif(null)}
-                                                                className="absolute top-1 right-1 w-6 h-6 bg-black/80 rounded-full flex items-center justify-center hover:bg-red-500 transition-colors"
-                                                            >
-                                                                <X className="w-3 h-3" />
-                                                            </button>
-                                                            <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/80 rounded text-[10px] text-gray-400">
-                                                                gif
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* Music Input */}
-                                            {showMusicInput && (
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        id="music-url-input"
-                                                        type="url"
-                                                        placeholder="Paste Spotify, Apple Music, or YouTube URL"
-                                                        className="flex-1 bg-gray-900/50 border border-green-900/30 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-green-500/50"
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                if (e.currentTarget.value) addMusic(e.currentTarget.value);
-                                                            }
-                                                        }}
-                                                        autoFocus
-                                                    />
-                                                    <button
-                                                        onClick={() => {
-                                                            const input = document.getElementById('music-url-input') as HTMLInputElement;
-                                                            if (input?.value) addMusic(input.value);
-                                                        }}
-                                                        disabled={fetchingMusicMetadata}
-                                                        className="px-3 py-2 bg-green-600 hover:bg-green-500 text-black text-sm font-medium rounded-lg disabled:opacity-50"
-                                                    >
-                                                        {fetchingMusicMetadata ? '...' : 'Add'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setShowMusicInput(false)}
-                                                        className="p-2 text-gray-500 hover:text-red-400"
-                                                    >
-                                                        <X className="w-5 h-5" />
-                                                    </button>
-                                                </div>
-                                            )}
-
-                                            {/* Add Media Buttons */}
-                                            {mediaFiles.length < 4 && !showMusicInput && (
-                                                <div className="flex flex-wrap gap-2">
-                                                    <button
-                                                        onClick={() => fileInputRef.current?.click()}
-                                                        disabled={uploadingMedia}
-                                                        className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 border border-green-900/30 rounded-lg text-sm text-gray-400 hover:text-green-400 hover:border-green-500/50 transition-colors disabled:opacity-50"
-                                                    >
-                                                        {uploadingMedia ? (
-                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                        ) : (
-                                                            <Plus className="w-4 h-4" />
-                                                        )}
-                                                        Photo/Video
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setShowMusicInput(true)}
-                                                        className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 border border-green-900/30 rounded-lg text-sm text-gray-400 hover:text-green-400 hover:border-green-500/50 transition-colors"
-                                                    >
-                                                        <Music className="w-4 h-4" />
-                                                        Music
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setShowGifPicker(true)}
-                                                        className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 border border-green-900/30 rounded-lg text-sm text-gray-400 hover:text-green-400 hover:border-green-500/50 transition-colors"
-                                                    >
-                                                        <Smile className="w-4 h-4" />
-                                                        GIF
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* CONTENT EDITOR - Main Focus */}
-                                <div className="min-h-[300px]">
-                                    <RichTextEditor
-                                        content={content}
-                                        onChange={setContent}
-                                        placeholder="Write your post..."
-                                    />
-                                </div>
-                            </>
+                            <MinimalSinglePostEditor
+                                title={title}
+                                setTitle={setTitle}
+                                content={content}
+                                setContent={setContent}
+                                mediaFiles={mediaFiles}
+                                setMediaFiles={setMediaFiles}
+                                selectedGif={selectedGif}
+                                setSelectedGif={setSelectedGif}
+                                showMusicInput={showMusicInput}
+                                setShowMusicInput={setShowMusicInput}
+                                showGifPicker={showGifPicker}
+                                setShowGifPicker={setShowGifPicker}
+                                uploadingMedia={uploadingMedia}
+                                fileInputRef={fileInputRef}
+                                handleMediaUpload={handleMediaUpload}
+                                removeMedia={removeMedia}
+                                addMusic={addMusic}
+                                user={user}
+                            />
                         )}
                     </div>
                 </main>
