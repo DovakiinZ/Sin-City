@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Check, CheckCheck, ChevronDown, ChevronUp, Play, Pause, X } from "lucide-react";
+import { Check, CheckCheck, ChevronDown, ChevronUp, Play, Pause, X, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ChatBubbleProps {
@@ -17,8 +17,10 @@ export interface ChatBubbleProps {
     voiceUrl?: string;
     voiceDuration?: number;
     isAnonymous?: boolean;
+    isAdmin?: boolean;
     onLongPress?: () => void;
     onAvatarClick?: () => void;
+    onDelete?: (messageId: string) => void;
 }
 
 const MAX_COLLAPSED_LENGTH = 300;
@@ -38,8 +40,10 @@ export default function ChatBubble({
     voiceUrl,
     voiceDuration,
     isAnonymous,
+    isAdmin,
     onLongPress,
-    onAvatarClick
+    onAvatarClick,
+    onDelete
 }: ChatBubbleProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -195,7 +199,7 @@ export default function ChatBubble({
                         </button>
                     )}
 
-                    {/* Timestamp & status */}
+                    {/* Timestamp & status & delete */}
                     <div className={cn(
                         "flex items-center gap-1 mt-1",
                         isSent ? "justify-end" : "justify-start"
@@ -207,6 +211,16 @@ export default function ChatBubble({
                                 {status === 'sent' && <Check className="w-3 h-3" />}
                                 {status === 'delivered' && <CheckCheck className="w-3 h-3" />}
                             </span>
+                        )}
+                        {/* Delete button for admins or message sender */}
+                        {onDelete && (isSent || isAdmin) && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onDelete(id); }}
+                                className="ml-1 p-1 text-gray-600 hover:text-red-500 transition-colors opacity-50 hover:opacity-100"
+                                title="Delete message"
+                            >
+                                <Trash2 className="w-3 h-3" />
+                            </button>
                         )}
                     </div>
                 </div>

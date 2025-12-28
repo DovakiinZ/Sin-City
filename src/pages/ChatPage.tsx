@@ -18,6 +18,7 @@ export default function ChatPage() {
     const [sessions, setSessions] = useState<SessionData[]>([]);
     const [sessionsLoading, setSessionsLoading] = useState(true);
     const [showNewChatModal, setShowNewChatModal] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(
         searchParams.get('session') || null
     );
@@ -31,6 +32,7 @@ export default function ChatPage() {
         sendMessage,
         uploadMedia,
         uploadVoice,
+        deleteMessage,
         loadMore
     } = useChatMessages(activeSessionId);
 
@@ -41,6 +43,19 @@ export default function ChatPage() {
         }
     }, [authLoading, user, navigate]);
 
+    // Check if user is admin
+    useEffect(() => {
+        if (!user) return;
+        supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single()
+            .then(({ data }) => {
+                if (data?.role === 'admin') setIsAdmin(true);
+            });
+    }, [user]);
+
     // Load sessions
     useEffect(() => {
         if (!user) return;
@@ -49,18 +64,18 @@ export default function ChatPage() {
             setSessionsLoading(true);
             try {
                 const { data, error } = await supabase
-                    .from("chat_sessions")
+                    .from("message_sessions")
                     .select(`
             id,
             participant_1,
             participant_2,
-            participant_1_anonymous,
-            participant_2_anonymous,
+            status,
             created_at,
-            updated_at
+            last_activity_at
           `)
                     .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-                    .order("updated_at", { ascending: false });
+                    .neq("status", "blocked")
+                    .order("last_activity_at", { ascending: false });
 
                 if (error) throw error;
 
@@ -69,26 +84,20 @@ export default function ChatPage() {
                     (data || []).map(async (session) => {
                         const isParticipant1 = session.participant_1 === user.id;
                         const otherUserId = isParticipant1 ? session.participant_2 : session.participant_1;
-                        const otherIsAnon = isParticipant1 ? session.participant_2_anonymous : session.participant_1_anonymous;
 
                         let otherUserName = 'Unknown';
                         let otherUserAvatar: string | undefined;
                         let avatarSeed: string | undefined;
 
-                        if (otherIsAnon) {
-                            const identity = generateAnonymousIdentity(otherUserId, session.id);
-                            otherUserName = identity.alias;
-                            avatarSeed = identity.avatarSeed;
-                        } else {
-                            const { data: profile } = await supabase
-                                .from("profiles")
-                                .select("username, avatar_url")
-                                .eq("id", otherUserId)
-                                .single();
+                        // Get profile for other user
+                        const { data: profile } = await supabase
+                            .from("profiles")
+                            .select("username, avatar_url")
+                            .eq("id", otherUserId)
+                            .single();
 
-                            otherUserName = profile?.username || 'Unknown';
-                            otherUserAvatar = profile?.avatar_url || undefined;
-                        }
+                        otherUserName = profile?.username || 'Unknown';
+                        otherUserAvatar = profile?.avatar_url || undefined;
 
                         // Get last message
                         const { data: lastMsg } = await supabase
@@ -120,9 +129,9 @@ export default function ChatPage() {
                             avatarSeed,
                             lastMessage: lastMsg?.content || null,
                             lastMessageType,
-                            lastMessageTime: lastMsg?.created_at || session.updated_at,
+                            lastMessageTime: lastMsg?.created_at || session.last_activity_at,
                             unreadCount: count || 0,
-                            isAnonymous: otherIsAnon
+                            isAnonymous: false
                         };
                     })
                 );
@@ -145,13 +154,15 @@ export default function ChatPage() {
         }
     }, [activeSessionId, navigate]);
 
-    const handleSendMessage = async (content: string, media?: { url: string; type: 'image' | 'video' | 'gif' }) => {
+    const handleSendMessage = async (content: string, media?: { url: string; type: 'image' | 'video' | 'gif' | 'voice'; duration?: number }) => {
         if (!activeSessionId) return;
 
         await sendMessage(content, {
             mediaUrl: media?.type === 'image' || media?.type === 'video' ? media.url : undefined,
             mediaType: media?.type === 'image' || media?.type === 'video' ? media.type : undefined,
-            gifUrl: media?.type === 'gif' ? media.url : undefined
+            gifUrl: media?.type === 'gif' ? media.url : undefined,
+            voiceUrl: media?.type === 'voice' ? media.url : undefined,
+            voiceDuration: media?.type === 'voice' ? media.duration : undefined
         });
     };
 
@@ -160,7 +171,7 @@ export default function ChatPage() {
 
         try {
             await supabase
-                .from("chat_sessions")
+                .from("message_sessions")
                 .delete()
                 .eq("id", activeSessionId);
 
@@ -228,10 +239,12 @@ export default function ChatPage() {
                     activeOtherUserName={otherUser?.name}
                     activeOtherUserAvatar={otherUser?.avatar}
                     isAnonymousMode={isAnonymousMode}
+                    isAdmin={isAdmin}
                     hasMoreMessages={hasMore}
                     onLoadMoreMessages={loadMore}
                     onSelectSession={(id) => setActiveSessionId(id || null)}
                     onSendMessage={handleSendMessage}
+                    onDeleteMessage={deleteMessage}
                     onDeleteChat={handleDeleteChat}
                     onNewChat={() => setShowNewChatModal(true)}
                     uploadMedia={uploadMedia}

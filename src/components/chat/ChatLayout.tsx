@@ -27,9 +27,11 @@ interface ChatLayoutProps {
 
     // Actions
     onSelectSession: (sessionId: string) => void;
-    onSendMessage: (content: string, media?: { url: string; type: 'image' | 'video' | 'gif' }) => void;
+    onSendMessage: (content: string, media?: { url: string; type: 'image' | 'video' | 'gif' | 'voice'; duration?: number }) => void;
+    onDeleteMessage?: (messageId: string) => void;
     onDeleteChat?: () => void;
     onNewChat?: () => void;
+    isAdmin?: boolean;
 
     // Media upload
     uploadMedia?: (file: File) => Promise<{ url: string; type: 'image' | 'video' } | null>;
@@ -50,8 +52,10 @@ export default function ChatLayout({
     onLoadMoreMessages,
     onSelectSession,
     onSendMessage,
+    onDeleteMessage,
     onDeleteChat,
     onNewChat,
+    isAdmin,
     uploadMedia,
     uploadVoice
 }: ChatLayoutProps) {
@@ -96,9 +100,11 @@ export default function ChatLayout({
                         otherUserName={activeOtherUserName || 'Unknown'}
                         otherUserAvatar={activeOtherUserAvatar}
                         isAnonymousMode={isAnonymousMode}
+                        isAdmin={isAdmin}
                         isMobile={true}
                         onBack={handleBack}
                         onSendMessage={onSendMessage}
+                        onDeleteMessage={onDeleteMessage}
                         onLoadMore={onLoadMoreMessages}
                         hasMore={hasMoreMessages}
                         onDeleteChat={onDeleteChat}
@@ -149,9 +155,11 @@ export default function ChatLayout({
                         otherUserName={activeOtherUserName || 'Unknown'}
                         otherUserAvatar={activeOtherUserAvatar}
                         isAnonymousMode={isAnonymousMode}
+                        isAdmin={isAdmin}
                         isMobile={false}
                         onBack={handleBack}
                         onSendMessage={onSendMessage}
+                        onDeleteMessage={onDeleteMessage}
                         onLoadMore={onLoadMoreMessages}
                         hasMore={hasMoreMessages}
                         onDeleteChat={onDeleteChat}
