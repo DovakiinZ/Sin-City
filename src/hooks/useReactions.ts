@@ -34,6 +34,13 @@ export function useReactions(postId: string) {
     };
 
     const fetchReactions = async () => {
+        // Skip if postId is not a valid UUID (e.g., markdown post slugs like "post1")
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(postId)) {
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
             const { data, error: fetchError } = await supabase

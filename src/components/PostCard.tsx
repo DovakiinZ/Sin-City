@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { UserAvatarWithStatus } from "@/components/UserAvatarWithStatus";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2 } from "lucide-react";
+import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2, Search } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useReactions, toggleReaction } from "@/hooks/useReactions";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +12,7 @@ import MediaCarousel from "@/components/media/PostMediaCarousel";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import CommentList from "@/components/comments/CommentList";
 import { MusicMetadata } from "@/components/MusicCard";
+import AdminPostInspector from "@/components/admin/AdminPostInspector";
 
 interface PostCardProps {
     post: {
@@ -32,6 +33,9 @@ interface PostCardProps {
         userId?: string;
         viewCount?: number;
         music_metadata?: MusicMetadata | null;  // Cached music metadata for fallback
+        guestId?: string;  // Guest ID for anonymous posts (admin tracking)
+        anonymousId?: string;  // Human-readable ANON-XXXX ID (admin only)
+        textAlign?: 'right' | 'center' | 'left';  // Text alignment
     };
     fullContent?: boolean; // Show full content instead of preview
     showComments?: boolean; // Show comments section
@@ -65,6 +69,9 @@ export default function PostCard({
     const [submitting, setSubmitting] = useState(false);
     const [toggling, setToggling] = useState(false);
     const commentInputRef = useRef<HTMLTextAreaElement>(null);
+
+    // Admin inspector state for anonymous posts
+    const [showInspector, setShowInspector] = useState(false);
 
     // Extract first image from content if no attachments
     const contentImage = useMemo(() => {
@@ -216,6 +223,29 @@ export default function PostCard({
                         >
                             @{post.authorUsername || post.author || "anonymous"}
                         </Link>
+                        {/* Admin-only Anonymous ID badge - shows for ALL posts without userId */}
+                        {isAdmin && (!post.userId || post.userId === '' || post.userId === null) && (
+                            post.guestId ? (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowInspector(true);
+                                    }}
+                                    className="flex items-center gap-1 px-1.5 py-0.5 bg-yellow-500/10 border border-yellow-500/30 rounded text-yellow-500 text-xs font-mono hover:bg-yellow-500/20 transition-colors"
+                                    title="View anonymous user details"
+                                >
+                                    {post.anonymousId || 'ANON'}
+                                    <Search className="w-3 h-3" />
+                                </button>
+                            ) : (
+                                <span
+                                    className="px-1.5 py-0.5 bg-gray-500/10 border border-gray-500/30 rounded text-gray-400 text-xs font-mono"
+                                    title="Anonymous post (no tracking data)"
+                                >
+                                    ANON
+                                </span>
+                            )
+                        )}
                         <span className="text-gray-500 text-xs">·</span>
                         <span className="text-gray-500 text-xs">{relativeTime}</span>
                         {fullContent && (
@@ -263,17 +293,29 @@ export default function PostCard({
                     {post.title}
                 </h2>
 
-                {/* Content - Compact reading size */}
+                {/* Content - Preserved exactly as user typed */}
                 {fullContent ? (
                     <div
-                        dir={contentIsArabic ? 'rtl' : 'ltr'}
-                        className={`prose prose-invert prose-sm max-w-none text-gray-400 font-normal leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_p]:mb-3 ${contentIsArabic ? 'text-right arabic-text' : 'text-left'}`}
+                        dir="rtl"
+                        style={{
+                            whiteSpace: 'pre-wrap',
+                            wordWrap: 'break-word',
+                            unicodeBidi: 'plaintext',
+                            textAlign: post.textAlign || 'right'
+                        }}
+                        className="text-gray-400 font-normal leading-relaxed text-sm"
                         dangerouslySetInnerHTML={{ __html: decodeHtml(post.content) }}
                     />
                 ) : (
                     <p
-                        dir={contentIsArabic ? 'rtl' : 'ltr'}
-                        className={`text-gray-500 text-sm font-normal leading-relaxed mb-3 ${contentIsArabic ? 'text-right arabic-text' : 'text-left'}`}
+                        dir="rtl"
+                        style={{
+                            whiteSpace: 'pre-wrap',
+                            wordWrap: 'break-word',
+                            unicodeBidi: 'plaintext',
+                            textAlign: post.textAlign || 'right'
+                        }}
+                        className="text-gray-500 text-sm font-normal leading-relaxed mb-3"
                     >
                         {post.isHtml ? (
                             <span dangerouslySetInnerHTML={{ __html: decodeHtml(contentPreview) }} />
@@ -438,6 +480,14 @@ export default function PostCard({
                 >
                     <CommentList postId={post.postId || post.slug} postAuthorId={post.userId} />
                 </div>
+            )}
+
+            {/* Admin Post Inspector Modal */}
+            {showInspector && post.guestId && (
+                <AdminPostInspector
+                    guestId={post.guestId}
+                    onClose={() => setShowInspector(false)}
+                />
             )}
         </article>
     );

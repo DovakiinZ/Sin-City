@@ -23,6 +23,10 @@ type Post = {
   authorAvatar?: string;
   authorUsername?: string;
   authorLastSeen?: string;
+  userId?: string;  // For detecting anonymous posts
+  guestId?: string;  // For anonymous posts with tracking
+  anonymousId?: string;  // ANON-XXXX for admin display
+  textAlign?: 'right' | 'center' | 'left';  // Text alignment
   isPinned?: boolean;
   isHtml?: boolean;
   attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
@@ -64,6 +68,10 @@ const mapDbPostToPost = (
     authorAvatar: p.author_avatar || (p.user_id ? userAvatars.get(p.user_id) : undefined) || undefined,
     authorUsername: p.user_id ? userUsernames.get(p.user_id) : undefined,
     authorLastSeen: p.user_id ? userLastSeens.get(p.user_id) : undefined,
+    userId: p.user_id || undefined,  // For detecting anonymous posts
+    guestId: p.guest_id || undefined,  // For anonymous tracking
+    anonymousId: p.anonymous_id || undefined,  // ANON-XXXX for admin
+    textAlign: p.text_align || 'right',  // Text alignment
     isHtml: true,
     isPinned: p.is_pinned || false,
     attachments: p.attachments?.map((a: any) => ({
@@ -85,6 +93,7 @@ const AsciiFeed = () => {
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "title">("recent");
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -100,7 +109,7 @@ const AsciiFeed = () => {
 
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, avatar_url, username, last_seen');
+          .select('id, avatar_url, username, last_seen, role');
 
         if (profiles) {
           profiles.forEach(p => {
@@ -108,6 +117,13 @@ const AsciiFeed = () => {
             if (p.username) userUsernames.set(p.id, p.username);
             if (p.last_seen) userLastSeens.set(p.id, p.last_seen);
           });
+          // Check if current user is admin
+          if (user?.id) {
+            const currentProfile = profiles.find(p => p.id === user.id);
+            if (currentProfile && (currentProfile as any).role === 'admin') {
+              setIsAdmin(true);
+            }
+          }
         }
 
         // Use listPostsFromDb with cursor pagination - load more posts initially
@@ -263,7 +279,7 @@ const AsciiFeed = () => {
         ) : (
           <div>
             {sortedPosts.map((post) => (
-              <PostCard key={post.slug} post={post} />
+              <PostCard key={post.slug} post={post} isAdmin={isAdmin} />
             ))}
           </div>
         )}

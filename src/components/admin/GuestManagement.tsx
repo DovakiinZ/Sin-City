@@ -23,6 +23,7 @@ import GuestDetailModal from "./GuestDetailModal";
 interface Guest {
     id: string;
     fingerprint: string;
+    anonymous_id: string | null; // Human-readable ANON-XXXX
     session_id: string | null;
     email: string | null;
     email_verified: boolean;
@@ -262,7 +263,7 @@ export default function GuestManagement() {
                 <table className="w-full text-sm text-left">
                     <thead className="ascii-dim border-b border-ascii-border">
                         <tr>
-                            <th className="p-2">Fingerprint</th>
+                            <th className="p-2">Anonymous ID</th>
                             <th className="p-2">Email</th>
                             <th className="p-2">Posts</th>
                             <th className="p-2">Trust</th>
@@ -277,11 +278,11 @@ export default function GuestManagement() {
                                 <td className="p-2 font-mono">
                                     <button
                                         onClick={() => openGuestDetail(guest)}
-                                        className="hover:text-ascii-highlight transition-colors flex items-center gap-1"
-                                        title={guest.fingerprint}
+                                        className="hover:text-ascii-highlight transition-colors flex items-center gap-1 text-yellow-500 hover:text-yellow-400"
+                                        title={`Fingerprint: ${guest.fingerprint}`}
                                     >
                                         <Hash className="w-3 h-3" />
-                                        {truncateFingerprint(guest.fingerprint)}
+                                        {guest.anonymous_id || truncateFingerprint(guest.fingerprint)}
                                     </button>
                                 </td>
                                 <td className="p-2">

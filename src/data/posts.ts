@@ -14,12 +14,15 @@ export type DbPost = {
   title: string;
   type: "Text" | "Image" | "Video" | "Link";
   content?: string | null;
+  text_align?: 'right' | 'center' | 'left';  // Text alignment for rendering
   attachments?: AttachmentMetadata[] | null;
   gif_url?: string | null;
   author_name?: string | null;
   author_email?: string | null;
   author_avatar?: string | null;
   user_id?: string | null;
+  guest_id?: string | null; // For anonymous posts
+  anonymous_id?: string | null; // Human-readable ANON-XXXX for admin view
   created_at?: string;
   draft?: boolean;
   view_count?: number;
@@ -124,10 +127,13 @@ export async function listPostsFromDb(options?: ListPostsOptions): Promise<ListP
 
   console.log(`[listPostsFromDb] Fetching posts (limit: ${limit}, cursor: ${options?.cursor || 'none'})`);
 
-  // Build query
+  // Build query - include guest data for admin visibility
   let query = supabase
     .from("posts")
-    .select("id,slug,title,type,content,attachments,gif_url,author_name,author_email,author_avatar,user_id,view_count,created_at,draft,hidden,is_pinned,thread_id,thread_position,music_metadata")
+    .select(`
+      id,slug,title,type,content,text_align,attachments,gif_url,author_name,author_email,author_avatar,user_id,guest_id,view_count,created_at,draft,hidden,is_pinned,thread_id,thread_position,music_metadata,
+      guests:guest_id (anonymous_id)
+    `)
     .or("hidden.is.null,hidden.eq.false")
     .order("created_at", { ascending: false })
     .limit(limit + 1); // Fetch one extra to check if more exist
@@ -163,12 +169,27 @@ export async function listPostsFromDb(options?: ListPostsOptions): Promise<ListP
 
   console.log(`[listPostsFromDb] Fetched ${posts.length} posts, hasMore: ${hasMore}`);
 
-  // Normalize attachments
+  // DEBUG: Log first anonymous post's guest data
+  const anonPosts = posts.filter((p: any) => !p.user_id);
+  if (anonPosts.length > 0) {
+    console.log('[listPostsFromDb] DEBUG - First anonymous post:', {
+      id: anonPosts[0].id,
+      title: anonPosts[0].title,
+      user_id: anonPosts[0].user_id,
+      guest_id: anonPosts[0].guest_id,
+      guests: anonPosts[0].guests,
+      author_name: anonPosts[0].author_name
+    });
+  }
+
+  // Normalize attachments and extract guest anonymous_id
   const normalizedPosts = posts.map(
-    (p) =>
+    (p: any) =>
       ({
         ...p,
         attachments: normalizeAttachments(p.attachments),
+        // Extract anonymous_id from the joined guests relation
+        anonymous_id: p.guests?.anonymous_id || null,
       }) as DbPost,
   );
 
