@@ -181,7 +181,7 @@
 
   /* Arabic text styling - uses IBM Plex Sans Arabic for readability */
   .arabic-text {
-    /* Using default font for retro feel */
+    font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
     line-height: 1.8;
   }
 
