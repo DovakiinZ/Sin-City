@@ -11,13 +11,15 @@ import { Link } from "react-router-dom";
 // ============================================================================
 interface LogMessageProps {
     senderName: string;
+    userId: string | null;
+    isAnonymous: boolean;
     content: string | null;
     attachments: { url: string; type: 'image' | 'video' | 'file'; name: string }[] | null;
     time: string;
     isSent: boolean;
 }
 
-function LogMessage({ senderName, content, attachments, time, isSent }: LogMessageProps) {
+function LogMessage({ senderName, userId, isAnonymous, content, attachments, time, isSent }: LogMessageProps) {
     const timeStr = new Date(time).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
@@ -52,12 +54,23 @@ function LogMessage({ senderName, content, attachments, time, isSent }: LogMessa
 
             {/* Log line */}
             {content && (
-                <div className="flex items-start gap-1 hover:bg-green-500/5 px-2 py-0.5 -mx-2 rounded transition-colors">
-                    <span className="text-gray-600 w-12 flex-shrink-0">[{timeStr}]</span>
-                    <span className={`flex-shrink-0 ${isSent ? 'text-cyan-400' : 'text-green-400'}`}>
-                        @{senderName}:
-                    </span>
-                    <span className="text-gray-200 break-words flex-1">{content}</span>
+                <div className="flex items-start gap-1 hover:bg-green-500/5 px-2 py-0.5 -mx-2 rounded transition-colors pointer-events-none">
+                    <span className="text-gray-600 w-12 flex-shrink-0 pointer-events-auto">[{timeStr}]</span>
+                    {userId && !isAnonymous ? (
+                        <Link
+                            to={`/u/${senderName}`}
+                            className={`flex-shrink-0 min-h-[44px] flex items-center ${isSent ? 'text-cyan-400 hover:text-cyan-300' : 'text-green-400 hover:text-green-300'} hover:underline transition-colors cursor-pointer -my-0.5 relative z-10 pointer-events-auto`}
+                            style={{ touchAction: 'manipulation' }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            @{senderName}:
+                        </Link>
+                    ) : (
+                        <span className={`flex-shrink-0 ${isSent ? 'text-cyan-400' : 'text-green-400'} pointer-events-auto`}>
+                            @{senderName}:
+                        </span>
+                    )}
+                    <span className="text-gray-200 break-words flex-1 pointer-events-auto">{content}</span>
                 </div>
             )}
         </div>
@@ -193,7 +206,9 @@ function ChatView({ conversationId, onBack, isMobile }: ChatViewProps) {
     const [sending, setSending] = useState(false);
     const [uploading, setUploading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isNearBottom, setIsNearBottom] = useState(true);
 
     // Get current user's username
     const [myUsername, setMyUsername] = useState<string>('you');
@@ -210,9 +225,20 @@ function ChatView({ conversationId, onBack, isMobile }: ChatViewProps) {
         }
     }, [user?.id]);
 
+    // Track scroll position to determine if user is near bottom
+    const handleScroll = () => {
+        if (!messagesContainerRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+        const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+        setIsNearBottom(distanceFromBottom < 100);
+    };
+
+    // Auto-scroll only if user is near bottom
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
+        if (isNearBottom) {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [messages, isNearBottom]);
 
     const handleSend = async () => {
         if (!inputText.trim() || sending) return;
@@ -235,8 +261,15 @@ function ChatView({ conversationId, onBack, isMobile }: ChatViewProps) {
     };
 
     return (
-        <div className={`flex flex-col bg-black ${isMobile ? 'fixed inset-0 z-50' : 'h-full'}`}>
-            {/* Header */}
+        <div
+            className={`flex flex-col bg-black ${isMobile ? 'fixed inset-0 z-50' : 'h-full'}`}
+            style={{
+                height: isMobile ? '100dvh' : undefined,
+                maxHeight: isMobile ? '100dvh' : undefined,
+                overflow: 'hidden'
+            }}
+        >
+            {/* Header - Fixed */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-green-500/30 flex-shrink-0">
                 <button onClick={onBack} className="text-green-400 hover:text-green-300 p-1">
                     <ArrowLeft className="w-5 h-5" />
@@ -259,8 +292,20 @@ function ChatView({ conversationId, onBack, isMobile }: ChatViewProps) {
                 </Link>
             </div>
 
-            {/* Log Messages */}
-            <div className="flex-1 overflow-y-auto p-4 font-mono text-sm overscroll-contain min-h-0">
+            {/* Messages - Scrollable with mobile optimization */}
+            <div
+                ref={messagesContainerRef}
+                onScroll={handleScroll}
+                className="overflow-y-auto overflow-x-hidden p-4 font-mono text-sm"
+                style={{
+                    flex: '1 1 0',
+                    minHeight: 0,
+                    maxHeight: '100%',
+                    WebkitOverflowScrolling: 'touch',
+                    overscrollBehavior: 'contain',
+                    touchAction: 'pan-y'
+                }}
+            >
                 {loading ? (
                     <div className="text-center text-gray-600 py-8">
                         <span className="animate-pulse">loading...</span>
@@ -280,6 +325,8 @@ function ChatView({ conversationId, onBack, isMobile }: ChatViewProps) {
                             <LogMessage
                                 key={msg.id}
                                 senderName={msg.sender_id === user?.id ? myUsername : (otherUser?.username || 'user')}
+                                userId={msg.sender_id === user?.id ? user.id : otherUser?.id || null}
+                                isAnonymous={false}
                                 content={msg.content}
                                 attachments={msg.attachments}
                                 time={msg.created_at}
@@ -291,8 +338,8 @@ function ChatView({ conversationId, onBack, isMobile }: ChatViewProps) {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="p-3 border-t border-green-500/30">
+            {/* Input - Fixed at bottom */}
+            <div className="p-3 border-t border-green-500/30 flex-shrink-0">
                 <div className="flex items-center gap-2 font-mono">
                     <span className="text-green-600">{'>'}</span>
                     <input
@@ -535,6 +582,25 @@ export default function MessagesWidget({ initialConversationId, onConversationOp
         setIsOpen(false);
         setActiveConversation(null);
     };
+
+    // Lock body scroll on mobile when chat is open
+    useEffect(() => {
+        if (isMobile && isOpen) {
+            const scrollY = window.scrollY;
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.width = '100%';
+
+            return () => {
+                document.body.style.overflow = '';
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.width = '';
+                window.scrollTo(0, scrollY);
+            };
+        }
+    }, [isMobile, isOpen]);
 
     // Panel/Full-screen container
     const containerClasses = isMobile

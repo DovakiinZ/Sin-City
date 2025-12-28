@@ -20,9 +20,9 @@ export default function Bookmarks() {
             }
 
             try {
-                const allPosts = await listPostsFromDb();
+                const result = await listPostsFromDb({ limit: 500 }); // Get all posts to filter bookmarked ones
                 const bookmarkedPostIds = bookmarks.map((b) => b.post_id);
-                const filtered = allPosts.filter((p) => bookmarkedPostIds.includes(p.id || ""));
+                const filtered = result.posts.filter((p) => bookmarkedPostIds.includes(p.id || ""));
                 setPosts(filtered);
             } catch (error) {
                 console.error("Error loading bookmarked posts:", error);

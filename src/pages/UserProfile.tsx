@@ -187,8 +187,8 @@ export default function UserProfile() {
                 const userStats = await getUserStats(profile.id);
                 setStats(userStats);
 
-                const posts = await listPostsFromDb();
-                const filtered = posts.filter((p) =>
+                const result = await listPostsFromDb({ limit: 200 });
+                const filtered = result.posts.filter((p) =>
                     p.user_id === profile.id ||
                     (profile.display_name && p.author_name?.toLowerCase() === profile.display_name?.toLowerCase()) ||
                     (profile.username && p.author_name?.toLowerCase() === profile.username?.toLowerCase())

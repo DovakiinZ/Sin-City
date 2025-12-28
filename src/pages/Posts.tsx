@@ -146,8 +146,8 @@ export default function Posts() {
 
       let allPosts: Post[] = [];
       try {
-        const fromDb = await listPostsFromDb();
-        allPosts = (fromDb || []).map((p: any) => {
+        const result = await listPostsFromDb({ limit: 200 }); // Get more posts for the Posts page
+        allPosts = (result.posts || []).map((p: any) => {
           const createdDate = p.created_at ? new Date(p.created_at) : null;
           const formattedDate = createdDate
             ? createdDate.toLocaleDateString('en-US', {

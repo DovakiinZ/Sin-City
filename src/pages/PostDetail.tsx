@@ -40,8 +40,8 @@ export default function PostDetail() {
                 setLoading(true);
 
                 // Try to load from database
-                const dbPosts = await listPostsFromDb();
-                const dbPost = dbPosts.find((p) => p.slug === slug || p.id === slug || p.title === slug);
+                const result = await listPostsFromDb({ limit: 200 });
+                const dbPost = result.posts.find((p) => p.slug === slug || p.id === slug || p.title === slug);
 
                 if (dbPost) {
                     // Get the author's username for the profile link
