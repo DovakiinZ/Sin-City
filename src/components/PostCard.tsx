@@ -287,7 +287,7 @@ export default function PostCard({
             >
                 {/* Title - Compact, clean hierarchy */}
                 <h2
-                    className={`${fullContent ? 'text-xl md:text-2xl' : 'text-lg'} font-semibold text-green-50 mb-2 leading-snug tracking-normal ${titleIsArabic ? 'text-right arabic-text' : 'text-left'}`}
+                    className={`${fullContent ? 'text-xl md:text-2xl' : 'text-lg'} ${titleIsArabic ? 'font-medium' : 'font-semibold'} text-green-50 mb-2 leading-snug tracking-normal ${titleIsArabic ? 'text-right arabic-text' : 'text-left'}`}
                     dir={titleIsArabic ? 'rtl' : 'ltr'}
                 >
                     {post.title}
@@ -296,26 +296,26 @@ export default function PostCard({
                 {/* Content - Preserved exactly as user typed */}
                 {fullContent ? (
                     <div
-                        dir="rtl"
+                        dir={contentIsArabic ? "rtl" : "ltr"}
                         style={{
                             whiteSpace: 'pre-wrap',
                             wordWrap: 'break-word',
-                            unicodeBidi: 'plaintext',
-                            textAlign: post.textAlign || 'right'
+                            unicodeBidi: contentIsArabic ? 'plaintext' : undefined,
+                            textAlign: post.textAlign || (contentIsArabic ? 'right' : 'left')
                         }}
-                        className="text-gray-400 font-normal leading-relaxed text-sm"
+                        className={`text-gray-400 font-normal leading-relaxed text-sm ${contentIsArabic ? 'arabic-text' : ''}`}
                         dangerouslySetInnerHTML={{ __html: decodeHtml(post.content) }}
                     />
                 ) : (
                     <p
-                        dir="rtl"
+                        dir={contentIsArabic ? "rtl" : "ltr"}
                         style={{
                             whiteSpace: 'pre-wrap',
                             wordWrap: 'break-word',
-                            unicodeBidi: 'plaintext',
-                            textAlign: post.textAlign || 'right'
+                            unicodeBidi: contentIsArabic ? 'plaintext' : undefined,
+                            textAlign: post.textAlign || (contentIsArabic ? 'right' : 'left')
                         }}
-                        className="text-gray-500 text-sm font-normal leading-relaxed mb-3"
+                        className={`text-gray-500 text-sm font-normal leading-relaxed mb-3 ${contentIsArabic ? 'arabic-text' : ''}`}
                     >
                         {post.isHtml ? (
                             <span dangerouslySetInnerHTML={{ __html: decodeHtml(contentPreview) }} />

@@ -40,6 +40,13 @@ export default function CommentItem({ comment, postId, postAuthorId, depth = 0 }
     // Relative time (e.g., "2h ago")
     const relativeTime = formatDistanceToNow(new Date(comment.created_at), { addSuffix: true });
 
+    // Detect Arabic text
+    const isArabic = (text: string) => {
+        const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
+        return arabicRegex.test(text);
+    };
+    const contentIsArabic = comment.content ? isArabic(comment.content) : false;
+
     const handleUpdate = async () => {
         if (!editContent.trim()) return;
 
@@ -223,7 +230,13 @@ export default function CommentItem({ comment, postId, postAuthorId, depth = 0 }
                 ) : (
                     <>
                         {comment.content && (
-                            <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+                            <p
+                                dir={contentIsArabic ? "rtl" : "ltr"}
+                                className={`text-sm text-gray-300 leading-relaxed whitespace-pre-wrap ${contentIsArabic ? 'arabic-text text-right' : 'text-left'}`}
+                                style={{
+                                    unicodeBidi: contentIsArabic ? 'plaintext' : undefined
+                                }}
+                            >
                                 {parseMentions(comment.content)}
                             </p>
                         )}

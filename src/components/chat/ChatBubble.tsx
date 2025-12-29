@@ -62,6 +62,13 @@ export default function ChatBubble({
         ? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${avatarSeed}`
         : `https://api.dicebear.com/7.x/pixel-art/svg?seed=${senderName}`);
 
+    // Detect Arabic text
+    const isArabic = (text: string) => {
+        const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
+        return arabicRegex.test(text);
+    };
+    const contentIsArabic = content ? isArabic(content) : false;
+
     const formatTime = (ts: string) => {
         const date = new Date(ts);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -180,7 +187,13 @@ export default function ChatBubble({
 
                     {/* Text content */}
                     {displayContent && (
-                        <div className="whitespace-pre-wrap break-words leading-relaxed">
+                        <div
+                            dir={contentIsArabic ? "rtl" : "ltr"}
+                            className={`whitespace-pre-wrap break-words leading-relaxed ${contentIsArabic ? 'arabic-text text-right' : 'text-left'}`}
+                            style={{
+                                unicodeBidi: contentIsArabic ? 'plaintext' : undefined
+                            }}
+                        >
                             {displayContent}
                         </div>
                     )}

@@ -26,6 +26,13 @@ function LogMessage({ senderName, userId, isAnonymous, content, attachments, tim
         hour12: false
     });
 
+    // Detect Arabic text
+    const isArabic = (text: string) => {
+        const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
+        return arabicRegex.test(text);
+    };
+    const contentIsArabic = content ? isArabic(content) : false;
+
     return (
         <div className="font-mono text-sm leading-relaxed group">
             {/* Attachments */}
@@ -70,7 +77,12 @@ function LogMessage({ senderName, userId, isAnonymous, content, attachments, tim
                             @{senderName}:
                         </span>
                     )}
-                    <span className="text-gray-200 break-words flex-1 pointer-events-auto">{content}</span>
+                    <span
+                        dir={contentIsArabic ? "rtl" : "ltr"}
+                        className={`text-gray-200 break-words flex-1 pointer-events-auto ${contentIsArabic ? 'arabic-text text-right whitespace-pre-wrap' : ''}`}
+                    >
+                        {content}
+                    </span>
                 </div>
             )}
         </div>
