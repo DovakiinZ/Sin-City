@@ -6,6 +6,9 @@ import PostCard from "@/components/PostCard";
 import ThreadNavigation from "@/components/thread/ThreadNavigation";
 import { listPostsFromDb } from "@/data/posts";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
+import { Terminal } from "lucide-react";
+import AdminPostTerminal from "@/components/admin/AdminPostTerminal";
 
 type Post = {
     slug: string;
@@ -31,10 +34,32 @@ type Post = {
 export default function PostDetail() {
     const { slug } = useParams<{ slug: string }>();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [post, setPost] = useState<Post | null>(null);
     const [loading, setLoading] = useState(true);
     const hasIncrementedView = useRef(false);
     const [threadTotal, setThreadTotal] = useState<number>(0);
+
+    // Admin terminal state
+    const [showTerminal, setShowTerminal] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    // Check if user is admin
+    useEffect(() => {
+        const checkAdmin = async () => {
+            if (!user) {
+                setIsAdmin(false);
+                return;
+            }
+            const { data } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+            setIsAdmin(data?.role === 'admin');
+        };
+        checkAdmin();
+    }, [user]);
 
     useEffect(() => {
         const loadPost = async () => {
@@ -216,6 +241,27 @@ export default function PostDetail() {
                     </button>
                 </div>
             </div>
+
+            {/* Admin Terminal FAB - Mobile Friendly */}
+            {isAdmin && !showTerminal && (
+                <button
+                    onClick={() => setShowTerminal(true)}
+                    className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-40 w-12 h-12 bg-green-600 hover:bg-green-500 text-black rounded-full shadow-lg shadow-green-500/20 flex items-center justify-center transition-all hover:scale-110"
+                    title="Open Admin Terminal"
+                >
+                    <Terminal className="w-5 h-5" />
+                </button>
+            )}
+
+            {/* Admin Terminal */}
+            {showTerminal && post && (
+                <AdminPostTerminal
+                    postId={post.postId || post.slug}
+                    userId={post.userId}
+                    guestId={post.guestId}
+                    onClose={() => setShowTerminal(false)}
+                />
+            )}
         </div>
     );
 }
