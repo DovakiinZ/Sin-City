@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { UserAvatarWithStatus } from "@/components/UserAvatarWithStatus";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2, Search } from "lucide-react";
+import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2, Search, Terminal } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useReactions, toggleReaction } from "@/hooks/useReactions";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,7 @@ import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import CommentList from "@/components/comments/CommentList";
 import { MusicMetadata } from "@/components/MusicCard";
 import AdminPostInspector from "@/components/admin/AdminPostInspector";
+import AdminPostTerminal from "@/components/admin/AdminPostTerminal";
 
 interface PostCardProps {
     post: {
@@ -72,6 +73,9 @@ export default function PostCard({
 
     // Admin inspector state for anonymous posts
     const [showInspector, setShowInspector] = useState(false);
+
+    // Admin terminal state
+    const [showTerminal, setShowTerminal] = useState(false);
 
     // Extract first image from content if no attachments
     const contentImage = useMemo(() => {
@@ -487,6 +491,16 @@ export default function PostCard({
                 <AdminPostInspector
                     guestId={post.guestId}
                     onClose={() => setShowInspector(false)}
+                />
+            )}
+
+            {/* Admin Post Terminal */}
+            {showTerminal && isAdmin && (
+                <AdminPostTerminal
+                    postId={post.postId || post.slug}
+                    userId={post.userId}
+                    guestId={post.guestId}
+                    onClose={() => setShowTerminal(false)}
                 />
             )}
         </article>
