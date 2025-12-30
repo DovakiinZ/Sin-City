@@ -45,6 +45,8 @@ export function useUserIPCapture() {
                     .from('profiles')
                     .update({
                         ip_hash: networkData.ip_hash || null,
+                        ip_encrypted: networkData.ip_encrypted || null,
+                        ip_source: networkData.ip_source || null,
                         country: networkData.country || null,
                         city: networkData.city || null,
                         isp: networkData.isp || null,
@@ -57,12 +59,15 @@ export function useUserIPCapture() {
                 if (error) {
                     console.warn('Failed to save IP data:', error.message);
                 } else {
-                    console.log('User IP captured:', networkData.country, networkData.city);
+                    console.log('User IP captured:', networkData.country, networkData.city, 'source:', networkData.ip_source);
                     sessionStorage.setItem(`ip_captured_${user.id}`, Date.now().toString());
 
                     // === SECURE IP LOGGING (Server-Side) ===
                     // Call RPC to capture Real IP safely in ip_security_logs
                     const { error: secureError } = await supabase.rpc('log_user_security', {
+                        p_ip_hash: networkData.ip_hash || null,
+                        p_ip_encrypted: networkData.ip_encrypted || null,
+                        p_ip_source: networkData.ip_source || null,
                         p_country: networkData.country || null,
                         p_city: networkData.city || null,
                         p_isp: networkData.isp || null,

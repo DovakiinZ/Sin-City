@@ -16,31 +16,12 @@ export function useStartChat() {
         if (!user) return null;
 
         try {
-            // Check if a session already exists between these users
-            const { data: existing } = await supabase
-                .from("chat_sessions")
-                .select("id")
-                .or(`and(participant_1.eq.${user.id},participant_2.eq.${otherUserId}),and(participant_1.eq.${otherUserId},participant_2.eq.${user.id})`)
-                .single();
-
-            if (existing) {
-                return existing.id;
-            }
-
-            // Create new session
-            const { data: newSession, error } = await supabase
-                .from("chat_sessions")
-                .insert({
-                    participant_1: user.id,
-                    participant_2: otherUserId,
-                    participant_1_anonymous: false,
-                    participant_2_anonymous: false
-                })
-                .select("id")
-                .single();
+            // Use the RPC function that handles ordering and conflicts
+            const { data, error } = await supabase
+                .rpc("get_or_create_session", { p_other_user_id: otherUserId });
 
             if (error) throw error;
-            return newSession?.id || null;
+            return data as string;
         } catch (error) {
             console.error("Error starting chat:", error);
             return null;
@@ -49,25 +30,18 @@ export function useStartChat() {
 
     /**
      * Start an anonymous chat with a user
+     * Note: Anonymous mode is simplified - just uses regular chat
      */
     const startAnonymousChat = useCallback(async (otherUserId: string): Promise<string | null> => {
         if (!user) return null;
 
         try {
-            // Always create new anonymous session
-            const { data: newSession, error } = await supabase
-                .from("chat_sessions")
-                .insert({
-                    participant_1: user.id,
-                    participant_2: otherUserId,
-                    participant_1_anonymous: true,
-                    participant_2_anonymous: false
-                })
-                .select("id")
-                .single();
+            // Use the same RPC function (anonymous mode is not supported in simplified schema)
+            const { data, error } = await supabase
+                .rpc("get_or_create_session", { p_other_user_id: otherUserId });
 
             if (error) throw error;
-            return newSession?.id || null;
+            return data as string;
         } catch (error) {
             console.error("Error starting anonymous chat:", error);
             return null;

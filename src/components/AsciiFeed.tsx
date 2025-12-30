@@ -22,6 +22,11 @@ type Post = {
   author?: string;
   authorAvatar?: string;
   authorUsername?: string;
+  authorLastSeen?: string;
+  userId?: string;  // For detecting anonymous posts
+  guestId?: string;  // For anonymous posts with tracking
+  anonymousId?: string;  // ANON-XXXX for admin display
+  textAlign?: 'right' | 'center' | 'left';  // Text alignment
   isPinned?: boolean;
   isHtml?: boolean;
   attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
@@ -37,14 +42,58 @@ interface FrontMatterData {
 
 const FILES = ["post1.md", "post2.md"]; // served from /public/posts
 
+// Helper to map database post to UI Post type
+const mapDbPostToPost = (
+  p: any,
+  userUsernames: Map<string, string>,
+  userAvatars: Map<string, string>,
+  userLastSeens: Map<string, string>
+): Post => {
+  const createdDate = p.created_at ? new Date(p.created_at) : null;
+  const formattedDate = createdDate
+    ? createdDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+    : '';
+  return {
+    title: p.title,
+    date: formattedDate,
+    rawDate: p.created_at || '',
+    content: p.content || "",
+    slug: p.slug || p.id || p.title,
+    postId: p.id,
+    author: p.user_id ? userUsernames.get(p.user_id) || p.author_name : p.author_name || undefined,
+    authorAvatar: p.author_avatar || (p.user_id ? userAvatars.get(p.user_id) : undefined) || undefined,
+    authorUsername: p.user_id ? userUsernames.get(p.user_id) : undefined,
+    authorLastSeen: p.user_id ? userLastSeens.get(p.user_id) : undefined,
+    userId: p.user_id || undefined,  // For detecting anonymous posts
+    guestId: p.guest_id || undefined,  // For anonymous tracking
+    anonymousId: p.anonymous_id || undefined,  // ANON-XXXX for admin
+    textAlign: p.text_align || 'right',  // Text alignment
+    isHtml: true,
+    isPinned: p.is_pinned || false,
+    attachments: p.attachments?.map((a: any) => ({
+      url: a.url || '',
+      type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
+    })).filter((a: any) => a.url) || undefined,
+    gif_url: p.gif_url || undefined,
+    music_metadata: p.music_metadata || undefined,
+  };
+};
+
 const AsciiFeed = () => {
   const navigate = useNavigate();
   const [markdownPosts, setMarkdownPosts] = useState<Post[]>([]);
   const [dbPosts, setDbPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "title">("recent");
-  const [visibleCount, setVisibleCount] = useState(10);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -60,7 +109,7 @@ const AsciiFeed = () => {
 
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, avatar_url, username, last_seen');
+          .select('id, avatar_url, username, last_seen, role');
 
         if (profiles) {
           profiles.forEach(p => {
@@ -68,43 +117,23 @@ const AsciiFeed = () => {
             if (p.username) userUsernames.set(p.id, p.username);
             if (p.last_seen) userLastSeens.set(p.id, p.last_seen);
           });
+          // Check if current user is admin
+          if (user?.id) {
+            const currentProfile = profiles.find(p => p.id === user.id);
+            if (currentProfile && (currentProfile as any).role === 'admin') {
+              setIsAdmin(true);
+            }
+          }
         }
 
-        // Use listPostsFromDb for consistent attachment normalization
-        const fromDb = await listPostsFromDb();
-        const mapped: Post[] = (fromDb || [])
+        // Use listPostsFromDb with cursor pagination - load more posts initially
+        const result = await listPostsFromDb({ limit: 50 });
+        const mapped: Post[] = (result.posts || [])
           .filter((p: any) => !p.hidden)
-          .map((p: any) => {
-            const createdDate = p.created_at ? new Date(p.created_at) : null;
-            const formattedDate = createdDate
-              ? createdDate.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })
-              : '';
-            return {
-              title: p.title,
-              date: formattedDate,
-              rawDate: p.created_at || '',
-              content: p.content || "",
-              slug: p.slug || p.id || p.title,
-              postId: p.id,
-              author: p.user_id ? userUsernames.get(p.user_id) || p.author_name : p.author_name || undefined,
-              authorAvatar: p.author_avatar || (p.user_id ? userAvatars.get(p.user_id) : undefined) || undefined,
-              authorUsername: p.user_id ? userUsernames.get(p.user_id) : undefined,
-              authorLastSeen: p.user_id ? userLastSeens.get(p.user_id) : undefined,
-              isHtml: true,
-              isPinned: p.is_pinned || false,
-              attachments: p.attachments?.map((a: any) => ({
-                url: a.url || '',
-                type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
-              })).filter((a: any) => a.url) || undefined,
-              gif_url: p.gif_url || undefined,
-              music_metadata: p.music_metadata || undefined,
-            };
-          });
+          .map((p: any) => mapDbPostToPost(p, userUsernames, userAvatars, userLastSeens));
         setDbPosts(mapped);
+        setCursor(result.nextCursor);
+        setHasMore(result.hasMore);
       } catch (error) {
         console.error("[AsciiFeed] Error loading posts:", error);
       } finally {
@@ -249,20 +278,55 @@ const AsciiFeed = () => {
           </div>
         ) : (
           <div>
-            {sortedPosts.slice(0, visibleCount).map((post) => (
-              <PostCard key={post.slug} post={post} />
+            {sortedPosts.map((post) => (
+              <PostCard key={post.slug} post={post} isAdmin={isAdmin} />
             ))}
           </div>
         )}
 
         {/* Load More */}
-        {sortedPosts.length > visibleCount && (
+        {hasMore && (
           <div className="text-center py-4 border-t border-green-900/30">
             <button
-              onClick={() => setVisibleCount(prev => prev + 10)}
-              className="text-green-400 hover:text-green-300 text-sm"
+              onClick={async () => {
+                if (!cursor || loadingMore) return;
+                setLoadingMore(true);
+                try {
+                  const result = await listPostsFromDb({ limit: 30, cursor });
+                  // Get profiles for the new posts
+                  const newUserIds = [...new Set(result.posts.map(p => p.user_id).filter(Boolean))];
+                  let userAvatars = new Map<string, string>();
+                  let userUsernames = new Map<string, string>();
+                  let userLastSeens = new Map<string, string>();
+                  if (newUserIds.length > 0) {
+                    const { data: profiles } = await supabase
+                      .from('profiles')
+                      .select('id, avatar_url, username, last_seen')
+                      .in('id', newUserIds);
+                    if (profiles) {
+                      profiles.forEach(p => {
+                        if (p.avatar_url) userAvatars.set(p.id, p.avatar_url);
+                        if (p.username) userUsernames.set(p.id, p.username);
+                        if (p.last_seen) userLastSeens.set(p.id, p.last_seen);
+                      });
+                    }
+                  }
+                  const newPosts = result.posts
+                    .filter((p: any) => !p.hidden)
+                    .map((p: any) => mapDbPostToPost(p, userUsernames, userAvatars, userLastSeens));
+                  setDbPosts(prev => [...prev, ...newPosts]);
+                  setCursor(result.nextCursor);
+                  setHasMore(result.hasMore);
+                } catch (error) {
+                  console.error("[AsciiFeed] Error loading more posts:", error);
+                } finally {
+                  setLoadingMore(false);
+                }
+              }}
+              disabled={loadingMore}
+              className="text-green-400 hover:text-green-300 text-sm disabled:opacity-50"
             >
-              Show more ({sortedPosts.length - visibleCount} remaining)
+              {loadingMore ? 'Loading...' : 'Show more'}
             </button>
           </div>
         )}

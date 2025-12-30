@@ -5,6 +5,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 export interface Post {
     id: string;
     user_id?: string;
+    guest_id?: string; // For anonymous posts
     title: string;
     type: "Text" | "Image" | "Video" | "Link";
     content?: string;
@@ -20,6 +21,7 @@ export interface Post {
     author_avatar?: string;
     author_username?: string;
     author_last_seen?: string;
+    anonymous_id?: string; // Human-readable ANON-XXXX for admin view
     view_count?: number;
     thread_id?: string;
     thread_position?: number;
@@ -38,10 +40,13 @@ export function useSupabasePosts() {
         const fetchPosts = async () => {
             try {
                 setLoading(true);
-                // Fetch posts without the join first to avoid FK errors
+                // Fetch posts with guest information for admin view
                 const { data: postsData, error: fetchError } = await supabase
                     .from("posts")
-                    .select("*")
+                    .select(`
+                        *,
+                        guests:guest_id (anonymous_id)
+                    `)
                     .or("hidden.is.null,hidden.eq.false") // Filter out hidden posts
                     .order("is_pinned", { ascending: false, nullsFirst: false })
                     .order("created_at", { ascending: false })
@@ -117,6 +122,8 @@ export function useSupabasePosts() {
                         author_last_seen: profile?.last_seen || null,
                         // Overwrite author_name with proper username if available
                         author_name: profile?.username || post.author_name || "Anonymous",
+                        // Include guest anonymous_id for admin display
+                        anonymous_id: post.guests?.anonymous_id || null,
                     };
                 });
 

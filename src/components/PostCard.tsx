@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { UserAvatarWithStatus } from "@/components/UserAvatarWithStatus";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2, Terminal } from "lucide-react";
+import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2, Search } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useReactions, toggleReaction } from "@/hooks/useReactions";
 import { useToast } from "@/hooks/use-toast";
@@ -12,7 +12,7 @@ import MediaCarousel from "@/components/media/PostMediaCarousel";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import CommentList from "@/components/comments/CommentList";
 import { MusicMetadata } from "@/components/MusicCard";
-import AdminPostTerminal from "@/components/admin/AdminPostTerminal";
+import AdminPostInspector from "@/components/admin/AdminPostInspector";
 
 interface PostCardProps {
     post: {
@@ -31,9 +31,11 @@ interface PostCardProps {
         attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
         gif_url?: string;
         userId?: string;
-        guestId?: string; // For anonymous post authors
         viewCount?: number;
         music_metadata?: MusicMetadata | null;  // Cached music metadata for fallback
+        guestId?: string;  // Guest ID for anonymous posts (admin tracking)
+        anonymousId?: string;  // Human-readable ANON-XXXX ID (admin only)
+        textAlign?: 'right' | 'center' | 'left';  // Text alignment
     };
     fullContent?: boolean; // Show full content instead of preview
     showComments?: boolean; // Show comments section
@@ -68,23 +70,8 @@ export default function PostCard({
     const [toggling, setToggling] = useState(false);
     const commentInputRef = useRef<HTMLTextAreaElement>(null);
 
-    // Admin terminal state
-    const [showTerminal, setShowTerminal] = useState(false);
-
-    // Keyboard shortcut for admin terminal (Ctrl+Shift+T)
-    useEffect(() => {
-        if (!isAdmin) return;
-
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.ctrlKey && e.shiftKey && e.key === 'T') {
-                e.preventDefault();
-                setShowTerminal(prev => !prev);
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isAdmin]);
+    // Admin inspector state for anonymous posts
+    const [showInspector, setShowInspector] = useState(false);
 
     // Extract first image from content if no attachments
     const contentImage = useMemo(() => {
@@ -236,6 +223,29 @@ export default function PostCard({
                         >
                             @{post.authorUsername || post.author || "anonymous"}
                         </Link>
+                        {/* Admin-only Anonymous ID badge - shows for ALL posts without userId */}
+                        {isAdmin && (!post.userId || post.userId === '' || post.userId === null) && (
+                            post.guestId ? (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowInspector(true);
+                                    }}
+                                    className="flex items-center gap-1 px-1.5 py-0.5 bg-yellow-500/10 border border-yellow-500/30 rounded text-yellow-500 text-xs font-mono hover:bg-yellow-500/20 transition-colors"
+                                    title="View anonymous user details"
+                                >
+                                    {post.anonymousId || 'ANON'}
+                                    <Search className="w-3 h-3" />
+                                </button>
+                            ) : (
+                                <span
+                                    className="px-1.5 py-0.5 bg-gray-500/10 border border-gray-500/30 rounded text-gray-400 text-xs font-mono"
+                                    title="Anonymous post (no tracking data)"
+                                >
+                                    ANON
+                                </span>
+                            )
+                        )}
                         <span className="text-gray-500 text-xs">·</span>
                         <span className="text-gray-500 text-xs">{relativeTime}</span>
                         {fullContent && (
@@ -277,23 +287,35 @@ export default function PostCard({
             >
                 {/* Title - Compact, clean hierarchy */}
                 <h2
-                    className={`${fullContent ? 'text-xl md:text-2xl' : 'text-lg'} font-semibold text-green-50 mb-2 leading-snug tracking-normal ${titleIsArabic ? 'text-right arabic-text' : 'text-left'}`}
+                    className={`${fullContent ? 'text-xl md:text-2xl' : 'text-lg'} ${titleIsArabic ? 'font-medium' : 'font-semibold'} text-green-50 mb-2 leading-snug tracking-normal ${titleIsArabic ? 'text-right arabic-text' : 'text-left'}`}
                     dir={titleIsArabic ? 'rtl' : 'ltr'}
                 >
                     {post.title}
                 </h2>
 
-                {/* Content - Compact reading size */}
+                {/* Content - Preserved exactly as user typed */}
                 {fullContent ? (
                     <div
-                        dir={contentIsArabic ? 'rtl' : 'ltr'}
-                        className={`prose prose-invert prose-sm max-w-none text-gray-400 font-normal leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_p]:mb-3 ${contentIsArabic ? 'text-right arabic-text' : 'text-left'}`}
+                        dir={contentIsArabic ? "rtl" : "ltr"}
+                        style={{
+                            whiteSpace: 'pre-wrap',
+                            wordWrap: 'break-word',
+                            unicodeBidi: contentIsArabic ? 'plaintext' : undefined,
+                            textAlign: post.textAlign || (contentIsArabic ? 'right' : 'left')
+                        }}
+                        className={`text-gray-400 font-normal leading-relaxed text-sm ${contentIsArabic ? 'arabic-text' : ''}`}
                         dangerouslySetInnerHTML={{ __html: decodeHtml(post.content) }}
                     />
                 ) : (
                     <p
-                        dir={contentIsArabic ? 'rtl' : 'ltr'}
-                        className={`text-gray-500 text-sm font-normal leading-relaxed mb-3 ${contentIsArabic ? 'text-right arabic-text' : 'text-left'}`}
+                        dir={contentIsArabic ? "rtl" : "ltr"}
+                        style={{
+                            whiteSpace: 'pre-wrap',
+                            wordWrap: 'break-word',
+                            unicodeBidi: contentIsArabic ? 'plaintext' : undefined,
+                            textAlign: post.textAlign || (contentIsArabic ? 'right' : 'left')
+                        }}
+                        className={`text-gray-500 text-sm font-normal leading-relaxed mb-3 ${contentIsArabic ? 'arabic-text' : ''}`}
                     >
                         {post.isHtml ? (
                             <span dangerouslySetInnerHTML={{ __html: decodeHtml(contentPreview) }} />
@@ -365,17 +387,6 @@ export default function PostCard({
                 {/* Admin Actions */}
                 {isAdmin && post.postId && (
                     <div className="ml-auto flex items-center gap-2">
-                        {/* Terminal Button */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setShowTerminal(!showTerminal);
-                            }}
-                            className={`p-1.5 rounded transition-colors ${showTerminal ? 'text-green-400' : 'text-gray-500 hover:text-green-400'}`}
-                            title="Admin Terminal (Ctrl+Shift+T)"
-                        >
-                            <Terminal className="w-4 h-4" />
-                        </button>
                         {/* Hide/Show Button */}
                         {onHide && (
                             <button
@@ -471,13 +482,11 @@ export default function PostCard({
                 </div>
             )}
 
-            {/* Admin Terminal - Only visible to admins */}
-            {isAdmin && showTerminal && post.postId && (
-                <AdminPostTerminal
-                    postId={post.postId}
-                    userId={post.userId}
+            {/* Admin Post Inspector Modal */}
+            {showInspector && post.guestId && (
+                <AdminPostInspector
                     guestId={post.guestId}
-                    onClose={() => setShowTerminal(false)}
+                    onClose={() => setShowInspector(false)}
                 />
             )}
         </article>

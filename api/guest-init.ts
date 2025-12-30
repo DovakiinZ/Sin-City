@@ -1,8 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import crypto from 'crypto';
-
-// Secret salt for IP hashing - should be in environment variable
-const IP_SALT = process.env.IP_HASH_SALT || 'sin-city-guest-salt-2024';
+import { getClientIP, hashIP, encryptIP, isPrivateIP } from './lib/ip-utils';
 
 // Known VPN/Datacenter ASNs (simplified list)
 const VPN_ASNS = [
@@ -25,20 +22,19 @@ const TOR_INDICATORS = ['tor', 'exit', 'relay'];
 
 interface GeoData {
     ip_hash: string;
+    ip_encrypted?: string;  // For secure storage (admin only)
+    ip_source?: string;     // Which header was used
     country: string;
     city: string;
     isp: string;
     vpn_detected: boolean;
     tor_detected: boolean;
-}
-
-// Hash IP with salt - never store raw IP
-function hashIP(ip: string): string {
-    return crypto
-        .createHash('sha256')
-        .update(ip + IP_SALT)
-        .digest('hex')
-        .substring(0, 32); // Truncate for efficiency
+    debug?: {              // Only included with debug_ip=1
+        all_headers: Record<string, string | undefined>;
+        selected_source: string;
+        is_private: boolean;
+        raw_ip_masked: string;
+    };
 }
 
 // Check if ISP/org name suggests VPN or datacenter
@@ -61,6 +57,18 @@ function detectTor(isp: string, org: string): boolean {
     return TOR_INDICATORS.some(ind => combined.includes(ind));
 }
 
+// Mask IP for debug output (e.g., 192.168.xxx.xxx)
+function maskIPForDebug(ip: string): string {
+    if (!ip || ip === 'unknown') return 'unknown';
+    if (ip.includes('.')) {
+        const parts = ip.split('.');
+        if (parts.length === 4) {
+            return `${parts[0]}.${parts[1]}.xxx.xxx`;
+        }
+    }
+    return 'xxx.xxx.xxx.xxx';
+}
+
 export default async function handler(
     req: VercelRequest,
     res: VercelResponse
@@ -78,25 +86,38 @@ export default async function handler(
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    try {
-        // Get IP from headers (Vercel sets these)
-        const ip = (
-            req.headers['x-real-ip'] ||
-            req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
-            req.socket?.remoteAddress ||
-            'unknown'
-        ) as string;
+    // Check for debug mode
+    const debugMode = req.query.debug_ip === '1';
 
-        // Skip localhost/private IPs
-        if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
-            return res.status(200).json({
+    try {
+        // Extract IP using robust utility
+        const ipResult = getClientIP(req as any);
+        const { ip, source, isPrivate, allHeaders } = ipResult;
+
+        console.log(`[guest-init] IP extracted: source=${source}, private=${isPrivate}, ip_masked=${maskIPForDebug(ip)}`);
+
+        // Handle private/local IPs
+        if (isPrivate) {
+            const result: GeoData = {
                 ip_hash: hashIP(ip),
+                ip_source: source,
                 country: 'Local',
                 city: 'Development',
                 isp: 'localhost',
                 vpn_detected: false,
                 tor_detected: false,
-            } as GeoData);
+            };
+
+            if (debugMode) {
+                result.debug = {
+                    all_headers: allHeaders,
+                    selected_source: source,
+                    is_private: true,
+                    raw_ip_masked: maskIPForDebug(ip),
+                };
+            }
+
+            return res.status(200).json(result);
         }
 
         // Call ip-api.com for geolocation (free, 45 req/min)
@@ -110,24 +131,48 @@ export default async function handler(
 
         if (geoData.status !== 'success') {
             // Return basic data if geo lookup fails
-            return res.status(200).json({
+            const result: GeoData = {
                 ip_hash: hashIP(ip),
+                ip_encrypted: encryptIP(ip),
+                ip_source: source,
                 country: 'Unknown',
                 city: 'Unknown',
                 isp: 'Unknown',
                 vpn_detected: false,
                 tor_detected: false,
-            } as GeoData);
+            };
+
+            if (debugMode) {
+                result.debug = {
+                    all_headers: allHeaders,
+                    selected_source: source,
+                    is_private: false,
+                    raw_ip_masked: maskIPForDebug(ip),
+                };
+            }
+
+            return res.status(200).json(result);
         }
 
         const result: GeoData = {
             ip_hash: hashIP(ip),
+            ip_encrypted: encryptIP(ip),
+            ip_source: source,
             country: geoData.country || 'Unknown',
             city: geoData.city || 'Unknown',
             isp: geoData.isp || 'Unknown',
             vpn_detected: detectVPN(geoData.isp || '', geoData.org || '', geoData.as || ''),
             tor_detected: detectTor(geoData.isp || '', geoData.org || ''),
         };
+
+        if (debugMode) {
+            result.debug = {
+                all_headers: allHeaders,
+                selected_source: source,
+                is_private: false,
+                raw_ip_masked: maskIPForDebug(ip),
+            };
+        }
 
         return res.status(200).json(result);
 

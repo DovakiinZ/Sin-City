@@ -18,7 +18,8 @@ type Post = {
     authorAvatar?: string;
     authorUsername?: string;
     userId?: string;
-    guestId?: string; // For anonymous post authors
+    guestId?: string;  // For anonymous posts
+    anonymousId?: string;  // Human-readable ANON-XXXX for admin
     viewCount?: number;
     attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
     gif_url?: string;
@@ -41,8 +42,8 @@ export default function PostDetail() {
                 setLoading(true);
 
                 // Try to load from database
-                const dbPosts = await listPostsFromDb();
-                const dbPost = dbPosts.find((p) => p.slug === slug || p.id === slug || p.title === slug);
+                const result = await listPostsFromDb({ limit: 200 });
+                const dbPost = result.posts.find((p) => p.slug === slug || p.id === slug || p.title === slug);
 
                 if (dbPost) {
                     // Get the author's username for the profile link
@@ -98,7 +99,8 @@ export default function PostDetail() {
                         authorAvatar: fetchedAvatar || dbPost.author_avatar || undefined,
                         authorUsername: fetchedUsername || undefined,
                         userId: dbPost.user_id || undefined,
-                        guestId: dbPost.guest_id || undefined,
+                        guestId: dbPost.guest_id || undefined,  // For anonymous tracking
+                        anonymousId: dbPost.anonymous_id || undefined,  // ANON-XXXX for admin
                         viewCount: (dbPost.view_count || 0) + 1,
                         attachments: dbPost.attachments?.map((a: any) => ({
                             url: a.url || '',

@@ -31,9 +31,11 @@ interface ChatViewProps {
     otherUserName: string;
     otherUserAvatar?: string;
     isAnonymousMode?: boolean;
+    isAdmin?: boolean;
     isMobile?: boolean;
     onBack: () => void;
-    onSendMessage: (content: string, media?: { url: string; type: 'image' | 'video' | 'gif' }) => void;
+    onSendMessage: (content: string, media?: { url: string; type: 'image' | 'video' | 'gif' | 'voice'; duration?: number }) => void;
+    onDeleteMessage?: (messageId: string) => void;
     onLoadMore?: () => void;
     hasMore?: boolean;
     onDeleteChat?: () => void;
@@ -50,9 +52,11 @@ export default function ChatView({
     otherUserName,
     otherUserAvatar,
     isAnonymousMode,
+    isAdmin,
     isMobile = false,
     onBack,
     onSendMessage,
+    onDeleteMessage,
     onLoadMore,
     hasMore,
     onDeleteChat,
@@ -141,8 +145,8 @@ export default function ChatView({
         try {
             const voiceUrl = await uploadVoice(blob);
             if (voiceUrl) {
-                // Send voice message directly
-                onSendMessage('', { url: voiceUrl, type: 'gif' }); // Using gif type as placeholder for voice
+                // Send voice message with proper type
+                onSendMessage('', { url: voiceUrl, type: 'voice', duration });
             }
         } catch (error) {
             console.error('Voice upload failed:', error);
@@ -255,7 +259,9 @@ export default function ChatView({
                                 voiceUrl={msg.voiceUrl}
                                 voiceDuration={msg.voiceDuration}
                                 isAnonymous={msg.isAnonymous}
+                                isAdmin={isAdmin}
                                 onAvatarClick={onProfileClick}
+                                onDelete={onDeleteMessage}
                             />
                         ))}
                         <div ref={messagesEndRef} />

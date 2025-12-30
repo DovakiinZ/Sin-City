@@ -112,34 +112,24 @@ export function useChatMessages(sessionId: string | null) {
         try {
             // Get session info first
             const { data: session } = await supabase
-                .from("chat_sessions")
-                .select("participant_1, participant_2, participant_1_anonymous, participant_2_anonymous")
+                .from("message_sessions")
+                .select("participant_1, participant_2, status")
                 .eq("id", sessionId)
                 .single();
 
             if (session) {
                 const isParticipant1 = session.participant_1 === user.id;
                 const otherUserId = isParticipant1 ? session.participant_2 : session.participant_1;
-                const otherIsAnon = isParticipant1 ? session.participant_2_anonymous : session.participant_1_anonymous;
 
-                setIsAnonymousMode(otherIsAnon);
+                setIsAnonymousMode(false);
 
                 // Get other user info
-                if (otherIsAnon) {
-                    const anonIdentity = generateAnonymousIdentity(otherUserId, sessionId);
-                    setOtherUser({
-                        id: otherUserId,
-                        name: anonIdentity.alias,
-                        avatar: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${anonIdentity.avatarSeed}`
-                    });
-                } else {
-                    const cached = await getCachedUser(otherUserId);
-                    setOtherUser({
-                        id: otherUserId,
-                        name: cached.username || 'Unknown',
-                        avatar: cached.avatar_url || undefined
-                    });
-                }
+                const cached = await getCachedUser(otherUserId);
+                setOtherUser({
+                    id: otherUserId,
+                    name: cached.username || 'Unknown',
+                    avatar: cached.avatar_url || undefined
+                });
             }
 
             // Get messages
@@ -311,6 +301,27 @@ export function useChatMessages(sessionId: string | null) {
         }
     }, []);
 
+    // Delete message (admin or sender)
+    const deleteMessage = useCallback(async (messageId: string): Promise<boolean> => {
+        if (!user) return false;
+
+        try {
+            const { error } = await supabase
+                .from("session_messages")
+                .delete()
+                .eq("id", messageId);
+
+            if (error) throw error;
+
+            // Remove from local state
+            setMessages(prev => prev.filter(msg => msg.id !== messageId));
+            return true;
+        } catch (error) {
+            console.error("Error deleting message:", error);
+            return false;
+        }
+    }, [user]);
+
     return {
         messages,
         loading,
@@ -321,6 +332,7 @@ export function useChatMessages(sessionId: string | null) {
         sendMessage,
         uploadMedia,
         uploadVoice,
+        deleteMessage,
         loadMore: () => loadMessages(true),
         refresh: () => loadMessages(false),
         setTyping

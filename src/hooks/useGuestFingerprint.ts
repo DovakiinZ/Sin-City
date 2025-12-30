@@ -15,6 +15,7 @@ interface DeviceInfo {
 
 interface GuestData {
     id: string;
+    anonymous_id: string | null;
     status: 'active' | 'blocked' | 'restricted';
     post_count: number;
     email: string | null;
@@ -24,6 +25,8 @@ interface GuestData {
 
 interface NetworkInfo {
     ip_hash: string;
+    ip_encrypted?: string;  // AES-256 encrypted raw IP
+    ip_source?: string;     // Header source: cf, xff, real, socket
     country: string;
     city: string;
     isp: string;
@@ -52,6 +55,8 @@ const fetchNetworkInfo = async (): Promise<NetworkInfo | null> => {
         const data = await response.json();
         return {
             ip_hash: data.ip_hash || null,
+            ip_encrypted: data.ip_encrypted || null,
+            ip_source: data.ip_source || null,
             country: data.country || null,
             city: data.city || null,
             isp: data.isp || null,
@@ -68,6 +73,7 @@ interface GuestFingerprintResult {
     fingerprint: string;
     deviceInfo: DeviceInfo;
     guestId: string | null;
+    anonymousId: string | null;
     guestData: GuestData | null;
     isLoading: boolean;
     error: string | null;
@@ -77,6 +83,7 @@ interface GuestFingerprintResult {
     refreshGuestData: () => Promise<void>;
     createOrUpdateGuest: (email?: string) => Promise<{
         guestId: string | null;
+        anonymousId: string | null;
         status: string | null;
         postCount: number;
         requiresEmail: boolean;
@@ -194,7 +201,7 @@ export function useGuestFingerprint(): GuestFingerprintResult {
                     // Try to fetch current guest data
                     const { data } = await supabase
                         .from('guests')
-                        .select('id, status, post_count, email, trust_score')
+                        .select('id, anonymous_id, status, post_count, email, trust_score')
                         .eq('id', cachedGuestId)
                         .maybeSingle();  // Use maybeSingle to avoid error if not found
                     if (data) {
@@ -229,7 +236,7 @@ export function useGuestFingerprint(): GuestFingerprintResult {
             let existingGuest = null;
             const { data: foundGuest } = await supabase
                 .from('guests')
-                .select('id, status, post_count, email, trust_score')
+                .select('id, anonymous_id, status, post_count, email, trust_score')
                 .eq('fingerprint', fingerprint)
                 .maybeSingle();
 
@@ -262,7 +269,7 @@ export function useGuestFingerprint(): GuestFingerprintResult {
                         vpn_detected: networkInfo?.vpn_detected || false,
                         tor_detected: networkInfo?.tor_detected || false
                     })
-                    .select('id, status, post_count, email, trust_score')
+                    .select('id, anonymous_id, status, post_count, email, trust_score')
                     .single();
 
                 if (insertError) {
@@ -314,6 +321,9 @@ export function useGuestFingerprint(): GuestFingerprintResult {
             try {
                 const { data: claimResult } = await supabase.rpc('log_guest_security_with_claim', {
                     p_guest_id: newGuestId,
+                    p_ip_hash: networkInfo?.ip_hash || null,
+                    p_ip_encrypted: networkInfo?.ip_encrypted || null,
+                    p_ip_source: networkInfo?.ip_source || null,
                     p_country: networkInfo?.country || null,
                     p_city: networkInfo?.city || null,
                     p_isp: networkInfo?.isp || null,
@@ -354,6 +364,7 @@ export function useGuestFingerprint(): GuestFingerprintResult {
 
             return {
                 guestId: newGuestId,
+                anonymousId: existingGuest?.anonymous_id || null,
                 status: existingGuest?.status || 'active',
                 postCount: currentPostCount,
                 requiresEmail,
@@ -362,7 +373,7 @@ export function useGuestFingerprint(): GuestFingerprintResult {
             const message = err instanceof Error ? err.message : 'Unknown error';
             setError(message);
             console.error('Guest creation error:', err);
-            return { guestId: null, status: null, postCount: 0, requiresEmail: false };
+            return { guestId: null, anonymousId: null, status: null, postCount: 0, requiresEmail: false };
         } finally {
             setIsLoading(false);
         }
@@ -374,7 +385,7 @@ export function useGuestFingerprint(): GuestFingerprintResult {
         try {
             const { data } = await supabase
                 .from('guests')
-                .select('id, status, post_count, email, email_verified, trust_score')
+                .select('id, anonymous_id, status, post_count, email, email_verified, trust_score')
                 .eq('id', guestId)
                 .maybeSingle();
             if (data) {
@@ -392,6 +403,7 @@ export function useGuestFingerprint(): GuestFingerprintResult {
         fingerprint,
         deviceInfo,
         guestId,
+        anonymousId: guestData?.anonymous_id || null,
         guestData,
         isLoading,
         error,

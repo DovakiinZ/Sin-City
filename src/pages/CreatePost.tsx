@@ -6,7 +6,7 @@ import ThreadCreator from "@/components/thread/ThreadCreator";
 import { createThread } from "@/hooks/useSupabasePosts";
 import { useToast } from "@/hooks/use-toast";
 import { useMarkdownPreview } from "@/hooks/useMarkdownPreview";
-import { X, Plus, Image, Film, Loader2, Link2, Music, Smile, ArrowLeft, Save, Send } from "lucide-react";
+import { X, Plus, Image, Film, Loader2, Link2, Music, Smile, ArrowLeft, Save, Send, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 import GifPicker from "@/components/GifPicker";
 import MusicEmbed from "@/components/MusicEmbed";
 import { useGuestFingerprint } from "@/hooks/useGuestFingerprint";
@@ -21,6 +21,8 @@ interface MinimalEditorProps {
     setTitle: (v: string) => void;
     content: string;
     setContent: (v: string) => void;
+    textAlign: 'right' | 'center' | 'left';
+    setTextAlign: (v: 'right' | 'center' | 'left') => void;
     mediaFiles: { url: string; type: 'image' | 'video' | 'music'; file?: File }[];
     setMediaFiles: React.Dispatch<React.SetStateAction<{ url: string; type: 'image' | 'video' | 'music'; file?: File }[]>>;
     selectedGif: string | null;
@@ -38,7 +40,7 @@ interface MinimalEditorProps {
 }
 
 function MinimalSinglePostEditor({
-    title, setTitle, content, setContent,
+    title, setTitle, content, setContent, textAlign, setTextAlign,
     mediaFiles, setMediaFiles, selectedGif, setSelectedGif,
     showMusicInput, setShowMusicInput, showGifPicker, setShowGifPicker,
     uploadingMedia, fileInputRef, handleMediaUpload, removeMedia, addMusic, user
@@ -69,15 +71,50 @@ function MinimalSinglePostEditor({
                 : 'border-green-900/30'
                 }`}>
 
-                {/* Textarea */}
+                {/* Alignment Toggle */}
+                <div className="flex items-center justify-end gap-2 px-4 py-2 border-b border-green-900/20 bg-black/20 rounded-t-xl">
+                    <div className="flex bg-gray-900/80 rounded-lg p-1 border border-green-900/30">
+                        <button
+                            type="button"
+                            onClick={() => setTextAlign('right')}
+                            className={`p-1.5 rounded transition-all ${textAlign === 'right' ? 'bg-green-500 text-black shadow-sm' : 'text-gray-400 hover:text-green-400 hover:bg-white/5'}`}
+                            title="Right / يمين"
+                        >
+                            <AlignRight className="w-4 h-4" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setTextAlign('center')}
+                            className={`p-1.5 rounded transition-all ${textAlign === 'center' ? 'bg-green-500 text-black shadow-sm' : 'text-gray-400 hover:text-green-400 hover:bg-white/5'}`}
+                            title="Center / وسط"
+                        >
+                            <AlignCenter className="w-4 h-4" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setTextAlign('left')}
+                            className={`p-1.5 rounded transition-all ${textAlign === 'left' ? 'bg-green-500 text-black shadow-sm' : 'text-gray-400 hover:text-green-400 hover:bg-white/5'}`}
+                            title="Left / يسار"
+                        >
+                            <AlignLeft className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Textarea - Preserves text exactly as typed */}
                 <textarea
                     ref={textareaRef}
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
+                    dir="rtl"
+                    style={{
+                        textAlign: textAlign,
+                        unicodeBidi: 'plaintext'
+                    }}
                     className="w-full min-h-[200px] max-h-[60vh] bg-transparent text-gray-100 placeholder-gray-600 p-5 pb-16 focus:outline-none resize-none text-base leading-relaxed"
-                    placeholder="What's on your mind?&#10;&#10;Use **bold**, _italic_, # heading, > quote..."
+                    placeholder="ماذا يدور في ذهنك؟"
                 />
 
                 {/* Hidden file input */}
@@ -275,6 +312,7 @@ export default function CreatePost() {
 
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
+    const [textAlign, setTextAlign] = useState<'right' | 'center' | 'left'>('right');
     const [saving, setSaving] = useState(false);
 
     // Media state
@@ -413,6 +451,7 @@ export default function CreatePost() {
             const postData = {
                 title: postTitle,
                 content,
+                text_align: textAlign,
                 type: mediaFiles.length > 0 ? 'Image' : 'Text',
                 slug: uniqueSlug,
                 user_id: user?.id || null,
@@ -535,6 +574,8 @@ export default function CreatePost() {
                                 setTitle={setTitle}
                                 content={content}
                                 setContent={setContent}
+                                textAlign={textAlign}
+                                setTextAlign={setTextAlign}
                                 mediaFiles={mediaFiles}
                                 setMediaFiles={setMediaFiles}
                                 selectedGif={selectedGif}

@@ -14,13 +14,15 @@ export type DbPost = {
   title: string;
   type: "Text" | "Image" | "Video" | "Link";
   content?: string | null;
+  text_align?: 'right' | 'center' | 'left';  // Text alignment for rendering
   attachments?: AttachmentMetadata[] | null;
   gif_url?: string | null;
   author_name?: string | null;
   author_email?: string | null;
   author_avatar?: string | null;
   user_id?: string | null;
-  guest_id?: string | null; // For anonymous post authors
+  guest_id?: string | null; // For anonymous posts
+  anonymous_id?: string | null; // Human-readable ANON-XXXX for admin view
   created_at?: string;
   draft?: boolean;
   view_count?: number;
@@ -94,47 +96,106 @@ export async function addPostToDb(post: DbPost): Promise<DbPost | null> {
 }
 
 /**
- * List all posts from Supabase database
- * All posts are fetched from the database - no localStorage fallback
+ * Pagination options for listing posts
  */
-export async function listPostsFromDb(): Promise<DbPost[]> {
+export interface ListPostsOptions {
+  limit?: number;         // Number of posts per page (default: 20)
+  cursor?: string;        // created_at of last post for cursor pagination
+  userId?: string;        // Filter by user ID (for profile pages)
+}
+
+/**
+ * Response from paginated post listing
+ */
+export interface ListPostsResult {
+  posts: DbPost[];
+  nextCursor: string | null;  // null means no more posts
+  hasMore: boolean;
+}
+
+/**
+ * List posts from Supabase database with cursor-based pagination
+ * Supports infinite scroll with efficient database queries
+ */
+export async function listPostsFromDb(options?: ListPostsOptions): Promise<ListPostsResult> {
   if (!supabase) {
     console.error("[listPostsFromDb] Supabase is not configured");
     throw new Error("Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file");
   }
 
-  console.log("[listPostsFromDb] Fetching posts from database...");
+  const limit = options?.limit ?? 20;
 
-  // RLS policies will filter for published posts (draft = false)
-  // Filter out hidden posts for public view
-  const { data, error } = await supabase
+  console.log(`[listPostsFromDb] Fetching posts (limit: ${limit}, cursor: ${options?.cursor || 'none'})`);
+
+  // Build query - include guest data for admin visibility
+  let query = supabase
     .from("posts")
-    .select("id,slug,title,type,content,attachments,gif_url,author_name,author_email,author_avatar,user_id,guest_id,view_count,created_at,draft,hidden,is_pinned,thread_id,thread_position")
-    .or("hidden.is.null,hidden.eq.false") // Only show non-hidden posts
-    .order("is_pinned", { ascending: false, nullsFirst: false })
+    .select(`
+      id,slug,title,type,content,text_align,attachments,gif_url,author_name,author_email,author_avatar,user_id,guest_id,view_count,created_at,draft,hidden,is_pinned,thread_id,thread_position,music_metadata,
+      guests:guest_id (anonymous_id)
+    `)
+    .or("hidden.is.null,hidden.eq.false")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(limit + 1); // Fetch one extra to check if more exist
+
+  // Filter by user if specified
+  if (options?.userId) {
+    query = query.eq("user_id", options.userId);
+  }
+
+  // Apply cursor for pagination (skip posts we've already seen)
+  if (options?.cursor) {
+    query = query.lt("created_at", options.cursor);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("[listPostsFromDb] Error fetching posts:", error);
     throw error;
   }
 
+  // Check if there are more posts
+  const hasMore = (data?.length || 0) > limit;
+  let posts = hasMore ? (data || []).slice(0, limit) : (data || []);
+
   // Filter to only show first post of threads or standalone posts
-  const filteredData = (data || []).filter(
+  posts = posts.filter(
     (p) => p.thread_position === null || p.thread_position === undefined || p.thread_position === 1
   );
 
-  console.log(`[listPostsFromDb] Successfully fetched ${filteredData.length} posts (filtered from ${data?.length || 0})`);
+  // Get next cursor from last post's created_at
+  const nextCursor = hasMore && posts.length > 0 ? posts[posts.length - 1].created_at : null;
 
-  return filteredData.map(
-    (p) =>
+  console.log(`[listPostsFromDb] Fetched ${posts.length} posts, hasMore: ${hasMore}`);
+
+  // DEBUG: Log first anonymous post's guest data
+  const anonPosts = posts.filter((p: any) => !p.user_id);
+  if (anonPosts.length > 0) {
+    console.log('[listPostsFromDb] DEBUG - First anonymous post:', {
+      id: anonPosts[0].id,
+      title: anonPosts[0].title,
+      user_id: anonPosts[0].user_id,
+      guest_id: anonPosts[0].guest_id,
+      guests: anonPosts[0].guests,
+      author_name: anonPosts[0].author_name
+    });
+  }
+
+  // Normalize attachments and extract guest anonymous_id
+  const normalizedPosts = posts.map(
+    (p: any) =>
       ({
         ...p,
         attachments: normalizeAttachments(p.attachments),
+        // Extract anonymous_id from the joined guests relation
+        anonymous_id: p.guests?.anonymous_id || null,
       }) as DbPost,
   );
+
+  return { posts: normalizedPosts, nextCursor, hasMore };
 }
+
 
 /**
  * Helper function to convert form data to DbPost format

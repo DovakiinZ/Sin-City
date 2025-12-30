@@ -21,6 +21,8 @@ type Post = {
   authorAvatar?: string;
   authorUsername?: string;
   userId?: string;
+  guestId?: string;  // For anonymous posts
+  anonymousId?: string;  // Human-readable ANON-XXXX for admin
   isAdmin?: boolean;
   draft?: boolean;
   viewCount?: number;
@@ -146,8 +148,8 @@ export default function Posts() {
 
       let allPosts: Post[] = [];
       try {
-        const fromDb = await listPostsFromDb();
-        allPosts = (fromDb || []).map((p: any) => {
+        const result = await listPostsFromDb({ limit: 200 }); // Get more posts for the Posts page
+        allPosts = (result.posts || []).map((p: any) => {
           const createdDate = p.created_at ? new Date(p.created_at) : null;
           const formattedDate = createdDate
             ? createdDate.toLocaleDateString('en-US', {
@@ -167,6 +169,8 @@ export default function Posts() {
             authorAvatar: p.author_avatar || (p.user_id ? userAvatars.get(p.user_id) : undefined) || undefined,
             authorUsername: p.user_id ? userUsernames.get(p.user_id) : undefined,
             userId: p.user_id || undefined,
+            guestId: p.guest_id || undefined,  // For anonymous tracking
+            anonymousId: p.anonymous_id || undefined,  // ANON-XXXX for admin view
             isAdmin: p.user_id ? adminUserIds.has(p.user_id) : false,
             draft: p.draft || false,
             viewCount: p.view_count || 0,

@@ -34,7 +34,7 @@ export default function StartChatModal({ isOpen, onClose, onStartChat }: StartCh
             try {
                 // Get recent chat partners
                 const { data: sessions } = await supabase
-                    .from("chat_sessions")
+                    .from("message_sessions")
                     .select("participant_1, participant_2, updated_at")
                     .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
                     .order("updated_at", { ascending: false })
