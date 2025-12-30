@@ -26,6 +26,70 @@ interface GraphData {
     edge_count: number;
 }
 
+// Helper to format output with clickable links
+const formatContent = (text: string, onCommand: (cmd: string) => void) => {
+    const lines = text.split('\n');
+    return lines.map((line, i) => {
+        // Regex for IP Address
+        const ipRegex = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g;
+        // Regex for UUID (Guest ID / User ID / Post ID)
+        const uuidRegex = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/g;
+        // Regex for Username
+        const userRegex = /@(\w+)/g;
+
+        const parts: React.ReactNode[] = [];
+        let lastIndex = 0;
+
+        // processing logic would be complex with multiple regexes. 
+        // Simple approach: Split by space and check each word
+        const words = line.split(/(\s+)/);
+
+        return (
+            <div key={i} className="min-h-[1.2em]">
+                {words.map((word, wIndex) => {
+                    if (word.match(ipRegex)) {
+                        return (
+                            <span
+                                key={wIndex}
+                                onClick={() => onCommand(`trace ip ${word}`)}
+                                className="text-blue-400 hover:underline cursor-pointer hover:text-blue-300"
+                                title="Click to trace IP"
+                            >
+                                {word}
+                            </span>
+                        );
+                    }
+                    if (word.match(uuidRegex)) {
+                        return (
+                            <span
+                                key={wIndex}
+                                onClick={() => onCommand(`timeline ${word}`)}
+                                className="text-purple-400 hover:underline cursor-pointer hover:text-purple-300"
+                                title="Click to view timeline"
+                            >
+                                {word}
+                            </span>
+                        );
+                    }
+                    if (word.startsWith('@')) {
+                        // Just style for now
+                        return <span key={wIndex} className="text-yellow-400">{word}</span>;
+                    }
+                    return <span key={wIndex}>{word}</span>;
+                })}
+            </div>
+        );
+    });
+};
+
+const AVAILABLE_COMMANDS = [
+    'help', 'clear', 'exit', 'whoami',
+    'sudo user --full', 'sudo anon --trace', 'sudo post --history', 'sudo risk --scan',
+    'sudo action --ban', 'sudo action --unban', 'sudo action --restrict', 'sudo action --verify',
+    'auto-investigate anon', 'explain risk', 'suggest action', 'timeline', 'trace ip', 'graph',
+    'auto-investigate', 'suggest'
+];
+
 export default function AdminPostTerminal({
     postId,
     userId,
@@ -45,6 +109,11 @@ export default function AdminPostTerminal({
     ]);
     const [commandHistory, setCommandHistory] = useState<string[]>([]);
     const [historyIndex, setHistoryIndex] = useState(-1);
+
+    // Auto-complete state
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
+
     const [isMinimized, setIsMinimized] = useState(false);
     const [isMaximized, setIsMaximized] = useState(false);
     const [graphData, setGraphData] = useState<GraphData | null>(null);
@@ -151,14 +220,55 @@ export default function AdminPostTerminal({
         ]);
     }, [input, commandLoading, executeCommand, onClose]);
 
+    // Handle Input Change & Auto-complete
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setInput(val);
+
+        if (!val.trim()) {
+            setSuggestions([]);
+            return;
+        }
+
+        const matching = AVAILABLE_COMMANDS.filter(cmd =>
+            cmd.toLowerCase().startsWith(val.toLowerCase()) &&
+            cmd.toLowerCase() !== val.toLowerCase()
+        ).slice(0, 5); // Limit suggestions
+
+        setSuggestions(matching);
+        setSelectedSuggestionIndex(0);
+    };
+
     // Handle keyboard navigation
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        // Tab or Right Arrow for autocomplete
+        if (suggestions.length > 0) {
+            const target = e.currentTarget as HTMLInputElement;
+            if (e.key === 'Tab' || (e.key === 'ArrowRight' && target.selectionStart === input.length)) {
+                e.preventDefault();
+                setInput(suggestions[selectedSuggestionIndex]);
+                setSuggestions([]);
+                return;
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setSelectedSuggestionIndex(prev => (prev + 1) % suggestions.length);
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setSelectedSuggestionIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
+                return;
+            }
+        }
+
         if (e.key === 'ArrowUp') {
             e.preventDefault();
             if (commandHistory.length > 0) {
                 const newIndex = historyIndex < commandHistory.length - 1 ? historyIndex + 1 : historyIndex;
                 setHistoryIndex(newIndex);
                 setInput(commandHistory[commandHistory.length - 1 - newIndex] || '');
+                setSuggestions([]);
             }
         } else if (e.key === 'ArrowDown') {
             e.preventDefault();
@@ -166,14 +276,20 @@ export default function AdminPostTerminal({
                 const newIndex = historyIndex - 1;
                 setHistoryIndex(newIndex);
                 setInput(commandHistory[commandHistory.length - 1 - newIndex] || '');
+                setSuggestions([]);
             } else if (historyIndex === 0) {
                 setHistoryIndex(-1);
                 setInput('');
+                setSuggestions([]);
             }
         } else if (e.key === 'Escape') {
-            onClose();
+            if (suggestions.length > 0) {
+                setSuggestions([]);
+            } else {
+                onClose();
+            }
         }
-    }, [commandHistory, historyIndex, onClose]);
+    }, [commandHistory, historyIndex, onClose, suggestions, selectedSuggestionIndex, input]);
 
     // Focus terminal when clicked
     const handleTerminalClick = useCallback(() => {
@@ -292,7 +408,10 @@ export default function AdminPostTerminal({
                                     : 'text-green-500/80'
                             }`}
                     >
-                        {entry.content}
+                        {formatContent(entry.content, (cmd) => {
+                            setInput(cmd);
+                            if (inputRef.current) inputRef.current.focus();
+                        })}
                     </div>
                 ))}
 
@@ -317,12 +436,34 @@ export default function AdminPostTerminal({
                 onSubmit={handleSubmit}
                 className="absolute bottom-0 left-0 right-0 flex items-center gap-2 px-4 py-3 bg-black/80 border-t border-green-500/20"
             >
+                {/* Auto-complete suggestions */}
+                {suggestions.length > 0 && (
+                    <div className="absolute bottom-full left-4 mb-2 w-64 bg-black/95 border border-green-500/50 rounded shadow-lg overflow-hidden">
+                        {suggestions.map((cmd, i) => (
+                            <div
+                                key={cmd}
+                                className={`px-3 py-1.5 cursor-pointer font-mono text-sm border-b border-green-500/10 last:border-0 ${i === selectedSuggestionIndex
+                                        ? 'bg-green-900/40 text-green-300'
+                                        : 'text-gray-400 hover:bg-green-900/20'
+                                    }`}
+                                onClick={() => {
+                                    setInput(cmd);
+                                    setSuggestions([]);
+                                    if (inputRef.current) inputRef.current.focus();
+                                }}
+                            >
+                                {cmd}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 <span className="text-green-400">$</span>
                 <input
                     ref={inputRef}
                     type="text"
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
                     disabled={commandLoading}
                     placeholder={commandLoading ? 'Processing...' : 'Enter command...'}

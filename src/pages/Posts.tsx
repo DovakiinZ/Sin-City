@@ -143,9 +143,7 @@ export default function Posts() {
             if (p.avatar_url) userAvatars.set(p.id, p.avatar_url);
             if (p.username) userUsernames.set(p.id, p.username);
           });
-          if (user?.id && adminUserIds.has(user.id)) {
-            setCurrentUserIsAdmin(true);
-          }
+          // Note: Current user check moved to separate useEffect
         }
       } catch (error) {
         console.error("[Posts] Error fetching profiles:", error);
@@ -203,6 +201,28 @@ export default function Posts() {
       setIsLoading(false);
     })();
   }, []);
+
+  // Separate effect to check admin status when user loads
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) {
+        setCurrentUserIsAdmin(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (data?.role === 'admin') {
+        setCurrentUserIsAdmin(true);
+      }
+    };
+
+    checkAdmin();
+  }, [user]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
