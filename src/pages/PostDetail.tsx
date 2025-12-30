@@ -18,6 +18,7 @@ type Post = {
     authorAvatar?: string;
     authorUsername?: string;
     userId?: string;
+    guestId?: string; // For anonymous post authors
     viewCount?: number;
     attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
     gif_url?: string;
@@ -97,6 +98,7 @@ export default function PostDetail() {
                         authorAvatar: fetchedAvatar || dbPost.author_avatar || undefined,
                         authorUsername: fetchedUsername || undefined,
                         userId: dbPost.user_id || undefined,
+                        guestId: dbPost.guest_id || undefined,
                         viewCount: (dbPost.view_count || 0) + 1,
                         attachments: dbPost.attachments?.map((a: any) => ({
                             url: a.url || '',

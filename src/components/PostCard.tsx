@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { UserAvatarWithStatus } from "@/components/UserAvatarWithStatus";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2 } from "lucide-react";
+import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2, Terminal } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useReactions, toggleReaction } from "@/hooks/useReactions";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +12,7 @@ import MediaCarousel from "@/components/media/PostMediaCarousel";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import CommentList from "@/components/comments/CommentList";
 import { MusicMetadata } from "@/components/MusicCard";
+import AdminPostTerminal from "@/components/admin/AdminPostTerminal";
 
 interface PostCardProps {
     post: {
@@ -30,6 +31,7 @@ interface PostCardProps {
         attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
         gif_url?: string;
         userId?: string;
+        guestId?: string; // For anonymous post authors
         viewCount?: number;
         music_metadata?: MusicMetadata | null;  // Cached music metadata for fallback
     };
@@ -65,6 +67,24 @@ export default function PostCard({
     const [submitting, setSubmitting] = useState(false);
     const [toggling, setToggling] = useState(false);
     const commentInputRef = useRef<HTMLTextAreaElement>(null);
+
+    // Admin terminal state
+    const [showTerminal, setShowTerminal] = useState(false);
+
+    // Keyboard shortcut for admin terminal (Ctrl+Shift+T)
+    useEffect(() => {
+        if (!isAdmin) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+                e.preventDefault();
+                setShowTerminal(prev => !prev);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isAdmin]);
 
     // Extract first image from content if no attachments
     const contentImage = useMemo(() => {
@@ -345,6 +365,17 @@ export default function PostCard({
                 {/* Admin Actions */}
                 {isAdmin && post.postId && (
                     <div className="ml-auto flex items-center gap-2">
+                        {/* Terminal Button */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowTerminal(!showTerminal);
+                            }}
+                            className={`p-1.5 rounded transition-colors ${showTerminal ? 'text-green-400' : 'text-gray-500 hover:text-green-400'}`}
+                            title="Admin Terminal (Ctrl+Shift+T)"
+                        >
+                            <Terminal className="w-4 h-4" />
+                        </button>
                         {/* Hide/Show Button */}
                         {onHide && (
                             <button
@@ -438,6 +469,16 @@ export default function PostCard({
                 >
                     <CommentList postId={post.postId || post.slug} postAuthorId={post.userId} />
                 </div>
+            )}
+
+            {/* Admin Terminal - Only visible to admins */}
+            {isAdmin && showTerminal && post.postId && (
+                <AdminPostTerminal
+                    postId={post.postId}
+                    userId={post.userId}
+                    guestId={post.guestId}
+                    onClose={() => setShowTerminal(false)}
+                />
             )}
         </article>
     );

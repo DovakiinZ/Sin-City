@@ -20,6 +20,7 @@ export type DbPost = {
   author_email?: string | null;
   author_avatar?: string | null;
   user_id?: string | null;
+  guest_id?: string | null; // For anonymous post authors
   created_at?: string;
   draft?: boolean;
   view_count?: number;
@@ -108,7 +109,7 @@ export async function listPostsFromDb(): Promise<DbPost[]> {
   // Filter out hidden posts for public view
   const { data, error } = await supabase
     .from("posts")
-    .select("id,slug,title,type,content,attachments,gif_url,author_name,author_email,author_avatar,user_id,view_count,created_at,draft,hidden,is_pinned,thread_id,thread_position")
+    .select("id,slug,title,type,content,attachments,gif_url,author_name,author_email,author_avatar,user_id,guest_id,view_count,created_at,draft,hidden,is_pinned,thread_id,thread_position")
     .or("hidden.is.null,hidden.eq.false") // Only show non-hidden posts
     .order("is_pinned", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })

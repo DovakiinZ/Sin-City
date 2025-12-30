@@ -309,20 +309,35 @@ export function useGuestFingerprint(): GuestFingerprintResult {
             // Cache the guest ID locally
             localStorage.setItem(`guest_id_${fingerprint}`, newGuestId);
 
-            // === SECURE IP LOGGING (Server-Side) ===
-            // Call RPC to capture Real IP safely in ip_security_logs
-            // This is critical for the Admin Panel security features
+            // === SECURE IP LOGGING + AUTO-CLAIM OLD POSTS ===
+            // Call RPC to capture Real IP and claim any old posts from same IP
             try {
-                await supabase.rpc('log_guest_security', {
+                const { data: claimResult } = await supabase.rpc('log_guest_security_with_claim', {
                     p_guest_id: newGuestId,
                     p_country: networkInfo?.country || null,
                     p_city: networkInfo?.city || null,
                     p_isp: networkInfo?.isp || null,
                     p_vpn_detected: networkInfo?.vpn_detected || false
                 });
+
+                if (claimResult?.claimed_posts > 0) {
+                    console.log(`[GuestFingerprint] Claimed ${claimResult.claimed_posts} old posts for this guest`);
+                    // Update local post count
+                    currentPostCount += claimResult.claimed_posts;
+                }
             } catch (rpcError) {
-                console.warn('Secure logging warning:', rpcError);
-                // Non-blocking error
+                // Fallback to old function if new one doesn't exist yet
+                try {
+                    await supabase.rpc('log_guest_security', {
+                        p_guest_id: newGuestId,
+                        p_country: networkInfo?.country || null,
+                        p_city: networkInfo?.city || null,
+                        p_isp: networkInfo?.isp || null,
+                        p_vpn_detected: networkInfo?.vpn_detected || false
+                    });
+                } catch (fallbackError) {
+                    console.warn('Secure logging warning:', fallbackError);
+                }
             }
 
             // Check if email is required (>= 2 posts and no email)
