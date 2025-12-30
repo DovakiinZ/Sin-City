@@ -7,8 +7,9 @@ import { slugify } from "@/lib/markdown";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import PostCard from "@/components/PostCard";
 import { supabase } from "@/lib/supabase";
-import { Search } from "lucide-react";
+import { Search, Terminal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import AdminPostTerminal from "@/components/admin/AdminPostTerminal";
 
 type Post = {
   title: string;
@@ -48,6 +49,10 @@ export default function Posts() {
   const qParam = params.get("q") || "";
   const [query, setQuery] = useState(qParam);
   const { toast } = useToast();
+
+  // Admin terminal state
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [selectedPostForTerminal, setSelectedPostForTerminal] = useState<Post | null>(null);
 
   const togglePin = async (postId: string, currentlyPinned: boolean) => {
     if (!currentUserIsAdmin) return;
@@ -321,6 +326,25 @@ export default function Posts() {
           </div>
         )}
       </div>
+
+      {/* Admin Terminal FAB - Mobile Friendly */}
+      {currentUserIsAdmin && !showTerminal && (
+        <button
+          onClick={() => setShowTerminal(true)}
+          className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-40 w-12 h-12 bg-green-600 hover:bg-green-500 text-black rounded-full shadow-lg shadow-green-500/20 flex items-center justify-center transition-all hover:scale-110"
+          title="Open Admin Terminal"
+        >
+          <Terminal className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* Admin Terminal */}
+      {showTerminal && (
+        <AdminPostTerminal
+          postId="global"
+          onClose={() => setShowTerminal(false)}
+        />
+      )}
     </div>
   );
 }
