@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getClientIP, hashIP, encryptIP, isPrivateIP } from './lib/ip-utils';
+import { getClientIP, hashIP, isPrivateIP } from './lib/ip-utils';
 
 // Known VPN/Datacenter ASNs (simplified list)
 const VPN_ASNS = [
@@ -20,9 +20,12 @@ const VPN_ASNS = [
 // Known Tor exit node indicator
 const TOR_INDICATORS = ['tor', 'exit', 'relay'];
 
-interface GeoData {
+/**
+ * Response data sent to CLIENT
+ * SECURITY: real_ip is NEVER included here
+ */
+interface ClientGeoData {
     ip_hash: string;
-    ip_encrypted?: string;  // For secure storage (admin only)
     ip_source?: string;     // Which header was used
     country: string;
     city: string;
@@ -35,6 +38,21 @@ interface GeoData {
         is_private: boolean;
         raw_ip_masked: string;
     };
+}
+
+/**
+ * Internal data for SERVER-SIDE storage (ip_security_logs)
+ * Contains real_ip in plain text for admin visibility
+ */
+interface ServerSecurityData {
+    ip_hash: string;
+    real_ip: string | null;   // Plain text IP for admin-only storage
+    ip_source: string;
+    country: string;
+    city: string;
+    isp: string;
+    vpn_detected: boolean;
+    tor_detected: boolean;
 }
 
 // Check if ISP/org name suggests VPN or datacenter
@@ -90,15 +108,15 @@ export default async function handler(
     const debugMode = req.query.debug_ip === '1';
 
     try {
-        // Extract IP using robust utility
+        // Extract IP using @supercharge/request-ip with our enhancements
         const ipResult = getClientIP(req as any);
-        const { ip, source, isPrivate, allHeaders } = ipResult;
+        const { ip, realIp, source, isPrivate, allHeaders } = ipResult;
 
         console.log(`[guest-init] IP extracted: source=${source}, private=${isPrivate}, ip_masked=${maskIPForDebug(ip)}`);
 
         // Handle private/local IPs
         if (isPrivate) {
-            const result: GeoData = {
+            const clientResult: ClientGeoData = {
                 ip_hash: hashIP(ip),
                 ip_source: source,
                 country: 'Local',
@@ -109,7 +127,7 @@ export default async function handler(
             };
 
             if (debugMode) {
-                result.debug = {
+                clientResult.debug = {
                     all_headers: allHeaders,
                     selected_source: source,
                     is_private: true,
@@ -117,7 +135,14 @@ export default async function handler(
                 };
             }
 
-            return res.status(200).json(result);
+            // Return response with _server_data for internal use (not exposed to browser)
+            return res.status(200).json({
+                ...clientResult,
+                // Server-side only data (for RPC calls, not exposed to client display)
+                _server_data: {
+                    real_ip: null,  // Private IPs are never stored
+                } as Partial<ServerSecurityData>
+            });
         }
 
         // Call ip-api.com for geolocation (free, 45 req/min)
@@ -131,9 +156,8 @@ export default async function handler(
 
         if (geoData.status !== 'success') {
             // Return basic data if geo lookup fails
-            const result: GeoData = {
+            const clientResult: ClientGeoData = {
                 ip_hash: hashIP(ip),
-                ip_encrypted: encryptIP(ip),
                 ip_source: source,
                 country: 'Unknown',
                 city: 'Unknown',
@@ -143,7 +167,7 @@ export default async function handler(
             };
 
             if (debugMode) {
-                result.debug = {
+                clientResult.debug = {
                     all_headers: allHeaders,
                     selected_source: source,
                     is_private: false,
@@ -151,12 +175,16 @@ export default async function handler(
                 };
             }
 
-            return res.status(200).json(result);
+            return res.status(200).json({
+                ...clientResult,
+                _server_data: {
+                    real_ip: realIp,  // Store real IP for admin even if geo fails
+                } as Partial<ServerSecurityData>
+            });
         }
 
-        const result: GeoData = {
+        const clientResult: ClientGeoData = {
             ip_hash: hashIP(ip),
-            ip_encrypted: encryptIP(ip),
             ip_source: source,
             country: geoData.country || 'Unknown',
             city: geoData.city || 'Unknown',
@@ -166,7 +194,7 @@ export default async function handler(
         };
 
         if (debugMode) {
-            result.debug = {
+            clientResult.debug = {
                 all_headers: allHeaders,
                 selected_source: source,
                 is_private: false,
@@ -174,7 +202,13 @@ export default async function handler(
             };
         }
 
-        return res.status(200).json(result);
+        // SECURITY: real_ip is in _server_data, NEVER in the main client response
+        return res.status(200).json({
+            ...clientResult,
+            _server_data: {
+                real_ip: realIp,  // Plain text IP for admin-only storage
+            } as Partial<ServerSecurityData>
+        });
 
     } catch (error) {
         console.error('Guest init error:', error);

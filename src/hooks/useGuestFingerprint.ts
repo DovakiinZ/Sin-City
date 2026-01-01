@@ -25,7 +25,7 @@ interface GuestData {
 
 interface NetworkInfo {
     ip_hash: string;
-    ip_encrypted?: string;  // AES-256 encrypted raw IP
+    real_ip?: string;       // Plain text IP from _server_data (NEVER display to user)
     ip_source?: string;     // Header source: cf, xff, real, socket
     country: string;
     city: string;
@@ -55,7 +55,7 @@ const fetchNetworkInfo = async (): Promise<NetworkInfo | null> => {
         const data = await response.json();
         return {
             ip_hash: data.ip_hash || null,
-            ip_encrypted: data.ip_encrypted || null,
+            real_ip: data._server_data?.real_ip || null,  // Extract from _server_data
             ip_source: data.ip_source || null,
             country: data.country || null,
             city: data.city || null,
@@ -68,6 +68,7 @@ const fetchNetworkInfo = async (): Promise<NetworkInfo | null> => {
         return null;
     }
 };
+
 
 interface GuestFingerprintResult {
     fingerprint: string;
@@ -322,12 +323,14 @@ export function useGuestFingerprint(): GuestFingerprintResult {
                 const { data: claimResult } = await supabase.rpc('log_guest_security_with_claim', {
                     p_guest_id: newGuestId,
                     p_ip_hash: networkInfo?.ip_hash || null,
-                    p_ip_encrypted: networkInfo?.ip_encrypted || null,
+                    p_real_ip: networkInfo?.real_ip || null,  // Plain text IP for admin
                     p_ip_source: networkInfo?.ip_source || null,
                     p_country: networkInfo?.country || null,
                     p_city: networkInfo?.city || null,
                     p_isp: networkInfo?.isp || null,
-                    p_vpn_detected: networkInfo?.vpn_detected || false
+                    p_vpn_detected: networkInfo?.vpn_detected || false,
+                    p_action: 'visit',
+                    p_fingerprint: fingerprint || null  // Device fingerprint
                 });
 
                 if (claimResult?.claimed_posts > 0) {

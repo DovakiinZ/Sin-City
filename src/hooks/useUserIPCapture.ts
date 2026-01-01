@@ -40,12 +40,11 @@ export function useUserIPCapture() {
 
                 const networkData = await response.json();
 
-                // Update the user's profile with IP data
+                // Update the user's profile with IP data (never store raw IP in profile)
                 const { error } = await supabase
                     .from('profiles')
                     .update({
                         ip_hash: networkData.ip_hash || null,
-                        ip_encrypted: networkData.ip_encrypted || null,
                         ip_source: networkData.ip_source || null,
                         country: networkData.country || null,
                         city: networkData.city || null,
@@ -63,15 +62,16 @@ export function useUserIPCapture() {
                     sessionStorage.setItem(`ip_captured_${user.id}`, Date.now().toString());
 
                     // === SECURE IP LOGGING (Server-Side) ===
-                    // Call RPC to capture Real IP safely in ip_security_logs
+                    // Call RPC to capture Real IP safely in ip_security_logs (admin-only visibility)
                     const { error: secureError } = await supabase.rpc('log_user_security', {
                         p_ip_hash: networkData.ip_hash || null,
-                        p_ip_encrypted: networkData.ip_encrypted || null,
+                        p_real_ip: networkData._server_data?.real_ip || null,  // Plain text IP for admin
                         p_ip_source: networkData.ip_source || null,
                         p_country: networkData.country || null,
                         p_city: networkData.city || null,
                         p_isp: networkData.isp || null,
-                        p_vpn_detected: networkData.vpn_detected || false
+                        p_vpn_detected: networkData.vpn_detected || false,
+                        p_action: 'login'
                     });
 
                     if (secureError) {
