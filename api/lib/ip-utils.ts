@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import RequestIp from '@supercharge/request-ip';
+import { getClientIp } from '@supercharge/request-ip';
 
 // Environment variables for security
 const IP_SALT = process.env.IP_HASH_SALT || 'sin-city-guest-salt-2024';
@@ -77,7 +77,7 @@ export function getClientIP(req: {
     let source: IPExtractionResult['source'] = 'unknown';
 
     // 1. Use @supercharge/request-ip as primary source (handles many edge cases)
-    const superchargeIp = RequestIp.getClientIp(req);
+    const superchargeIp = getClientIp(req);
     if (superchargeIp && isValidIP(normalizeIP(superchargeIp))) {
         ip = normalizeIP(superchargeIp);
         source = 'supercharge';
