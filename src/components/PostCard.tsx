@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2, Search, Terminal } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useIdentity, useContentAuthor } from "@/hooks/useIdentity";
 import { useReactions, toggleReaction } from "@/hooks/useReactions";
 import { useToast } from "@/hooks/use-toast";
 import { createComment } from "@/hooks/useComments";
@@ -60,6 +61,8 @@ export default function PostCard({
     const navigate = useNavigate();
     const { user } = useAuth();
     const { toast } = useToast();
+    const { identity } = useIdentity();
+    const { user_id, guest_id, isReady } = useContentAuthor();
     const postIdForReactions = post.postId || post.slug;
     const { reactions, counts, optimisticToggle } = useReactions(postIdForReactions);
 
@@ -148,14 +151,24 @@ export default function PostCard({
 
     // Handle comment submission
     const handleSubmitComment = async () => {
-        if (!commentText.trim() || !user) return;
+        if (!commentText.trim()) return;
+        if (!isReady) {
+            toast({ title: "Initializing...", description: "Please wait a moment" });
+            return;
+        }
+
+        if (!user) {
+            toast({ title: "Login required", description: "Please login to comment", variant: "destructive" });
+            return;
+        }
 
         setSubmitting(true);
         try {
             await createComment({
                 post_id: post.postId || post.slug,
-                user_id: user.id,
-                author_name: user.username || "Anonymous",
+                user_id: user_id || undefined,
+                guest_id: guest_id || undefined,
+                author_name: user?.username || "Anonymous",
                 content: commentText.trim(),
             });
             toast({ title: "Posted", description: "Comment added!" });

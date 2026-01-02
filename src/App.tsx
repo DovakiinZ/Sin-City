@@ -40,34 +40,17 @@ import ScanlineEffect from "./components/ScanlineEffect";
 import TerminalCommand from "./components/TerminalCommand";
 import PageTransition from "./components/PageTransition";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useUserIPCapture } from "./hooks/useUserIPCapture";
-import useGuestFingerprint from "./hooks/useGuestFingerprint";
+
+import useIdentity from "./hooks/useIdentity";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
   const [showTerminal, setShowTerminal] = useState(false);
   const { user, loading } = useAuth();
-  const location = useLocation();
-  const showMatrix = useKonamiCode();
-
-  // Capture IP for logged-in users
-  useUserIPCapture();
-
-  // Capture Guest Fingerprint & Logging
-  const { createOrUpdateGuest, fingerprint } = useGuestFingerprint();
-
-  useEffect(() => {
-    // If not loading and no user, log as guest
-    if (!loading && !user && fingerprint) {
-      const hasLogged = sessionStorage.getItem(`guest_logged_${fingerprint}`);
-      if (!hasLogged) {
-        createOrUpdateGuest().then(() => {
-          sessionStorage.setItem(`guest_logged_${fingerprint}`, 'true');
-        });
-      }
-    }
-  }, [loading, user, fingerprint, createOrUpdateGuest]);
+  // Unified Identity System (User + Guest)
+  // Handles IP capture, guest initialization, and merging automatically
+  useIdentity();
 
   // Track user presence (heartbeat every 30s)
   usePresence();

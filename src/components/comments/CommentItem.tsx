@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useIdentity, useContentAuthor } from "@/hooks/useIdentity";
 import { deleteComment, updateComment, createComment, type Comment } from "@/hooks/useComments";
 import { useToast } from "@/hooks/use-toast";
 import { parseMentions } from "@/lib/mentions";
@@ -22,6 +23,8 @@ interface CommentItemProps {
 
 export default function CommentItem({ comment, postId, postAuthorId, depth = 0 }: CommentItemProps) {
     const { user } = useAuth();
+    const { identity } = useIdentity();
+    const { user_id, guest_id, isReady } = useContentAuthor();
     const { toast } = useToast();
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(comment.content);
@@ -32,9 +35,9 @@ export default function CommentItem({ comment, postId, postAuthorId, depth = 0 }
     const [replyContent, setReplyContent] = useState("");
     const [submittingReply, setSubmittingReply] = useState(false);
 
-    const isOwner = user?.id === comment.user_id;
+    const isOwner = (user?.id && user.id === comment.user_id) || (guest_id && guest_id === comment.guest_id);
     const isPostAuthor = comment.user_id === postAuthorId;
-    const isCurrentUser = user?.id === comment.user_id;
+    const isCurrentUser = isOwner;
     const maxDepth = 3; // Limit nesting depth
 
     // Relative time (e.g., "2h ago")
@@ -84,14 +87,25 @@ export default function CommentItem({ comment, postId, postAuthorId, depth = 0 }
     };
 
     const handleReply = async () => {
-        if (!replyContent.trim() || !user) return;
+        if (!replyContent.trim()) return;
+
+        if (!isReady) {
+            toast({ title: "Initializing...", description: "Please wait a moment" });
+            return;
+        }
+
+        if (identity?.type === 'anon' && identity.status === 'blocked') {
+            toast({ title: "Blocked", description: "Replies blocked", variant: "destructive" });
+            return;
+        }
 
         setSubmittingReply(true);
         try {
             await createComment({
                 post_id: postId,
-                user_id: user.id,
-                author_name: user.username || "Anonymous",
+                user_id: user_id || undefined,
+                guest_id: guest_id || undefined,
+                author_name: user?.username || "Anonymous",
                 content: replyContent.trim(),
                 parent_id: comment.id,
             });
@@ -136,7 +150,8 @@ export default function CommentItem({ comment, postId, postAuthorId, depth = 0 }
 
     // Get user initial for reply form
     const getUserInitial = () => {
-        return user?.username?.charAt(0).toUpperCase() || "?";
+        if (user?.username) return user.username.charAt(0).toUpperCase();
+        return "?";
     };
 
     return (
