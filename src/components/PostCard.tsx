@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { UserAvatarWithStatus } from "@/components/UserAvatarWithStatus";
 import { Link, useNavigate } from "react-router-dom";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2, Search, Terminal } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useIdentity, useContentAuthor } from "@/hooks/useIdentity";
@@ -264,7 +264,17 @@ export default function PostCard({
                             )
                         )}
                         <span className="text-gray-500 text-xs">·</span>
-                        <span className="text-gray-500 text-xs">{relativeTime}</span>
+                        <span className="text-gray-500 text-xs" title={post.rawDate ? new Date(post.rawDate).toLocaleString() : undefined}>
+                            {relativeTime}
+                        </span>
+                        {post.rawDate && (
+                            <>
+                                <span className="text-gray-500 text-xs">·</span>
+                                <span className="text-gray-500 text-xs" title="Post time">
+                                    {format(new Date(post.rawDate), 'h:mm a')}
+                                </span>
+                            </>
+                        )}
                         {fullContent && (
                             <>
                                 <span className="text-gray-500 text-xs">·</span>

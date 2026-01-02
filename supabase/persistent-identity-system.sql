@@ -161,11 +161,11 @@ BEGIN
     SELECT g.id, 'fingerprint'::TEXT, 100 FROM public.guests g 
     WHERE g.fingerprint = p_fingerprint AND g.status != 'merged' AND g.merged_user_id IS NULL
     UNION ALL
-    SELECT g.id, 'ip_hash'::TEXT, 70 FROM public.guests g 
+    SELECT g.id, 'ip_hash'::TEXT, 50 FROM public.guests g 
     WHERE g.ip_hash = p_ip_hash AND p_ip_hash IS NOT NULL AND g.status != 'merged' AND g.merged_user_id IS NULL
     AND NOT EXISTS (SELECT 1 FROM public.guests g2 WHERE g2.fingerprint = p_fingerprint)
     UNION ALL
-    SELECT g.id, 'ip_history'::TEXT, 50 FROM public.guests g 
+    SELECT g.id, 'ip_history'::TEXT, 40 FROM public.guests g 
     WHERE p_ip_address IS NOT NULL AND g.ip_history @> jsonb_build_array(jsonb_build_object('ip', p_ip_address))
     AND g.status != 'merged' AND g.merged_user_id IS NULL
     AND NOT EXISTS (SELECT 1 FROM public.guests g2 WHERE g2.fingerprint = p_fingerprint)
