@@ -8,6 +8,7 @@ import { useChatMessages } from "@/hooks/useChatMessages";
 import { useStartChat } from "@/hooks/useStartChat";
 import { generateAnonymousIdentity } from "@/lib/generateChatAlias";
 import AsciiHeader from "@/components/AsciiHeader";
+import { useConversations } from "@/hooks/useConversations";
 
 export default function ChatPage() {
     const navigate = useNavigate();
@@ -22,6 +23,8 @@ export default function ChatPage() {
     const [activeSessionId, setActiveSessionId] = useState<string | null>(
         searchParams.get('session') || null
     );
+
+    const { markAsRead } = useConversations();
 
     const {
         messages,
@@ -151,8 +154,14 @@ export default function ChatPage() {
     useEffect(() => {
         if (activeSessionId) {
             navigate(`/chat?session=${activeSessionId}`, { replace: true });
+
+            // Mark as read when entering session
+            markAsRead(activeSessionId);
+
+            // Also mark as read periodically or on message arrival if window is focused
+            // For now, simpler: we mark as read on mount/change of session ID
         }
-    }, [activeSessionId, navigate]);
+    }, [activeSessionId, navigate, markAsRead]);
 
     const handleSendMessage = async (content: string, media?: { url: string; type: 'image' | 'video' | 'gif' | 'voice'; duration?: number }) => {
         if (!activeSessionId) return;

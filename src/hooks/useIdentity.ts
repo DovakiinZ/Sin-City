@@ -165,7 +165,7 @@ export function useIdentity(): IdentityResult {
             // ================================================================
             // CASE 1: Authenticated user → user identity
             // ================================================================
-            if (user && profile) {
+            if (user) {
                 const identity: Identity = {
                     type: 'user',
                     id: user.id,
