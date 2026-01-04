@@ -102,11 +102,16 @@ export function useConversations() {
             }
 
             // Map sessions with joined data
-            const enriched = sessionData.map(session => {
+            const enriched = await Promise.all(sessionData.map(async (session) => {
                 const isParticipant1 = session.participant_1 === user.id;
                 const otherUserProfile = isParticipant1
                     ? session.participant_2_profile
                     : session.participant_1_profile;
+
+                // Fetch actual unread count from backend
+                const { data: unreadCount } = await supabase.rpc('get_conversation_unread_count', {
+                    p_session_id: session.id
+                });
 
                 return {
                     id: session.id,
@@ -120,9 +125,9 @@ export function useConversations() {
                         username: otherUserProfile.username,
                         avatar_url: otherUserProfile.avatar_url
                     } : undefined,
-                    unread_count: 0 // We'll calculate this separately if needed
+                    unread_count: unreadCount || 0
                 } as Conversation;
-            });
+            }));
 
             setConversations(enriched);
         } catch (error) {

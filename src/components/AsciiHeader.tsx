@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { MessageCircle } from "lucide-react";
-import { useConversations } from "@/hooks/useConversations";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
 import UnreadBadge from "./UnreadBadge";
 
 const AsciiHeader = () => {
@@ -13,7 +13,7 @@ const AsciiHeader = () => {
   const navigate = useNavigate();
   const { isMobile, isIOS, isAndroid } = useDeviceDetect();
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
-  const { totalUnread } = useConversations();
+  const { totalUnread } = useUnreadCount();
 
   // Fetch user avatar
   useEffect(() => {

@@ -42,6 +42,7 @@ import PageTransition from "./components/PageTransition";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 import useIdentity from "./hooks/useIdentity";
+import FeaturesDemo from "./pages/FeaturesDemo";
 
 const queryClient = new QueryClient();
 
@@ -117,6 +118,7 @@ const AppContent = () => {
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/edit" element={<ProfileEdit />} />
           <Route path="/chat" element={<ChatPage />} />
+          <Route path="/demo" element={<FeaturesDemo />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
