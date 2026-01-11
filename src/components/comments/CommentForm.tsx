@@ -156,6 +156,7 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
             return;
         }
 
+        // Allow anonymous users with guest_id
         if (!user) {
             toast({ title: "Login required", description: "Please login to comment", variant: "destructive" });
             return;

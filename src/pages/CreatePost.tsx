@@ -450,10 +450,10 @@ export default function CreatePost() {
                 text_align: textAlign,
                 type: mediaFiles.length > 0 ? 'Image' : 'Text',
                 slug: uniqueSlug,
-                user_id: user_id,
-                guest_id: guest_id,
+                user_id: user_id || null,
+                guest_id: guest_id || null,
                 author_type: user_id ? 'user' : 'anon',
-                author_name: user?.username || user?.email || "Anonymous",
+                author_name: user?.username || user?.email || identity?.anon_id || "Anonymous",
                 author_email: user?.email || null,
                 author_avatar: user?.avatarDataUrl || null,
                 draft,
@@ -461,9 +461,33 @@ export default function CreatePost() {
                 gif_url: selectedGif || null,
             };
 
+            // DEBUG: Log what we're sending
+            console.log('[CreatePost] Attempting insert with:', {
+                user_id: postData.user_id,
+                guest_id: postData.guest_id,
+                author_type: postData.author_type,
+                identity_type: identity?.type,
+                identity_id: identity?.id,
+            });
+
+            // Validate: must have either user_id OR guest_id
+            if (!postData.user_id && !postData.guest_id) {
+                console.error('[CreatePost] No valid identity - both user_id and guest_id are null!');
+                toast({
+                    title: "Identity Error",
+                    description: "Unable to identify you. Please refresh and try again.",
+                    variant: "destructive"
+                });
+                setSaving(false);
+                return;
+            }
+
             const { data: post, error } = await supabase.from("posts").insert(postData).select().single();
 
-            if (error) throw error;
+            if (error) {
+                console.error('[CreatePost] Insert error:', error);
+                throw error;
+            }
 
             toast({
                 title: draft ? "Draft saved" : "Published!",
