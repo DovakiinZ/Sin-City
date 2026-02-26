@@ -59,13 +59,9 @@ const AppContent = () => {
 
   useEffect(() => {
     // If not loading and no user, log as guest
+    // Always call createOrUpdateGuest — the DB upsert handles dedup
     if (!loading && !user && fingerprint) {
-      const hasLogged = sessionStorage.getItem(`guest_logged_${fingerprint}`);
-      if (!hasLogged) {
-        createOrUpdateGuest().then(() => {
-          sessionStorage.setItem(`guest_logged_${fingerprint}`, 'true');
-        });
-      }
+      createOrUpdateGuest();
     }
   }, [loading, user, fingerprint, createOrUpdateGuest]);
 

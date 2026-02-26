@@ -220,10 +220,10 @@ export function useGuestFingerprint(): GuestFingerprintResult {
     // Create or update guest record in database - simplified version
     const createOrUpdateGuest = useCallback(async (
         email?: string
-    ): Promise<{ guestId: string | null; status: string | null; postCount: number; requiresEmail: boolean }> => {
+    ): Promise<{ guestId: string | null; anonymousId: string | null; status: string | null; postCount: number; requiresEmail: boolean }> => {
         if (!fingerprint) {
             setError('Fingerprint not ready');
-            return { guestId: null, status: null, postCount: 0, requiresEmail: false };
+            return { guestId: null, anonymousId: null, status: null, postCount: 0, requiresEmail: false };
         }
 
         setIsLoading(true);
@@ -273,9 +273,9 @@ export function useGuestFingerprint(): GuestFingerprintResult {
                     .single();
 
                 if (insertError) {
-                    console.error('Error creating guest:', insertError);
+                    console.error('Error creating guest:', insertError.message);
                     setError(insertError.message);
-                    return { guestId: null, status: null, postCount: 0, requiresEmail: false };
+                    return { guestId: null, anonymousId: null, status: null, postCount: 0, requiresEmail: false };
                 }
 
                 newGuestId = insertedGuest.id;
@@ -324,10 +324,8 @@ export function useGuestFingerprint(): GuestFingerprintResult {
                     p_ip_hash: networkInfo?.ip_hash || null,
                     p_ip_encrypted: networkInfo?.ip_encrypted || null,
                     p_ip_source: networkInfo?.ip_source || null,
-                    p_country: networkInfo?.country || null,
-                    p_city: networkInfo?.city || null,
-                    p_isp: networkInfo?.isp || null,
-                    p_vpn_detected: networkInfo?.vpn_detected || false
+                    p_vpn_detected: networkInfo?.vpn_detected || false,
+                    p_tor_detected: networkInfo?.tor_detected || false
                 });
 
                 if (claimResult?.claimed_posts > 0) {
@@ -340,10 +338,9 @@ export function useGuestFingerprint(): GuestFingerprintResult {
                 try {
                     await supabase.rpc('log_guest_security', {
                         p_guest_id: newGuestId,
-                        p_country: networkInfo?.country || null,
-                        p_city: networkInfo?.city || null,
                         p_isp: networkInfo?.isp || null,
-                        p_vpn_detected: networkInfo?.vpn_detected || false
+                        p_vpn_detected: networkInfo?.vpn_detected || false,
+                        p_tor_detected: networkInfo?.tor_detected || false
                     });
                 } catch (fallbackError) {
                     console.warn('Secure logging warning:', fallbackError);

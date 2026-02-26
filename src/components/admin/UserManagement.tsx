@@ -18,7 +18,7 @@ interface UserProfile {
     vpn_detected?: boolean;
     tor_detected?: boolean;
     last_ip_update?: string | null;
-    securityData?: { real_ip: string; ip_fingerprint: string; last_seen_at: string; is_blocked?: boolean } | null;
+    securityData?: { real_ip: string; ip_hash: string; last_seen_at: string; is_blocked?: boolean } | null;
 }
 
 export default function UserManagement() {
@@ -42,7 +42,7 @@ export default function UserManagement() {
             // Get secure logs for these users
             const { data: securityLogs, error: logError } = await supabase
                 .from("ip_security_logs")
-                .select("user_id, real_ip, ip_fingerprint, last_seen_at")
+                .select("user_id, real_ip, ip_hash, last_seen_at")
                 .not('user_id', 'is', null);
 
             // Get blocked IPs
@@ -59,7 +59,7 @@ export default function UserManagement() {
                     ...user,
                     securityData: logs ? {
                         real_ip: logs.real_ip,
-                        ip_fingerprint: logs.ip_fingerprint,
+                        ip_hash: logs.ip_hash,
                         last_seen_at: logs.last_seen_at,
                         is_blocked: blockedSet.has(logs.real_ip)
                     } : null
@@ -248,8 +248,8 @@ export default function UserManagement() {
                                                     <span className="text-[10px] text-red-500 font-bold">BLOCKED</span>
                                                 )}
                                             </div>
-                                            <span className="text-[10px] ascii-dim truncate max-w-[100px]" title={user.securityData.ip_fingerprint || ''}>
-                                                {user.securityData.ip_fingerprint?.substring(0, 8)}...
+                                            <span className="text-[10px] ascii-dim truncate max-w-[100px]" title={user.securityData.ip_hash || ''}>
+                                                {user.securityData.ip_hash?.substring(0, 8)}...
                                             </span>
                                         </div>
                                     ) : (

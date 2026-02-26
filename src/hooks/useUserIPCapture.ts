@@ -71,11 +71,14 @@ export function useUserIPCapture() {
                         p_country: networkData.country || null,
                         p_city: networkData.city || null,
                         p_isp: networkData.isp || null,
-                        p_vpn_detected: networkData.vpn_detected || false
+                        p_vpn_detected: networkData.vpn_detected || false,
+                        p_tor_detected: networkData.tor_detected || false
                     });
 
                     if (secureError) {
-                        console.warn('Secure logging warning:', secureError.message);
+                        console.warn('[useUserIPCapture] Secure logging error:', secureError.message);
+                    } else {
+                        console.log('[useUserIPCapture] Secure IP log recorded');
                     }
                 }
 

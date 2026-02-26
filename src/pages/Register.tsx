@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useGuestFingerprint } from "@/hooks/useGuestFingerprint";
+import { supabase } from "@/lib/supabase";
 import AvatarUploader from "@/components/AvatarUploader";
 import BackButton from "@/components/BackButton";
 
 export default function Register() {
   const { register } = useAuth();
+  const { guestId } = useGuestFingerprint();
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,12 +33,29 @@ export default function Register() {
 
     setLoading(true);
     try {
+      // 1. Register the user
       await register({
         email,
         password,
         username,
         avatarDataUrl: avatar,
       });
+
+      // 2. If we have a guest ID, merge the guest data into the new user
+      if (guestId) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            console.log('[Register] Merging guest data for:', user.id, 'from guest:', guestId);
+            await supabase.rpc('auto_merge_on_registration', {
+              p_user_id: user.id,
+              p_guest_id: guestId
+            });
+          }
+        } catch (mergeErr) {
+          console.warn('[Register] Guest merge failed (non-critical):', mergeErr);
+        }
+      }
 
       nav("/profile");
     } catch (err: unknown) {

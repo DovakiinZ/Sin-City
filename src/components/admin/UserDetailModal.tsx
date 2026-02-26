@@ -32,7 +32,7 @@ interface UserProfile {
     vpn_detected?: boolean;
     tor_detected?: boolean;
     last_ip_update?: string | null;
-    securityData?: { real_ip: string; ip_fingerprint: string; last_seen_at: string; is_blocked?: boolean } | null;
+    securityData?: { real_ip: string; ip_hash: string; last_seen_at: string; is_blocked?: boolean } | null;
 }
 
 interface UserDetailModalProps {
@@ -44,7 +44,7 @@ interface UserDetailModalProps {
 export default function UserDetailModal({ user, onClose, onUpdate }: UserDetailModalProps) {
     const [securityData, setSecurityData] = useState<{
         real_ip: string;
-        ip_fingerprint: string;
+        ip_hash: string;
         last_seen_at: string;
         is_blocked?: boolean;
         stats?: {
@@ -69,7 +69,7 @@ export default function UserDetailModal({ user, onClose, onUpdate }: UserDetailM
             // But main source is ip_security_logs
             const { data, error } = await supabase
                 .from('ip_security_logs')
-                .select('real_ip, ip_fingerprint, last_seen_at')
+                .select('real_ip, ip_hash, last_seen_at')
                 .eq('user_id', user.id)
                 .order('last_seen_at', { ascending: false })
                 .limit(1)
@@ -286,8 +286,8 @@ export default function UserDetailModal({ user, onClose, onUpdate }: UserDetailM
                                         </div>
                                         <div>
                                             <div className="ascii-dim text-[10px] uppercase mb-1">Secure Fingerprint</div>
-                                            <div className="font-mono text-xs text-ascii-dim truncate" title={securityData.ip_fingerprint || ''}>
-                                                {securityData.ip_fingerprint?.substring(0, 16)}...
+                                            <div className="font-mono text-xs text-ascii-dim truncate" title={securityData.ip_hash || ''}>
+                                                {securityData.ip_hash?.substring(0, 16)}...
                                             </div>
                                         </div>
                                     </div>
