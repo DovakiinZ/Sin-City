@@ -186,10 +186,10 @@ export default function AdminPostInspector({ guestId, onClose, onViewProfile }: 
                                 <span
                                     key={i}
                                     className={`text-xs px-2 py-1 rounded border ${flag === 'spam' || flag === 'suspicious'
-                                            ? 'border-red-500/50 bg-red-500/10 text-red-400'
-                                            : flag === 'verified' || flag === 'trusted'
-                                                ? 'border-green-500/50 bg-green-500/10 text-green-400'
-                                                : 'border-gray-500/50 bg-gray-500/10 text-gray-400'
+                                        ? 'border-red-500/50 bg-red-500/10 text-red-400'
+                                        : flag === 'verified' || flag === 'trusted'
+                                            ? 'border-green-500/50 bg-green-500/10 text-green-400'
+                                            : 'border-gray-500/50 bg-gray-500/10 text-gray-400'
                                         }`}
                                 >
                                     {flag}
@@ -314,7 +314,7 @@ export default function AdminPostInspector({ guestId, onClose, onViewProfile }: 
                     <button
                         onClick={() => {
                             onClose();
-                            window.open(`/admin?tab=guests&guest=${guest.id}`, '_blank');
+                            window.open(`/crowd?tab=guests&guest=${guest.id}`, '_blank');
                         }}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-black font-medium rounded transition-colors"
                     >

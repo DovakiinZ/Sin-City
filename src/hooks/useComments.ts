@@ -6,6 +6,7 @@ export interface Comment {
     id: string;
     post_id: string;
     user_id?: string;
+    guest_id?: string;
     parent_id?: string | null;
     author_name: string;
     author_username?: string;
@@ -105,13 +106,13 @@ export function useComments(postId: string) {
                             // Check if this is replacing an optimistic comment
                             const hasTempVersion = current.some(c =>
                                 c.id.startsWith('temp-') &&
-                                c.user_id === payload.new.user_id &&
+                                ((c.user_id && c.user_id === payload.new.user_id) || (c.guest_id && c.guest_id === payload.new.guest_id)) &&
                                 c.content === payload.new.content
                             );
                             if (hasTempVersion) {
                                 // Replace temp with real
                                 return current.map(c =>
-                                    c.id.startsWith('temp-') && c.user_id === payload.new.user_id && c.content === payload.new.content
+                                    c.id.startsWith('temp-') && ((c.user_id && c.user_id === payload.new.user_id) || (c.guest_id && c.guest_id === payload.new.guest_id)) && c.content === payload.new.content
                                         ? payload.new as Comment
                                         : c
                                 );
@@ -184,23 +185,28 @@ export async function createComment(comment: Omit<Comment, "id" | "created_at" |
             .eq("id", comment.post_id)
             .single();
 
-        // Get commenter's profile to ensure we have the username
-        const { data: commenterProfile } = await supabase
-            .from("profiles")
-            .select("username") // Removed display_name
-            .eq("id", comment.user_id)
-            .single();
+        let commenterUsername = null;
+        if (comment.user_id) {
+            // Get commenter's profile to ensure we have the username
+            const { data: commenterProfile } = await supabase
+                .from("profiles")
+                .select("username")
+                .eq("id", comment.user_id)
+                .single();
+            commenterUsername = commenterProfile?.username;
+        }
 
         // Send notification (including for self-comments as requested)
         if (post?.user_id) {
-            console.log('[createComment] Creating notification for user:', post.user_id, 'from commenter:', comment.user_id);
+            console.log('[createComment] Creating notification for user:', post.user_id, 'from commenter:', comment.user_id || comment.guest_id);
             const { error: notifError } = await supabase.from("notifications").insert([{
                 user_id: post.user_id,
                 type: "comment",
                 content: {
                     author: comment.author_name,
-                    likerId: comment.user_id, // Keeping field name for consistency, or standardizing content structure
-                    likerUsername: commenterProfile?.username,
+                    likerId: comment.user_id,
+                    guestId: comment.guest_id, // Add guest ID tracking in notification
+                    likerUsername: commenterUsername,
                     postTitle: post.title,
                     postSlug: comment.post_id,
                     commentId: data.id,
@@ -225,7 +231,7 @@ export async function createComment(comment: Omit<Comment, "id" | "created_at" |
             // Note: In a larger app, we'd do a batch lookup (Array params), but loop is fine for small scale
             for (const username of mentionedUsernames) {
                 // Skip if mentioning self
-                if (username.toLowerCase() === commenterProfile?.username?.toLowerCase()) continue;
+                if (username.toLowerCase() === commenterUsername?.toLowerCase()) continue;
 
                 const { data: mentionedUser } = await supabase
                     .from("profiles")
@@ -251,7 +257,7 @@ export async function createComment(comment: Omit<Comment, "id" | "created_at" |
                         content: {
                             author: comment.author_name,
                             likerId: comment.user_id,
-                            likerUsername: commenterProfile?.username,
+                            likerUsername: commenterUsername,
                             postTitle: post?.title || "a post",
                             postSlug: comment.post_id,
                             commentId: data.id,

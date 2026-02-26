@@ -23,6 +23,7 @@ import GuestDetailModal from "./GuestDetailModal";
 interface Guest {
     id: string;
     fingerprint: string;
+    fingerprint_hash: string | null;
     anonymous_id: string | null; // Human-readable ANON-XXXX
     session_id: string | null;
     email: string | null;
@@ -36,6 +37,19 @@ interface Guest {
         language?: string;
         platform?: string;
     };
+    // Network info
+    ip_hash: string | null;
+    country: string | null;
+    city: string | null;
+    isp: string | null;
+    vpn_detected: boolean;
+    tor_detected: boolean;
+    // Behavior metrics
+    posts_per_hour: number | null;
+    avg_time_between_posts: number | null;
+    last_focus_time: number | null;
+    copy_paste_count: number;
+    disposable_email_detected: boolean;
     trust_score: number;
     flags: string[];
     status: 'active' | 'blocked' | 'restricted';
@@ -54,7 +68,7 @@ interface GuestStats {
     guests_with_email: number;
 }
 
-export default function GuestManagement() {
+export default function GuestManagement({ initialGuestId }: { initialGuestId?: string | null }) {
     const [guests, setGuests] = useState<Guest[]>([]);
     const [stats, setStats] = useState<GuestStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -66,6 +80,16 @@ export default function GuestManagement() {
         loadGuests();
         loadStats();
     }, []);
+
+    // Handle deep linking to a specific guest
+    useEffect(() => {
+        if (initialGuestId && guests.length > 0 && !showDetailModal) {
+            const guest = guests.find(g => g.id === initialGuestId);
+            if (guest) {
+                openGuestDetail(guest);
+            }
+        }
+    }, [initialGuestId, guests]);
 
     const loadGuests = async () => {
         setLoading(true);

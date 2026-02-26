@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import BackButton from "@/components/BackButton";
@@ -17,6 +17,7 @@ export default function AdminDashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
+    const [searchParams] = useSearchParams();
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({ posts: 0, users: 0, comments: 0, guests: 0 });
@@ -194,6 +195,9 @@ export default function AdminDashboard() {
 
     if (loading) return <div className="p-8 text-center ascii-dim">Loading Matrix...</div>;
 
+    const initialTab = searchParams.get('tab') || 'posts';
+    const initialGuestId = searchParams.get('guest');
+
     return (
         <div className="min-h-screen bg-background p-4">
             <div className="max-w-6xl mx-auto space-y-6">
@@ -224,7 +228,7 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                <Tabs defaultValue="posts" className="w-full">
+                <Tabs defaultValue={initialTab} className="w-full">
                     <TabsList className="ascii-box p-1 bg-transparent w-full justify-start">
                         <TabsTrigger value="posts" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
                             <FileText className="w-4 h-4 mr-2" /> Posts
@@ -362,7 +366,7 @@ export default function AdminDashboard() {
                     </TabsContent>
 
                     <TabsContent value="guests" className="mt-4">
-                        <GuestManagement />
+                        <GuestManagement initialGuestId={initialGuestId} />
                     </TabsContent>
 
                     <TabsContent value="music" className="mt-4">

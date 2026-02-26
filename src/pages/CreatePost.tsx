@@ -9,7 +9,7 @@ import { useMarkdownPreview } from "@/hooks/useMarkdownPreview";
 import { X, Plus, Image, Film, Loader2, Link2, Music, Smile, ArrowLeft, Save, Send, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 import GifPicker from "@/components/GifPicker";
 import MusicEmbed from "@/components/MusicEmbed";
-import { useGuestFingerprint } from "@/hooks/useGuestFingerprint";
+import { useIdentity, useContentAuthor } from "@/hooks/useIdentity";
 import { useBehaviorTracking } from "@/hooks/useBehaviorTracking";
 import EmailGateModal from "@/components/EmailGateModal";
 
@@ -324,15 +324,9 @@ export default function CreatePost() {
     const [mediaExpanded, setMediaExpanded] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Guest fingerprint
-    const {
-        fingerprint,
-        guestId,
-        createOrUpdateGuest,
-        postCount: guestPostCount,
-        guestData,
-        refreshGuestData
-    } = useGuestFingerprint();
+    // Identity
+    const { identity, refreshIdentity } = useIdentity();
+    const { user_id, guest_id, isReady } = useContentAuthor();
 
     // Behavior tracking
     const { startTracking } = useBehaviorTracking();
@@ -360,7 +354,7 @@ export default function CreatePost() {
 
     const handleEmailVerified = async (email: string) => {
         setShowEmailModal(false);
-        await refreshGuestData();
+        await refreshIdentity();
         handleSave(false);
     };
 
@@ -416,6 +410,11 @@ export default function CreatePost() {
             return;
         }
 
+        if (!isReady) {
+            toast({ title: "Initializing...", description: "Please wait a moment" });
+            return;
+        }
+
         setSaving(true);
         try {
             const postTitle = title.trim() || "";
@@ -424,24 +423,21 @@ export default function CreatePost() {
                 : "post";
             const uniqueSlug = `${generatedSlug}-${Date.now().toString(36)}`;
 
-            let guestIdLocal: string | null = null;
-            if (!user && fingerprint) {
-                const guestResult = await createOrUpdateGuest(pendingEmail || undefined);
-                guestIdLocal = guestResult.guestId;
-
-                if (guestResult.status === 'blocked') {
+            // Validation for anonymous users
+            if (identity?.type === 'anon') {
+                if (identity.status === 'blocked') {
                     toast({ title: "Blocked", description: "Posting blocked", variant: "destructive" });
                     setSaving(false);
                     return;
                 }
 
-                if (guestResult.status === 'restricted') {
+                if (identity.status === 'restricted') {
                     toast({ title: "Restricted", description: "Try again later", variant: "destructive" });
                     setSaving(false);
                     return;
                 }
 
-                if (guestResult.postCount >= 2 && !guestData?.email_verified) {
+                if ((identity.post_count || 0) >= 2 && !identity.email_verified) {
                     setShowEmailModal(true);
                     setSaving(false);
                     return;
@@ -454,9 +450,10 @@ export default function CreatePost() {
                 text_align: textAlign,
                 type: mediaFiles.length > 0 ? 'Image' : 'Text',
                 slug: uniqueSlug,
-                user_id: user?.id || null,
-                guest_id: guestIdLocal,
-                author_name: user?.username || user?.email || "Anonymous",
+                user_id: user_id || null,
+                guest_id: guest_id || null,
+                author_type: user_id ? 'user' : 'anon',
+                author_name: user?.username || user?.email || identity?.anon_id || "Anonymous",
                 author_email: user?.email || null,
                 author_avatar: user?.avatarDataUrl || null,
                 draft,
@@ -464,9 +461,33 @@ export default function CreatePost() {
                 gif_url: selectedGif || null,
             };
 
+            // DEBUG: Log what we're sending
+            console.log('[CreatePost] Attempting insert with:', {
+                user_id: postData.user_id,
+                guest_id: postData.guest_id,
+                author_type: postData.author_type,
+                identity_type: identity?.type,
+                identity_id: identity?.id,
+            });
+
+            // Validate: must have either user_id OR guest_id
+            if (!postData.user_id && !postData.guest_id) {
+                console.error('[CreatePost] No valid identity - both user_id and guest_id are null!');
+                toast({
+                    title: "Identity Error",
+                    description: "Unable to identify you. Please refresh and try again.",
+                    variant: "destructive"
+                });
+                setSaving(false);
+                return;
+            }
+
             const { data: post, error } = await supabase.from("posts").insert(postData).select().single();
 
-            if (error) throw error;
+            if (error) {
+                console.error('[CreatePost] Insert error:', error);
+                throw error;
+            }
 
             toast({
                 title: draft ? "Draft saved" : "Published!",
@@ -475,6 +496,7 @@ export default function CreatePost() {
 
             if (!draft && post) navigate(`/post/${post.slug}`);
         } catch (error) {
+            console.error(error);
             toast({ title: "Error", description: "Failed to save", variant: "destructive" });
         } finally {
             setSaving(false);
@@ -621,10 +643,10 @@ export default function CreatePost() {
             </div>
 
             {/* Email Gate Modal */}
-            {showEmailModal && guestId && (
+            {showEmailModal && guest_id && (
                 <EmailGateModal
-                    guestId={guestId}
-                    postCount={guestPostCount}
+                    guestId={guest_id}
+                    postCount={identity?.post_count || 0}
                     onVerified={handleEmailVerified}
                     onCancel={() => setShowEmailModal(false)}
                 />

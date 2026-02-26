@@ -5,12 +5,15 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { MessageCircle } from "lucide-react";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
+import UnreadBadge from "./UnreadBadge";
 
 const AsciiHeader = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { isMobile, isIOS, isAndroid } = useDeviceDetect();
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
+  const { totalUnread } = useUnreadCount();
 
   // Fetch user avatar
   useEffect(() => {
@@ -80,12 +83,17 @@ const AsciiHeader = () => {
               <button
                 onClick={() => navigate("/chat")}
                 className={`
-                  p-2 text-green-400 hover:text-green-300 hover:bg-green-900/30 
+                  relative p-2 text-green-400 hover:text-green-300 hover:bg-green-900/30 
                   rounded-lg transition-colors
                 `}
                 title="Messages"
               >
                 <MessageCircle className={isMobileDevice ? 'w-5 h-5' : 'w-6 h-6'} />
+                {totalUnread > 0 && (
+                  <div className="absolute -top-1 -right-1">
+                    <UnreadBadge count={totalUnread} />
+                  </div>
+                )}
               </button>
             )}
 

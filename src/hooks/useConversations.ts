@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 
@@ -6,11 +6,9 @@ export interface Conversation {
     id: string;
     participant_1: string;
     participant_2: string;
-    status: 'pending' | 'accepted' | 'rejected' | 'blocked';
-    initiated_by: string | null;
-    last_message_at: string;
+    status: 'active' | 'archived' | 'blocked';
+    last_activity_at: string;
     created_at: string;
-    // Joined data
     other_user?: {
         id: string;
         username: string | null;
@@ -22,95 +20,116 @@ export interface Conversation {
         created_at: string;
     };
     unread_count?: number;
-    is_request_to_me?: boolean; // True if I need to accept this request
 }
 
 export function useConversations() {
     const { user } = useAuth();
     const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [requests, setRequests] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(true);
-    const [totalUnread, setTotalUnread] = useState(0);
+
+    // Derived total unread - no separate state needed
+    const totalUnread = useMemo(() =>
+        conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0),
+        [conversations]);
 
     const loadConversations = useCallback(async () => {
         if (!user) {
             setConversations([]);
-            setRequests([]);
-            setTotalUnread(0);
             setLoading(false);
             return;
         }
 
         try {
-            // Get all conversations for this user (excluding blocked)
-            const { data: convos, error } = await supabase
-                .from("conversations")
-                .select("*")
+            // Single query with joins for sessions + last message
+            const { data: sessionData, error } = await supabase
+                .from("message_sessions")
+                .select(`
+                    *,
+                    participant_1_profile:profiles!message_sessions_participant_1_fkey(id, username, avatar_url),
+                    participant_2_profile:profiles!message_sessions_participant_2_fkey(id, username, avatar_url)
+                `)
                 .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
                 .neq("status", "blocked")
-                .order("last_message_at", { ascending: false });
+                .order("last_activity_at", { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                console.error("Session query error:", error);
+                // Fallback to simple query without joins
+                const { data: fallbackData } = await supabase
+                    .from("message_sessions")
+                    .select("*")
+                    .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
+                    .neq("status", "blocked")
+                    .order("last_activity_at", { ascending: false });
 
-            if (!convos || convos.length === 0) {
-                setConversations([]);
-                setRequests([]);
-                setTotalUnread(0);
+                if (fallbackData && fallbackData.length > 0) {
+                    // Get unique other user IDs
+                    const otherUserIds = [...new Set(fallbackData.map(s =>
+                        s.participant_1 === user.id ? s.participant_2 : s.participant_1
+                    ))];
+
+                    // Batch fetch profiles
+                    const { data: profiles } = await supabase
+                        .from("profiles")
+                        .select("id, username, avatar_url")
+                        .in("id", otherUserIds);
+
+                    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+                    const enriched = fallbackData.map(session => {
+                        const otherUserId = session.participant_1 === user.id
+                            ? session.participant_2
+                            : session.participant_1;
+                        return {
+                            ...session,
+                            other_user: profileMap.get(otherUserId),
+                            unread_count: 0 // Skip unread for fallback
+                        } as Conversation;
+                    });
+
+                    setConversations(enriched);
+                } else {
+                    setConversations([]);
+                }
                 setLoading(false);
                 return;
             }
 
-            // Enrich conversations with user data
-            const enrichedConversations = await Promise.all(
-                convos.map(async (convo) => {
-                    const otherUserId = convo.participant_1 === user.id
-                        ? convo.participant_2
-                        : convo.participant_1;
+            if (!sessionData || sessionData.length === 0) {
+                setConversations([]);
+                setLoading(false);
+                return;
+            }
 
-                    const { data: profile } = await supabase
-                        .from("profiles")
-                        .select("id, username, avatar_url")
-                        .eq("id", otherUserId)
-                        .single();
+            // Map sessions with joined data
+            const enriched = await Promise.all(sessionData.map(async (session) => {
+                const isParticipant1 = session.participant_1 === user.id;
+                const otherUserProfile = isParticipant1
+                    ? session.participant_2_profile
+                    : session.participant_1_profile;
 
-                    const { data: lastMsg } = await supabase
-                        .from("messages")
-                        .select("content, sender_id, created_at")
-                        .eq("conversation_id", convo.id)
-                        .order("created_at", { ascending: false })
-                        .limit(1)
-                        .single();
+                // Fetch actual unread count from backend
+                const { data: unreadCount } = await supabase.rpc('get_conversation_unread_count', {
+                    p_session_id: session.id
+                });
 
-                    const { count: unreadCount } = await supabase
-                        .from("messages")
-                        .select("*", { count: "exact", head: true })
-                        .eq("conversation_id", convo.id)
-                        .neq("sender_id", user.id)
-                        .is("read_at", null);
+                return {
+                    id: session.id,
+                    participant_1: session.participant_1,
+                    participant_2: session.participant_2,
+                    status: session.status,
+                    last_activity_at: session.last_activity_at,
+                    created_at: session.created_at,
+                    other_user: otherUserProfile ? {
+                        id: otherUserProfile.id,
+                        username: otherUserProfile.username,
+                        avatar_url: otherUserProfile.avatar_url
+                    } : undefined,
+                    unread_count: unreadCount || 0
+                } as Conversation;
+            }));
 
-                    // Check if this is a request to me (they initiated, status is pending)
-                    const isRequestToMe = convo.status === 'pending' && convo.initiated_by !== user.id;
-
-                    return {
-                        ...convo,
-                        other_user: profile || undefined,
-                        last_message: lastMsg || undefined,
-                        unread_count: unreadCount || 0,
-                        is_request_to_me: isRequestToMe,
-                    };
-                })
-            );
-
-            // Separate into requests and active conversations
-            const activeConvos = enrichedConversations.filter(c => c.status === 'accepted');
-            const pendingRequests = enrichedConversations.filter(c => c.status === 'pending');
-
-            setConversations(activeConvos);
-            setRequests(pendingRequests);
-            setTotalUnread(
-                activeConvos.reduce((sum, c) => sum + (c.unread_count || 0), 0) +
-                pendingRequests.filter(r => r.is_request_to_me).length
-            );
+            setConversations(enriched);
         } catch (error) {
             console.error("Error loading conversations:", error);
         } finally {
@@ -118,105 +137,23 @@ export function useConversations() {
         }
     }, [user]);
 
-    const startConversation = async (otherUserId: string): Promise<string | null> => {
-        if (!user) return null;
+    // Stable markAsRead function
+    const markAsRead = useCallback(async (sessionId: string) => {
+        if (!user) return;
+
+        // Optimistic update
+        setConversations(prev => prev.map(c =>
+            c.id === sessionId ? { ...c, unread_count: 0 } : c
+        ));
 
         try {
-            // Check if conversation already exists
-            const user1 = user.id < otherUserId ? user.id : otherUserId;
-            const user2 = user.id < otherUserId ? otherUserId : user.id;
-
-            const { data: existing } = await supabase
-                .from("conversations")
-                .select("id, status")
-                .eq("participant_1", user1)
-                .eq("participant_2", user2)
-                .single();
-
-            if (existing) {
-                // If blocked, can't message
-                if (existing.status === 'blocked') {
-                    console.log("Cannot message: blocked");
-                    return null;
-                }
-                return existing.id;
-            }
-
-            // Create new conversation as pending request
-            const { data, error } = await supabase
-                .from("conversations")
-                .insert({
-                    participant_1: user1,
-                    participant_2: user2,
-                    status: 'pending',
-                    initiated_by: user.id,
-                })
-                .select("id")
-                .single();
-
-            if (error) throw error;
-
-            loadConversations();
-            return data?.id || null;
+            await supabase.rpc('mark_session_as_read', {
+                target_session_id: sessionId
+            });
         } catch (error) {
-            console.error("Error starting conversation:", error);
-            return null;
+            console.error("Error marking session as read:", error);
         }
-    };
-
-    const acceptRequest = async (conversationId: string): Promise<boolean> => {
-        if (!user) return false;
-
-        try {
-            const { error } = await supabase
-                .from("conversations")
-                .update({ status: 'accepted' })
-                .eq("id", conversationId);
-
-            if (error) throw error;
-            loadConversations();
-            return true;
-        } catch (error) {
-            console.error("Error accepting request:", error);
-            return false;
-        }
-    };
-
-    const rejectRequest = async (conversationId: string): Promise<boolean> => {
-        if (!user) return false;
-
-        try {
-            const { error } = await supabase
-                .from("conversations")
-                .update({ status: 'rejected' })
-                .eq("id", conversationId);
-
-            if (error) throw error;
-            loadConversations();
-            return true;
-        } catch (error) {
-            console.error("Error rejecting request:", error);
-            return false;
-        }
-    };
-
-    const blockUser = async (conversationId: string): Promise<boolean> => {
-        if (!user) return false;
-
-        try {
-            const { error } = await supabase
-                .from("conversations")
-                .update({ status: 'blocked' })
-                .eq("id", conversationId);
-
-            if (error) throw error;
-            loadConversations();
-            return true;
-        } catch (error) {
-            console.error("Error blocking user:", error);
-            return false;
-        }
-    };
+    }, [user]);
 
     useEffect(() => {
         loadConversations();
@@ -228,24 +165,11 @@ export function useConversations() {
             .on(
                 "postgres_changes",
                 {
-                    event: "*",
+                    event: "INSERT",
                     schema: "public",
-                    table: "messages",
+                    table: "session_messages",
                 },
-                () => {
-                    loadConversations();
-                }
-            )
-            .on(
-                "postgres_changes",
-                {
-                    event: "*",
-                    schema: "public",
-                    table: "conversations",
-                },
-                () => {
-                    loadConversations();
-                }
+                () => loadConversations()
             )
             .subscribe();
 
@@ -256,13 +180,9 @@ export function useConversations() {
 
     return {
         conversations,
-        requests,
         loading,
         totalUnread,
-        startConversation,
-        acceptRequest,
-        rejectRequest,
-        blockUser,
         refresh: loadConversations,
+        markAsRead
     };
 }

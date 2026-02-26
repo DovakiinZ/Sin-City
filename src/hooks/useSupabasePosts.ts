@@ -242,6 +242,7 @@ export async function createThread(
     posts: ThreadPost[],
     authorInfo: {
         user_id?: string;
+        guest_id?: string;
         author_name: string;
         author_email?: string;
     }
@@ -261,6 +262,7 @@ export async function createThread(
         thread_id: threadId,
         thread_position: index + 1,
         user_id: authorInfo.user_id || null,
+        guest_id: authorInfo.guest_id || null,
         author_name: authorInfo.author_name,
         author_email: authorInfo.author_email || "",
     }));
@@ -314,7 +316,7 @@ export async function getThreadInfo(postId: string): Promise<{ threadId: string;
 export async function replyAsThreadPost(
     parentPostId: string,
     content: string,
-    authorInfo: { user_id: string; author_name: string; author_email?: string }
+    authorInfo: { user_id?: string; guest_id?: string; author_name: string; author_email?: string }
 ) {
     // 1. Get parent post
     const { data: parent, error: parentError } = await supabase
@@ -356,7 +358,8 @@ export async function replyAsThreadPost(
         content: content,
         author_name: authorInfo.author_name,
         author_email: authorInfo.author_email,
-        user_id: authorInfo.user_id,
+        user_id: authorInfo.user_id || null,
+        guest_id: authorInfo.guest_id || null,
         thread_id: threadId,
         thread_position: nextPosition,
         draft: false

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useIdentity, useContentAuthor } from "@/hooks/useIdentity";
 import { createComment } from "@/hooks/useComments";
 import { replyAsThreadPost } from "@/hooks/useSupabasePosts";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +21,8 @@ interface UserSuggestion {
 
 export default function CommentForm({ postId, postAuthorId, onSuccess }: CommentFormProps) {
     const { user } = useAuth();
+    const { identity } = useIdentity();
+    const { user_id, guest_id, isReady } = useContentAuthor();
     const { toast } = useToast();
     const [content, setContent] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -148,8 +151,14 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
         // Allow submit if there's text OR a GIF
         if (!content.trim() && !selectedGif) return;
 
+        if (!isReady) {
+            toast({ title: "Initializing...", description: "Please wait a moment" });
+            return;
+        }
+
+        // Allow anonymous users with guest_id
         if (!user) {
-            toast({ title: "Error", description: "Login required", variant: "destructive" });
+            toast({ title: "Login required", description: "Please login to comment", variant: "destructive" });
             return;
         }
 
@@ -169,8 +178,9 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
             } else {
                 await createComment({
                     post_id: postId,
-                    user_id: user.id,
-                    author_name: user.username || "Anonymous",
+                    user_id: user_id || undefined,
+                    guest_id: guest_id || undefined,
+                    author_name: user?.username || "Anonymous",
                     content: content.trim(),
                     gif_url: selectedGif || undefined,
                 });
@@ -199,7 +209,8 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
 
     // Get user initial for avatar
     const getUserInitial = () => {
-        return user?.username?.charAt(0).toUpperCase() || "?";
+        if (user?.username) return user.username.charAt(0).toUpperCase();
+        return "?";
     };
 
     if (!user) {
@@ -235,7 +246,7 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
                             <div className="w-8 h-8 rounded-full bg-green-900/30 border border-green-700/50 flex items-center justify-center text-xs font-medium text-green-400 flex-shrink-0">
                                 {getUserInitial()}
                             </div>
-                            <span className="text-sm text-green-400">@{user.username}</span>
+                            <span className="text-sm text-green-400">@{user?.username || "Anonymous"}</span>
                         </div>
 
                         {/* Thread Toggle */}

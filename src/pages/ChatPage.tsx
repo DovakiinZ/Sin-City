@@ -8,12 +8,15 @@ import { useChatMessages } from "@/hooks/useChatMessages";
 import { useStartChat } from "@/hooks/useStartChat";
 import { generateAnonymousIdentity } from "@/lib/generateChatAlias";
 import AsciiHeader from "@/components/AsciiHeader";
+import { useConversations } from "@/hooks/useConversations";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
 
 export default function ChatPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user, loading: authLoading } = useAuth();
     const { startChat } = useStartChat();
+    const { setActiveSession } = useUnreadCount();
 
     const [sessions, setSessions] = useState<SessionData[]>([]);
     const [sessionsLoading, setSessionsLoading] = useState(true);
@@ -22,6 +25,8 @@ export default function ChatPage() {
     const [activeSessionId, setActiveSessionId] = useState<string | null>(
         searchParams.get('session') || null
     );
+
+    const { markAsRead } = useConversations();
 
     const {
         messages,
@@ -151,8 +156,17 @@ export default function ChatPage() {
     useEffect(() => {
         if (activeSessionId) {
             navigate(`/chat?session=${activeSessionId}`, { replace: true });
+
+            // Notify unread count hook about active session (prevents badge increment)
+            setActiveSession(activeSessionId);
+
+            // Mark as read when entering session
+            markAsRead(activeSessionId);
+        } else {
+            // Clear active session when no session is selected
+            setActiveSession(null);
         }
-    }, [activeSessionId, navigate]);
+    }, [activeSessionId, navigate, markAsRead, setActiveSession]);
 
     const handleSendMessage = async (content: string, media?: { url: string; type: 'image' | 'video' | 'gif' | 'voice'; duration?: number }) => {
         if (!activeSessionId) return;
