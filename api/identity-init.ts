@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getClientIP, hashIP, isPrivateIP } from './lib/ip-utils';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 /**
  * IDENTITY INIT ENDPOINT

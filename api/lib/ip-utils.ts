@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 // Environment variables for security
 const IP_SALT = process.env.IP_HASH_SALT || 'sin-city-guest-salt-2024';

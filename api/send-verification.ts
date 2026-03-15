@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
