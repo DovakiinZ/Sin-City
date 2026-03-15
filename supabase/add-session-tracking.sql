@@ -1,0 +1,57 @@
+-- ============================================================================
+-- ADD SESSION READ STATUS TRACKING
+-- ============================================================================
+
+-- 1. Create table to track when a user last read a session
+CREATE TABLE IF NOT EXISTS public.session_read_status (
+  session_id UUID REFERENCES public.message_sessions(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  last_read_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (session_id, user_id)
+);
+
+-- 2. Enable RLS
+ALTER TABLE public.session_read_status ENABLE ROW LEVEL SECURITY;
+
+-- 3. RLS Policies
+
+-- Users can view their own read status
+CREATE POLICY "Users can view own session read status"
+  ON public.session_read_status FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Users can insert their own read status
+CREATE POLICY "Users can insert own session read status"
+  ON public.session_read_status FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own read status
+CREATE POLICY "Users can update own session read status"
+  ON public.session_read_status FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- 4. Function to mark session as read (Upsert)
+CREATE OR REPLACE FUNCTION mark_session_as_read(target_session_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  INSERT INTO public.session_read_status (session_id, user_id, last_read_at)
+  VALUES (target_session_id, auth.uid(), now())
+  ON CONFLICT (session_id, user_id)
+  DO UPDATE SET last_read_at = now();
+END;
+$$;
+
+-- 5. Grant permissions
+GRANT SELECT, INSERT, UPDATE ON public.session_read_status TO authenticated;
+GRANT EXECUTE ON FUNCTION mark_session_as_read(UUID) TO authenticated;
+
+-- 6. Add to Realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE public.session_read_status;
+
+DO $$
+BEGIN
+  RAISE NOTICE '✅ Session read status table and functions created.';
+END $$;

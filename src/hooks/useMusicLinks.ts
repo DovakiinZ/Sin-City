@@ -1,0 +1,183 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
+
+export interface MusicLink {
+    id: string;
+    platform: "Spotify" | "YouTube Music";
+    url: string;
+    title: string;
+    created_at: string;
+    created_by: string | null;
+    is_active: boolean;
+    mood?: 'sad' | 'happy' | 'bored' | null;
+    is_hidden?: boolean;
+}
+
+export function useMusicLinks() {
+    const [musicLinks, setMusicLinks] = useState<MusicLink[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { toast } = useToast();
+
+    const fetchMusicLinks = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from("music_links")
+            .select("*")
+            .order("created_at", { ascending: false });
+
+        if (error) {
+            console.error("Error fetching music links:", error);
+            // Don't show toast on every fetch error (polite failure)
+        } else {
+            setMusicLinks(data || []);
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchMusicLinks();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const addMusicLink = async (
+        platform: "Spotify" | "YouTube Music",
+        url: string,
+        title: string,
+        mood?: 'sad' | 'happy' | 'bored' | null,
+        is_hidden: boolean = false
+    ) => {
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+            toast({
+                title: "Error",
+                description: "You must be logged in to add music",
+                variant: "destructive",
+            });
+            return false;
+        }
+
+        const { data, error } = await supabase
+            .from("music_links")
+            .insert([{ platform, url, title, mood, is_hidden, created_by: user.id }])
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Error adding music link:", error);
+            toast({
+                title: "Error",
+                description: error.message.includes("duplicate")
+                    ? "This song URL already exists"
+                    : "Failed to add music link. (Did you run the Migration?)",
+                variant: "destructive",
+            });
+            return false;
+        }
+
+        toast({
+            title: "Success",
+            description: "Song added successfully",
+        });
+        fetchMusicLinks();
+        return true;
+    };
+
+    const updateMusicLink = async (
+        id: string,
+        updates: Partial<Pick<MusicLink, "platform" | "url" | "title" | "is_active" | "mood" | "is_hidden">>
+    ) => {
+        const { error } = await supabase
+            .from("music_links")
+            .update(updates)
+            .eq("id", id);
+
+        if (error) {
+            console.error("Error updating music link:", error);
+            toast({
+                title: "Error",
+                description: "Failed to update music link",
+                variant: "destructive",
+            });
+            return false;
+        }
+
+        toast({
+            title: "Success",
+            description: "Song updated successfully",
+        });
+        fetchMusicLinks();
+        return true;
+    };
+
+    const deleteMusicLink = async (id: string) => {
+        const { error } = await supabase.from("music_links").delete().eq("id", id);
+
+        if (error) {
+            console.error("Error deleting music link:", error);
+            toast({
+                title: "Error",
+                description: "Failed to delete music link",
+                variant: "destructive",
+            });
+            return false;
+        }
+
+        toast({
+            title: "Success",
+            description: "Song deleted successfully",
+        });
+        fetchMusicLinks();
+        return true;
+    };
+
+    const toggleMusicLink = async (id: string, isActive: boolean) => {
+        return updateMusicLink(id, { is_active: isActive });
+    };
+
+    const toggleVisibility = async (id: string, isHidden: boolean) => {
+        return updateMusicLink(id, { is_hidden: !isHidden });
+    };
+
+    return {
+        musicLinks,
+        loading,
+        addMusicLink,
+        updateMusicLink,
+        deleteMusicLink,
+        toggleMusicLink,
+        toggleVisibility,
+        refetch: fetchMusicLinks,
+    };
+}
+
+// Utility function to validate music URLs
+export function validateMusicUrl(url: string): {
+    valid: boolean;
+    platform?: "Spotify" | "YouTube Music" | "Apple Music";
+    error?: string;
+} {
+    // Spotify track URL pattern
+    const spotifyPattern = /^https:\/\/open\.spotify\.com\/(track|album|playlist)\/[a-zA-Z0-9]+/;
+    // YouTube Music URL pattern
+    const youtubeMusicPattern = /^https:\/\/music\.youtube\.com\/watch\?v=[a-zA-Z0-9_-]+/;
+    // Regular YouTube pattern (also supported)
+    const youtubePattern = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]+/;
+    // Apple Music URL pattern
+    const appleMusicPattern = /^https:\/\/music\.apple\.com\/[a-z]{2}\/(album|song|playlist)\/[^/]+\/\d+/;
+
+    if (spotifyPattern.test(url)) {
+        return { valid: true, platform: "Spotify" };
+    } else if (youtubeMusicPattern.test(url) || youtubePattern.test(url)) {
+        return { valid: true, platform: "YouTube Music" };
+    } else if (appleMusicPattern.test(url)) {
+        return { valid: true, platform: "Apple Music" };
+    } else {
+        return {
+            valid: false,
+            error: "Invalid URL. Must be a Spotify, Apple Music, or YouTube Music URL.",
+        };
+    }
+}
