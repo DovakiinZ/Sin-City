@@ -414,9 +414,25 @@ export default function PostCard({
                     <span>Comment</span>
                 </button>
 
+                {/* Author Delete Button — any user can soft-delete their own post */}
+                {isAuthor && !post.is_deleted && post.postId && onDelete && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm('Delete this post? It will be hidden from everyone.')) {
+                                onDelete(post.postId!);
+                            }
+                        }}
+                        className="ml-auto p-1.5 rounded transition-colors text-gray-500 hover:text-red-500"
+                        title="Delete post"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                )}
+
                 {/* Admin Actions */}
                 {isAdmin && post.postId && (
-                    <div className="ml-auto flex items-center gap-2">
+                    <div className={`${isAuthor ? '' : 'ml-auto'} flex items-center gap-2`}>
                         {/* Hide/Show Button */}
                         {onHide && (
                             <button
@@ -430,18 +446,17 @@ export default function PostCard({
                                 <EyeOff className="w-4 h-4" />
                             </button>
                         )}
-                        {/* Delete Button - Show for Admin OR Author (if not already deleted) */}
-                        {(isAdmin || (isAuthor && !post.is_deleted)) && onDelete && (
+                        {/* Admin hard delete (even if already soft-deleted) */}
+                        {onDelete && !isAuthor && (
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    if (confirm('Are you sure you want to delete this post?')) {
+                                    if (confirm('Admin: permanently delete this post?')) {
                                         onDelete(post.postId!);
                                     }
                                 }}
                                 className={`p-1.5 rounded transition-colors ${post.is_deleted ? 'text-red-600' : 'text-gray-500 hover:text-red-500'}`}
-                                title={post.is_deleted ? "Already deleted" : "Delete post"}
-                                disabled={post.is_deleted && !isAdmin}
+                                title={post.is_deleted ? "Hard delete" : "Delete post"}
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>

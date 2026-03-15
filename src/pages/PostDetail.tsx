@@ -29,6 +29,7 @@ type Post = {
     isHtml?: boolean;
     threadId?: string;
     threadPosition?: number;
+    is_deleted?: boolean;
 };
 
 export default function PostDetail() {
@@ -43,6 +44,16 @@ export default function PostDetail() {
     // Admin terminal state
     const [showTerminal, setShowTerminal] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
+
+    const handleSoftDelete = async (postId: string) => {
+        const { error } = await supabase
+            .from('posts')
+            .update({ is_deleted: true })
+            .eq('id', postId);
+
+        if (error) return;
+        navigate('/');
+    };
 
     // Check if user is admin
     useEffect(() => {
@@ -230,6 +241,8 @@ export default function PostDetail() {
                     post={post}
                     fullContent={true}
                     showComments={true}
+                    onDelete={handleSoftDelete}
+                    isAdmin={isAdmin}
                 />
 
                 <div className="text-center pt-4">

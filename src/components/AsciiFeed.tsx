@@ -33,6 +33,7 @@ type Post = {
   gif_url?: string;
   music_metadata?: any; // Cached music metadata for fallback
   is_registered_only?: boolean;
+  is_deleted?: boolean;
 };
 
 interface FrontMatterData {
@@ -82,6 +83,7 @@ const mapDbPostToPost = (
     gif_url: p.gif_url || undefined,
     music_metadata: p.music_metadata || undefined,
     is_registered_only: p.is_registered_only || false,
+    is_deleted: p.is_deleted || false,
   };
 };
 
@@ -99,6 +101,22 @@ const AsciiFeed = () => {
   const [allowAnonPosts, setAllowAnonPosts] = useState<boolean | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Soft-delete: mark post as deleted (visible only to admin)
+  const handleSoftDelete = async (postId: string) => {
+    const { error } = await supabase
+      .from('posts')
+      .update({ is_deleted: true })
+      .eq('id', postId);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to delete post", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Post deleted", description: "Your post has been removed" });
+    // Remove from local state (admin still sees via DB)
+    setDbPosts(prev => prev.filter(p => p.postId !== postId));
+  };
 
   // Load posts from database using listPostsFromDb (same as Posts.tsx for consistency)
   useEffect(() => {
@@ -301,7 +319,7 @@ const AsciiFeed = () => {
         ) : (
           <div>
             {sortedPosts.map((post) => (
-              <PostCard key={post.slug} post={post} isAdmin={isAdmin} />
+              <PostCard key={post.slug} post={post} isAdmin={isAdmin} onDelete={handleSoftDelete} />
             ))}
           </div>
         )}
