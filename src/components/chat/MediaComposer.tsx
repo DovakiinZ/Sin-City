@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Image, Film, Smile, Mic, Loader2, Search, Play, Pause, Send, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useImageCropper } from "@/hooks/useImageCropper";
+import ImageCropperModal from "@/components/ImageCropperModal";
 
 interface MediaComposerProps {
     onClose: () => void;
@@ -21,6 +23,22 @@ export default function MediaComposer({
 }: MediaComposerProps) {
     const [activeTab, setActiveTab] = useState<Tab>('media');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { cropperImage, isCropping, processFiles, advanceQueue, cancelCrop } = useImageCropper();
+
+    const handleMediaSelectWithCrop = (file: File) => {
+        const isStaticImage = file.type.startsWith('image/') && file.type !== 'image/gif';
+        if (isStaticImage) {
+            processFiles([file]);
+        } else {
+            onMediaSelect(file);
+        }
+    };
+
+    const handleCropComplete = (blob: Blob) => {
+        const croppedFile = new File([blob], `cropped-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        onMediaSelect(croppedFile);
+        advanceQueue();
+    };
 
     return (
         <>
@@ -80,7 +98,7 @@ export default function MediaComposer({
                     {activeTab === 'media' && (
                         <MediaUploader
                             fileInputRef={fileInputRef}
-                            onSelect={onMediaSelect}
+                            onSelect={handleMediaSelectWithCrop}
                         />
                     )}
                     {activeTab === 'gif' && (
@@ -94,6 +112,16 @@ export default function MediaComposer({
                     )}
                 </div>
             </div>
+
+            {/* Image Cropper Modal */}
+            {isCropping && cropperImage && (
+                <ImageCropperModal
+                    image={cropperImage}
+                    onCropComplete={handleCropComplete}
+                    onCancel={cancelCrop}
+                    showAspectRatioSelector
+                />
+            )}
         </>
     );
 }

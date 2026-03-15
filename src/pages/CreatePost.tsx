@@ -6,9 +6,11 @@ import ThreadCreator from "@/components/thread/ThreadCreator";
 import { createThread } from "@/hooks/useSupabasePosts";
 import { useToast } from "@/hooks/use-toast";
 import { useMarkdownPreview } from "@/hooks/useMarkdownPreview";
+import { useImageCropper } from "@/hooks/useImageCropper";
 import { X, Plus, Image, Film, Loader2, Link2, Music, Smile, ArrowLeft, Save, Send, AlignLeft, AlignCenter, AlignRight, Lock, Globe } from "lucide-react";
 import GifPicker from "@/components/GifPicker";
 import MusicEmbed from "@/components/MusicEmbed";
+import ImageCropperModal from "@/components/ImageCropperModal";
 import { useIdentity, useContentAuthor } from "@/hooks/useIdentity";
 import { useBehaviorTracking } from "@/hooks/useBehaviorTracking";
 import EmailGateModal from "@/components/EmailGateModal";
@@ -352,6 +354,7 @@ export default function CreatePost() {
     const [selectedGif, setSelectedGif] = useState<string | null>(null);
     const [mediaExpanded, setMediaExpanded] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { cropperImage, isCropping, remainingCount, processFiles, advanceQueue, cancelCrop } = useImageCropper();
 
     // Identity
     const { identity, refreshIdentity } = useIdentity();
@@ -416,46 +419,64 @@ export default function CreatePost() {
         handleSave(false);
     };
 
+    const uploadFileOrBlob = async (fileOrBlob: File | Blob, type: 'image' | 'video') => {
+        const ext = fileOrBlob instanceof File ? fileOrBlob.name.split('.').pop() : 'jpg';
+        const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
+        const filePath = `post-media/${user?.id || 'anonymous'}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage.from('media').upload(filePath, fileOrBlob);
+        if (uploadError) {
+            toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" });
+            return;
+        }
+
+        const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
+        setMediaFiles(prev => [...prev, { url: publicUrl, type, file: fileOrBlob instanceof File ? fileOrBlob : undefined }]);
+    };
+
     const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
         if (mediaFiles.length + files.length > 4) {
             toast({ title: "Limit reached", description: "Max 4 files", variant: "destructive" });
+            if (fileInputRef.current) fileInputRef.current.value = '';
             return;
         }
 
+        const fileArray = Array.from(files);
+        const validFiles = fileArray.filter(f => {
+            if (!f.type.startsWith('image/') && !f.type.startsWith('video/')) {
+                toast({ title: "Invalid type", description: "Images/videos only", variant: "destructive" });
+                return false;
+            }
+            return true;
+        });
+
+        const skipFiles = processFiles(validFiles);
+
+        if (skipFiles.length > 0) {
+            setUploadingMedia(true);
+            try {
+                for (const file of skipFiles) {
+                    await uploadFileOrBlob(file, file.type.startsWith('video/') ? 'video' : 'image');
+                }
+            } finally {
+                setUploadingMedia(false);
+            }
+        }
+
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleCropComplete = async (blob: Blob) => {
         setUploadingMedia(true);
         try {
-            for (const file of Array.from(files)) {
-                const isImage = file.type.startsWith('image/');
-                const isVideo = file.type.startsWith('video/');
-
-                if (!isImage && !isVideo) {
-                    toast({ title: "Invalid type", description: "Images/videos only", variant: "destructive" });
-                    continue;
-                }
-
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-                const filePath = `post-media/${user?.id || 'anonymous'}/${fileName}`;
-
-                const { error: uploadError } = await supabase.storage.from('media').upload(filePath, file);
-
-                if (uploadError) {
-                    toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" });
-                    continue;
-                }
-
-                const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
-                setMediaFiles(prev => [...prev, { url: publicUrl, type: isImage ? 'image' : 'video', file }]);
-            }
-        } catch (error) {
-            toast({ title: "Error", description: "Upload failed", variant: "destructive" });
+            await uploadFileOrBlob(blob, 'image');
         } finally {
             setUploadingMedia(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
         }
+        advanceQueue();
     };
 
     const removeMedia = (index: number) => {
@@ -721,6 +742,16 @@ export default function CreatePost() {
                         setShowGifPicker(false);
                     }}
                     onClose={() => setShowGifPicker(false)}
+                />
+            )}
+
+            {/* Image Cropper Modal */}
+            {isCropping && cropperImage && (
+                <ImageCropperModal
+                    image={cropperImage}
+                    onCropComplete={handleCropComplete}
+                    onCancel={cancelCrop}
+                    showAspectRatioSelector
                 />
             )}
         </>

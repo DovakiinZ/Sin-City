@@ -2,9 +2,11 @@ import { useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useImageCropper } from "@/hooks/useImageCropper";
 import { X, Plus, Image, Film, Loader2, Music, Smile, ChevronDown, ChevronUp, Send } from "lucide-react";
 import MusicEmbed from "./MusicEmbed";
 import GifPicker from "./GifPicker";
+import ImageCropperModal from "./ImageCropperModal";
 
 export type NewPost = {
   title: string;
@@ -29,11 +31,28 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
   const [mediaExpanded, setMediaExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const musicInputRef = useRef<HTMLInputElement>(null);
+  const { cropperImage, isCropping, remainingCount, processFiles, advanceQueue, cancelCrop } = useImageCropper();
 
   const addMusic = (url: string) => {
     if (!url.trim()) return;
     setMediaFiles(prev => [...prev, { url, type: 'music' }]);
     setShowMusicInput(false);
+    setMediaExpanded(true);
+  };
+
+  const uploadFileOrBlob = async (fileOrBlob: File | Blob, type: 'image' | 'video') => {
+    const ext = fileOrBlob instanceof File ? fileOrBlob.name.split('.').pop() : 'jpg';
+    const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
+    const filePath = `post-media/${user?.id || 'anonymous'}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage.from('media').upload(filePath, fileOrBlob);
+    if (uploadError) {
+      toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" });
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
+    setMediaFiles(prev => [...prev, { url: publicUrl, type }]);
     setMediaExpanded(true);
   };
 
@@ -43,41 +62,45 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
 
     if (mediaFiles.length + files.length > 4) {
       toast({ title: "Limit reached", description: "Max 4 files", variant: "destructive" });
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
+    const fileArray = Array.from(files);
+    const validFiles = fileArray.filter(f => {
+      if (!f.type.startsWith('image/') && !f.type.startsWith('video/')) {
+        toast({ title: "Invalid type", description: "Images/videos only", variant: "destructive" });
+        return false;
+      }
+      return true;
+    });
+
+    // Separate croppable images from videos/GIFs
+    const skipFiles = processFiles(validFiles);
+
+    // Upload videos and GIFs directly
+    if (skipFiles.length > 0) {
+      setUploadingMedia(true);
+      try {
+        for (const file of skipFiles) {
+          await uploadFileOrBlob(file, file.type.startsWith('video/') ? 'video' : 'image');
+        }
+      } finally {
+        setUploadingMedia(false);
+      }
+    }
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleCropComplete = async (blob: Blob) => {
     setUploadingMedia(true);
     try {
-      for (const file of Array.from(files)) {
-        const isImage = file.type.startsWith('image/');
-        const isVideo = file.type.startsWith('video/');
-
-        if (!isImage && !isVideo) {
-          toast({ title: "Invalid type", description: "Images/videos only", variant: "destructive" });
-          continue;
-        }
-
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-        const filePath = `post-media/${user?.id || 'anonymous'}/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage.from('media').upload(filePath, file);
-
-        if (uploadError) {
-          toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" });
-          continue;
-        }
-
-        const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
-        setMediaFiles(prev => [...prev, { url: publicUrl, type: isImage ? 'image' : 'video' }]);
-        setMediaExpanded(true);
-      }
-    } catch (error) {
-      toast({ title: "Error", description: "Upload failed", variant: "destructive" });
+      await uploadFileOrBlob(blob, 'image');
     } finally {
       setUploadingMedia(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+    advanceQueue();
   };
 
   const removeMedia = (index: number) => {
@@ -350,6 +373,16 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
             setMediaExpanded(true);
           }}
           onClose={() => setShowGifPicker(false)}
+        />
+      )}
+
+      {/* Image Cropper Modal */}
+      {isCropping && cropperImage && (
+        <ImageCropperModal
+          image={cropperImage}
+          onCropComplete={handleCropComplete}
+          onCancel={cancelCrop}
+          showAspectRatioSelector
         />
       )}
     </>

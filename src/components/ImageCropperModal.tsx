@@ -4,12 +4,20 @@ import type { Area, Point } from 'react-easy-crop';
 import { Button } from '@/components/ui/button';
 import { X, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 
+const ASPECT_RATIO_OPTIONS = [
+    { label: 'Free', value: undefined },
+    { label: '1:1', value: 1 },
+    { label: '16:9', value: 16 / 9 },
+    { label: '4:5', value: 4 / 5 },
+] as const;
+
 interface ImageCropperModalProps {
     image: string;
-    aspectRatio: number; // 1 for avatar (square), 4 for header (wide)
+    aspectRatio?: number; // 1 for avatar (square), 4 for header (wide). undefined = free
     onCropComplete: (croppedImageBlob: Blob) => void;
     onCancel: () => void;
     cropShape?: 'rect' | 'round';
+    showAspectRatioSelector?: boolean;
 }
 
 // Utility function to create cropped image
@@ -108,12 +116,16 @@ export default function ImageCropperModal({
     onCropComplete,
     onCancel,
     cropShape = 'rect',
+    showAspectRatioSelector = false,
 }: ImageCropperModalProps) {
     const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
     const [processing, setProcessing] = useState(false);
+    const [selectedAspect, setSelectedAspect] = useState<number | undefined>(aspectRatio);
+
+    const effectiveAspect = showAspectRatioSelector ? selectedAspect : aspectRatio;
 
     const onCropChange = useCallback((location: Point) => {
         setCrop(location);
@@ -162,7 +174,7 @@ export default function ImageCropperModal({
                         crop={crop}
                         zoom={zoom}
                         rotation={rotation}
-                        aspect={aspectRatio}
+                        aspect={effectiveAspect}
                         cropShape={cropShape}
                         onCropChange={onCropChange}
                         onZoomChange={onZoomChange}
@@ -177,6 +189,33 @@ export default function ImageCropperModal({
 
                 {/* Controls */}
                 <div className="p-4 space-y-4 border-t border-green-600/50">
+                    {/* Aspect Ratio Selector */}
+                    {showAspectRatioSelector && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-green-600 font-mono shrink-0">Ratio:</span>
+                            <div className="flex gap-1.5 flex-1">
+                                {ASPECT_RATIO_OPTIONS.map((opt) => (
+                                    <button
+                                        key={opt.label}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedAspect(opt.value);
+                                            setCrop({ x: 0, y: 0 });
+                                            setZoom(1);
+                                        }}
+                                        className={`flex-1 px-2 py-1.5 text-xs font-mono rounded border transition-colors ${
+                                            selectedAspect === opt.value
+                                                ? 'bg-green-600 text-black border-green-500'
+                                                : 'bg-black text-green-500 border-green-900/50 hover:border-green-500/50'
+                                        }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Zoom Control */}
                     <div className="flex items-center gap-4">
                         <ZoomOut className="w-4 h-4 text-green-600" />
