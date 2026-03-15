@@ -1,6 +1,56 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getClientIP, hashIP, isPrivateIP } from './lib/ip-utils';
-import crypto from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
+
+// ============================================================
+// IP UTILITIES (inlined)
+// ============================================================
+const IP_SALT = process.env.IP_HASH_SALT || 'sin-city-guest-salt-2024';
+const PRIVATE_IP_PATTERNS = [
+    /^127\./, /^10\./, /^172\.(1[6-9]|2[0-9]|3[01])\./,
+    /^192\.168\./, /^169\.254\./, /^fc00:/i, /^fd00:/i,
+    /^fe80:/i, /^::1$/, /^::$/, /^0\.0\.0\.0$/,
+];
+function normalizeIP(ip: string | null | undefined): string {
+    if (!ip) return 'unknown';
+    let n = ip.trim();
+    if (n.toLowerCase().startsWith('::ffff:')) n = n.substring(7);
+    if (n.startsWith('::') && n.includes('.')) n = n.substring(2);
+    return n || 'unknown';
+}
+function isValidIP(ip: string): boolean {
+    if (!ip || ip === 'unknown') return false;
+    return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip) || /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/.test(ip);
+}
+function isPrivateIP(ip: string): boolean {
+    if (!ip || ip === 'unknown') return true;
+    return PRIVATE_IP_PATTERNS.some(p => p.test(ip));
+}
+function hashIP(ip: string): string {
+    return createHash('sha256').update(ip + IP_SALT).digest('hex').substring(0, 32);
+}
+function getHeader(headers: Record<string, string | string[] | undefined>, key: string): string | undefined {
+    const v = headers[key]; return Array.isArray(v) ? v[0] : v;
+}
+function getClientIP(req: { headers: Record<string, string | string[] | undefined>; socket?: { remoteAddress?: string } }) {
+    const allHeaders: Record<string, string | undefined> = {
+        'cf-connecting-ip': getHeader(req.headers, 'cf-connecting-ip'),
+        'x-forwarded-for': getHeader(req.headers, 'x-forwarded-for'),
+        'x-real-ip': getHeader(req.headers, 'x-real-ip'),
+        'x-vercel-forwarded-for': getHeader(req.headers, 'x-vercel-forwarded-for'),
+        'socket': req.socket?.remoteAddress,
+    };
+    let ip = 'unknown', source = 'unknown';
+    const tryE = (h: string | undefined, s: string): boolean => {
+        if (!h) return false;
+        const ips = h.split(',').map(x => normalizeIP(x.trim()));
+        for (const c of ips) { if (isValidIP(c) && !isPrivateIP(c)) { ip = c; source = s; return true; } }
+        if (ips.length > 0 && isValidIP(ips[0])) { ip = ips[0]; source = s; return true; }
+        return false;
+    };
+    tryE(allHeaders['x-vercel-forwarded-for'], 'vercel') || tryE(allHeaders['cf-connecting-ip'], 'cf') ||
+    tryE(allHeaders['x-forwarded-for'], 'xff') || tryE(allHeaders['x-real-ip'], 'real') || tryE(allHeaders['socket'], 'socket');
+    return { ip, realIp: isPrivateIP(ip) ? null : ip, source, isPrivate: isPrivateIP(ip), allHeaders };
+}
 
 /**
  * IDENTITY INIT ENDPOINT
@@ -68,7 +118,7 @@ function detectTor(isp: string, org: string): boolean {
 }
 
 function generateSecureToken(): string {
-    return crypto.randomBytes(32).toString('hex');
+    return randomBytes(32).toString('hex');
 }
 
 export default async function handler(
