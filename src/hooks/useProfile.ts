@@ -14,6 +14,8 @@ export interface UserProfile {
     location: string | null;
     twitter_username: string | null;
     instagram_username: string | null;
+    discord_username: string | null;
+    role?: string;
     created_at: string;
     updated_at: string;
 }
@@ -49,13 +51,16 @@ export function useProfile(userId: string | undefined) {
                             await createProfile({
                                 id: userId,
                                 username: userData.user.email?.split("@")[0] || null,
+                                display_name: null,
                                 bio: null,
                                 avatar_url: null,
                                 ascii_avatar: null,
+                                header_url: null,
                                 website: null,
                                 location: null,
                                 twitter_username: null,
                                 instagram_username: null,
+                                discord_username: null,
                             });
                             // Fetch again
                             const { data: newProfile } = await supabase

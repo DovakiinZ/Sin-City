@@ -568,7 +568,8 @@ Built with: React + TypeScript + Vite`,
         },
 
         matrix: () => {
-            return "Wake up, Bassam... The Matrix has you...\nFollow the white rabbit. 🐰";
+            return `Wake up, 
+            ... The Matrix has you...\nFollow the white rabbit. 🐰`;
         },
 
         poetry: () => {

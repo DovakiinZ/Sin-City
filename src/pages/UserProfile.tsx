@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { UserPlus, UserMinus, Twitter, Instagram, X, Check, Edit2, LogOut, MessageCircle } from "lucide-react";
 import { useSessions } from "@/hooks/useSessions";
 import MessagingPanel from "@/components/messaging/MessagingPanel";
+import { Crown } from "lucide-react";
 
 interface FollowUser {
     id: string;
@@ -32,6 +33,7 @@ interface UserPost {
     isHtml?: boolean;
     viewCount?: number;
     attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
+    author_role?: string;
 }
 
 const isValidUUID = (uuid: string) => {
@@ -87,7 +89,7 @@ export default function UserProfile() {
                 // 1. Exact Username Match
                 let { data: usernameMatch } = await supabase
                     .from('profiles')
-                    .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username, discord_username')
+                    .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username, discord_username, role')
                     .ilike('username', searchName)
                     .limit(1);
 
@@ -98,7 +100,7 @@ export default function UserProfile() {
                 if (!foundUser) {
                     const { data: displayMatch } = await supabase
                         .from('profiles')
-                        .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username, discord_username')
+                        .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username, discord_username, role')
                         .ilike('display_name', searchName)
                         .limit(1);
 
@@ -119,7 +121,7 @@ export default function UserProfile() {
                     if (postData && postData.length > 0 && postData[0].user_id) {
                         const { data: profileData } = await supabase
                             .from('profiles')
-                            .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username')
+                            .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username, role')
                             .eq('id', postData[0].user_id)
                             .single();
 
@@ -217,6 +219,7 @@ export default function UserProfile() {
                             url: a.url || '',
                             type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
                         })).filter((a: any) => a.url) || undefined,
+                        author_role: (profile as any).role,
                     };
                 });
                 setUserPosts(formattedPosts);
@@ -485,9 +488,22 @@ export default function UserProfile() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                            <h2 className="text-xl font-semibold text-green-100">
-                                @{profile.username || "anonymous"}
-                            </h2>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-xl font-semibold text-green-100">
+                                    @{profile.username || "anonymous"}
+                                </h2>
+                                {profile.role === 'ceo' && (
+                                    <span className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-600 text-black rounded shadow-[0_0_10px_rgba(234,179,8,0.4)] uppercase tracking-tighter">
+                                        <Crown className="w-2.5 h-2.5" />
+                                        CEO
+                                    </span>
+                                )}
+                                {profile.role === 'admin' && (
+                                    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-red-500/20 text-red-400 border border-red-500/30 rounded uppercase tracking-wider">
+                                        Admin
+                                    </span>
+                                )}
+                            </div>
 
                             {/* Stats Row - Clickable */}
                             <div className="flex items-center gap-4 text-sm mt-1">

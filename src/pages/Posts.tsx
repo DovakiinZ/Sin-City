@@ -33,6 +33,7 @@ type Post = {
   gif_url?: string;
   hidden?: boolean;
   is_deleted?: boolean;
+  author_role?: string;
 };
 
 const FILES = ["post1.md", "post2.md"];
@@ -134,16 +135,19 @@ export default function Posts() {
       let adminUserIds: Set<string> = new Set();
       let userAvatars: Map<string, string> = new Map();
       let userUsernames: Map<string, string> = new Map();
+      let userLastSeens: Map<string, string> = new Map();
+      let userRoles: Map<string, string> = new Map();
 
       try {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, role, avatar_url, username');
+          .select('id, role, avatar_url, username, last_seen');
         if (profiles) {
           profiles.forEach(p => {
-            if (p.role === 'admin') adminUserIds.add(p.id);
+            if (p.role === 'admin' || p.role === 'ceo') adminUserIds.add(p.id);
             if (p.avatar_url) userAvatars.set(p.id, p.avatar_url);
             if (p.username) userUsernames.set(p.id, p.username);
+            if (p.role) userRoles.set(p.id, p.role);
           });
           // Note: Current user check moved to separate useEffect
         }
@@ -188,6 +192,7 @@ export default function Posts() {
             gif_url: p.gif_url || undefined,
             is_deleted: p.is_deleted || false,
             is_registered_only: p.is_registered_only || false,
+            author_role: p.user_id ? userRoles.get(p.user_id) : undefined,
           };
         });
       } catch (error) {

@@ -14,6 +14,7 @@ export interface Comment {
     content: string;
     gif_url?: string;
     hidden?: boolean;
+    author_role?: string;
     created_at: string;
     updated_at: string;
     replies?: Comment[];
@@ -39,16 +40,16 @@ export function useComments(postId: string) {
             const userIds = [...new Set((data || []).map(c => c.user_id).filter(Boolean))];
 
             // Fetch avatars and usernames for all users in one query
-            let userMap: Record<string, { avatar_url?: string; username?: string }> = {};
+            let userMap: Record<string, { avatar_url?: string; username?: string; role?: string }> = {};
             if (userIds.length > 0) {
                 const { data: profiles } = await supabase
                     .from("profiles")
-                    .select("id, avatar_url, username")
+                    .select("id, avatar_url, username, role")
                     .in("id", userIds);
 
                 if (profiles) {
                     userMap = profiles.reduce((acc: Record<string, any>, p) => {
-                        acc[p.id] = { avatar_url: p.avatar_url, username: p.username };
+                        acc[p.id] = { avatar_url: p.avatar_url, username: p.username, role: p.role };
                         return acc;
                     }, {});
                 }
@@ -59,6 +60,7 @@ export function useComments(postId: string) {
                 ...comment,
                 author_avatar: comment.user_id ? userMap[comment.user_id]?.avatar_url : undefined,
                 author_username: comment.user_id ? userMap[comment.user_id]?.username : undefined,
+                author_role: comment.user_id ? userMap[comment.user_id]?.role : undefined,
             }));
 
             setComments(mappedComments);
