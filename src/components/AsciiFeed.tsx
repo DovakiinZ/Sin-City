@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import PostCard from "@/components/PostCard";
 import { Plus, SlidersHorizontal } from "lucide-react";
+import { useContentAuthor, useIdentity } from "@/hooks/useIdentity";
 
 type Post = {
   title: string;
@@ -34,6 +35,7 @@ type Post = {
   music_metadata?: any; // Cached music metadata for fallback
   is_registered_only?: boolean;
   is_deleted?: boolean;
+  author_role?: string;
 };
 
 interface FrontMatterData {
@@ -49,7 +51,8 @@ const mapDbPostToPost = (
   p: any,
   userUsernames: Map<string, string>,
   userAvatars: Map<string, string>,
-  userLastSeens: Map<string, string>
+  userLastSeens: Map<string, string>,
+  userRoles: Map<string, string>
 ): Post => {
   const createdDate = p.created_at ? new Date(p.created_at) : null;
   const formattedDate = createdDate
@@ -73,7 +76,7 @@ const mapDbPostToPost = (
     userId: p.user_id || undefined,  // For detecting anonymous posts
     guestId: p.guest_id || undefined,  // For anonymous tracking
     anonymousId: p.anonymous_id || undefined,  // ANON-XXXX for admin
-    textAlign: p.text_align || 'right',  // Text alignment
+    textAlign: p.text_align || undefined,  // Text alignment
     isHtml: true,
     isPinned: p.is_pinned || false,
     attachments: p.attachments?.map((a: any) => ({
@@ -84,6 +87,7 @@ const mapDbPostToPost = (
     music_metadata: p.music_metadata || undefined,
     is_registered_only: p.is_registered_only || false,
     is_deleted: p.is_deleted || false,
+    author_role: p.user_id ? userRoles.get(p.user_id) : undefined,
   };
 };
 
@@ -101,6 +105,8 @@ const AsciiFeed = () => {
   const [allowAnonPosts, setAllowAnonPosts] = useState<boolean | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { user_id, guest_id, isReady } = useContentAuthor();
+  const { identity } = useIdentity();
 
   // Soft-delete: mark post as deleted (visible only to admin)
   const handleSoftDelete = async (postId: string) => {
@@ -127,6 +133,7 @@ const AsciiFeed = () => {
         let userAvatars: Map<string, string> = new Map();
         let userUsernames: Map<string, string> = new Map();
         let userLastSeens: Map<string, string> = new Map();
+        let userRoles: Map<string, string> = new Map();
 
         const { data: profiles } = await supabase
           .from('profiles')
@@ -137,6 +144,7 @@ const AsciiFeed = () => {
             if (p.avatar_url) userAvatars.set(p.id, p.avatar_url);
             if (p.username) userUsernames.set(p.id, p.username);
             if (p.last_seen) userLastSeens.set(p.id, p.last_seen);
+            if (p.role) userRoles.set(p.id, p.role);
           });
           // Check if current user is admin
           if (user?.id) {
@@ -167,7 +175,7 @@ const AsciiFeed = () => {
         const result = await listPostsFromDb({ limit: 50 });
         const mapped: Post[] = (result.posts || [])
           .filter((p: any) => !p.hidden)
-          .map((p: any) => mapDbPostToPost(p, userUsernames, userAvatars, userLastSeens));
+          .map((p: any) => mapDbPostToPost(p, userUsernames, userAvatars, userLastSeens, userRoles));
         setDbPosts(mapped);
         setCursor(result.nextCursor);
         setHasMore(result.hasMore);
@@ -245,10 +253,11 @@ const AsciiFeed = () => {
         attachments: p.attachments,
         gif_url: p.gif_url || null,
         draft: false,
-        author_name: user?.username || user?.email || "Anonymous",
+        author_name: user?.username || user?.email || identity?.anon_id || "Anonymous",
         author_email: user?.email || "",
         author_avatar: user?.avatarDataUrl || null,
-        user_id: user?.id, // Optional
+        user_id: user?.id || null,
+        guest_id: guest_id || null,
         is_registered_only: p.is_registered_only || false,
       });
       toast({ title: "Success", description: "Post created!" });
@@ -338,22 +347,24 @@ const AsciiFeed = () => {
                   let userAvatars = new Map<string, string>();
                   let userUsernames = new Map<string, string>();
                   let userLastSeens = new Map<string, string>();
+                  let userRoles = new Map<string, string>();
                   if (newUserIds.length > 0) {
                     const { data: profiles } = await supabase
                       .from('profiles')
-                      .select('id, avatar_url, username, last_seen')
+                      .select('id, avatar_url, username, last_seen, role')
                       .in('id', newUserIds);
                     if (profiles) {
                       profiles.forEach(p => {
                         if (p.avatar_url) userAvatars.set(p.id, p.avatar_url);
                         if (p.username) userUsernames.set(p.id, p.username);
                         if (p.last_seen) userLastSeens.set(p.id, p.last_seen);
+                        if (p.role) userRoles.set(p.id, p.role);
                       });
                     }
                   }
                   const newPosts = result.posts
                     .filter((p: any) => !p.hidden)
-                    .map((p: any) => mapDbPostToPost(p, userUsernames, userAvatars, userLastSeens));
+                    .map((p: any) => mapDbPostToPost(p, userUsernames, userAvatars, userLastSeens, userRoles));
                   setDbPosts(prev => [...prev, ...newPosts]);
                   setCursor(result.nextCursor);
                   setHasMore(result.hasMore);

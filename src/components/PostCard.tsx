@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { UserAvatarWithStatus } from "@/components/UserAvatarWithStatus";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow, format } from "date-fns";
-import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2, Search, Terminal, Lock, Globe } from "lucide-react";
+import { Heart, MessageCircle, Pin, Send, X, Eye, EyeOff, Trash2, Search, Terminal, Lock, Globe, Crown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useIdentity, useContentAuthor } from "@/hooks/useIdentity";
 import { useReactions, toggleReaction } from "@/hooks/useReactions";
@@ -40,6 +40,7 @@ interface PostCardProps {
         textAlign?: 'right' | 'center' | 'left';  // Text alignment
         is_deleted?: boolean;
         is_registered_only?: boolean;
+        author_role?: string;
     };
     fullContent?: boolean; // Show full content instead of preview
     showComments?: boolean; // Show comments section
@@ -192,6 +193,25 @@ export default function PostCard({
             setSubmitting(false);
         }
     };
+    // Get role badge
+    const getRoleBadge = () => {
+        if (post.author_role === 'ceo') {
+            return (
+                <span className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-600 text-black rounded shadow-[0_0_10px_rgba(234,179,8,0.4)] uppercase tracking-tighter">
+                    <Crown className="w-2.5 h-2.5" />
+                    CEO
+                </span>
+            );
+        }
+        if (post.author_role === 'admin') {
+            return (
+                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-red-500/20 text-red-400 border border-red-500/30 rounded uppercase tracking-wider">
+                    Admin
+                </span>
+            );
+        }
+        return null;
+    };
 
     // Focus input when opened
     useEffect(() => {
@@ -205,14 +225,18 @@ export default function PostCard({
         if (fullContent) {
             return post.content;
         }
-        const preview = post.isHtml
-            ? stripHtml(post.content).slice(0, 280)
-            : post.content.slice(0, 280);
+        
+        // Before stripping HTML, convert line-breaking tags to newlines for the preview
+        const contentWithNewlines = post.content
+            .replace(/<(br|p|div)[^>]*>/gi, '\n')
+            .replace(/<\/(p|div)>/gi, '\n');
+            
+        const preview = stripHtml(contentWithNewlines).slice(0, 280);
         return preview;
     };
 
     const contentPreview = getContent();
-    const hasMore = !fullContent && post.content.length > 280;
+    const hasMore = !fullContent && (stripHtml(post.content).length > 280);
 
     return (
         <article className="py-5 border-b border-green-800/40 last:border-b-0">
@@ -241,7 +265,7 @@ export default function PostCard({
             )}
 
             {/* Header: Avatar + Username + Time */}
-            <div className="flex items-center gap-3 mb-3">
+            <div className={`flex items-center gap-3 mb-3 ${contentIsArabic || titleIsArabic ? 'flex-row-reverse' : ''}`}>
                 <Link
                     to={`/user/${post.authorUsername || post.author}`}
                     onClick={(e) => e.stopPropagation()}
@@ -257,8 +281,8 @@ export default function PostCard({
                         className="w-10 h-10 border border-green-700/50"
                     />
                 </Link>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                <div className={`flex-1 min-w-0 ${contentIsArabic || titleIsArabic ? 'text-right' : 'text-left'}`}>
+                    <div className={`flex items-center gap-2 flex-wrap ${contentIsArabic || titleIsArabic ? 'flex-row-reverse' : ''}`}>
                         <Link
                             to={`/user/${post.authorUsername || post.author}`}
                             onClick={(e) => e.stopPropagation()}
@@ -266,6 +290,7 @@ export default function PostCard({
                         >
                             @{post.authorUsername || post.author || "anonymous"}
                         </Link>
+                        {getRoleBadge()}
                         <span className="text-gray-500 text-xs">·</span>
                         <span className="text-gray-500 text-xs" title={post.rawDate ? new Date(post.rawDate).toLocaleString() : undefined}>
                             {relativeTime}
@@ -317,8 +342,8 @@ export default function PostCard({
             >
                 {/* Title - Compact, clean hierarchy */}
                 <h2
-                    className={`${fullContent ? 'text-xl md:text-2xl' : 'text-lg'} ${titleIsArabic ? 'font-medium' : 'font-semibold'} text-green-50 mb-2 leading-snug tracking-normal ${titleIsArabic ? 'text-right arabic-text' : 'text-left'}`}
-                    dir={titleIsArabic ? 'rtl' : 'ltr'}
+                    className={`${fullContent ? 'text-xl md:text-2xl' : 'text-lg'} ${titleIsArabic ? 'font-medium' : 'font-semibold'} text-green-50 mb-2 leading-snug tracking-normal ${titleIsArabic ? 'arabic-text text-right' : 'text-left'}`}
+                    dir="auto"
                 >
                     {post.title}
                 </h2>
@@ -326,11 +351,11 @@ export default function PostCard({
                 {/* Content - Preserved exactly as user typed */}
                 {fullContent ? (
                     <div
-                        dir={contentIsArabic ? "rtl" : "ltr"}
+                        dir="auto"
                         style={{
                             whiteSpace: 'pre-wrap',
                             wordWrap: 'break-word',
-                            unicodeBidi: contentIsArabic ? 'plaintext' : undefined,
+                            unicodeBidi: 'plaintext',
                             textAlign: post.textAlign || (contentIsArabic ? 'right' : 'left')
                         }}
                         className={`text-gray-400 font-normal leading-relaxed text-sm ${contentIsArabic ? 'arabic-text' : ''} ${isAdmin && post.is_deleted ? 'opacity-50' : ''}`}
@@ -338,11 +363,11 @@ export default function PostCard({
                     />
                 ) : (
                     <p
-                        dir={contentIsArabic ? "rtl" : "ltr"}
+                        dir="auto"
                         style={{
                             whiteSpace: 'pre-wrap',
                             wordWrap: 'break-word',
-                            unicodeBidi: contentIsArabic ? 'plaintext' : undefined,
+                            unicodeBidi: 'plaintext',
                             textAlign: post.textAlign || (contentIsArabic ? 'right' : 'left')
                         }}
                         className={`text-gray-500 text-sm font-normal leading-relaxed mb-3 ${contentIsArabic ? 'arabic-text' : ''}`}

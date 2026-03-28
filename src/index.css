@@ -187,6 +187,8 @@
     line-height: 1.9;
     letter-spacing: 0;
     word-spacing: normal;
+    direction: rtl;
+    text-align: right;
   }
 
   .ascii-nav-link {

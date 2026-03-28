@@ -27,6 +27,7 @@ export interface Post {
     thread_position?: number;
     is_registered_only?: boolean;
     is_deleted?: boolean;
+    author_role?: string;
     created_at: string;
     updated_at: string;
 }
@@ -89,7 +90,7 @@ export function useSupabasePosts() {
                 if (userIds.length > 0) {
                     const { data: userProfiles } = await supabase
                         .from('profiles')
-                        .select('id, username, display_name, avatar_url, last_seen')
+                        .select('id, username, display_name, avatar_url, last_seen, role')
                         .in('id', userIds);
 
                     if (userProfiles) {
@@ -103,7 +104,7 @@ export function useSupabasePosts() {
                 if (authorNames.length > 0) {
                     const { data: matchedProfiles } = await supabase
                         .from('profiles')
-                        .select('id, username, display_name, avatar_url, last_seen')
+                        .select('id, username, display_name, avatar_url, last_seen, role')
                         .or(authorNames.map(n => `display_name.ilike.${n},username.ilike.${n}`).join(','));
 
                     if (matchedProfiles) {
@@ -133,6 +134,7 @@ export function useSupabasePosts() {
                         author_avatar: profile?.avatar_url || post.author_avatar || null,
                         author_username: profile?.username || null,
                         author_last_seen: profile?.last_seen || null,
+                        author_role: profile?.role || null,
                         // Overwrite author_name with proper username if available
                         author_name: profile?.username || post.author_name || "Anonymous",
                         // Include guest anonymous_id for admin display

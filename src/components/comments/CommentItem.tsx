@@ -6,7 +6,7 @@ import { deleteComment, updateComment, createComment, type Comment } from "@/hoo
 import { useToast } from "@/hooks/use-toast";
 import { parseMentions } from "@/lib/mentions";
 import { formatDistanceToNow } from "date-fns";
-import { MoreHorizontal, Pencil, Trash2, Reply, Send, X, Eye, EyeOff } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Reply, Send, X, Eye, EyeOff, Crown } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -143,6 +143,21 @@ export default function CommentItem({ comment, postId, postAuthorId, depth = 0 }
 
     // Get role badge
     const getRoleBadge = () => {
+        if (comment.author_role === 'ceo') {
+            return (
+                <span className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-600 text-black rounded shadow-[0_0_8px_rgba(234,179,8,0.3)] uppercase tracking-tighter">
+                    <Crown className="w-2.5 h-2.5" />
+                    CEO
+                </span>
+            );
+        }
+        if (comment.author_role === 'admin') {
+            return (
+                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-red-500/20 text-red-400 border border-red-500/30 rounded uppercase tracking-wider">
+                    Admin
+                </span>
+            );
+        }
         if (isPostAuthor) {
             return (
                 <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-500/20 text-green-400 rounded">
@@ -179,9 +194,11 @@ export default function CommentItem({ comment, postId, postAuthorId, depth = 0 }
     };
 
     return (
-        <div className={`py-3 group ${depth > 0 ? 'ml-6 pl-4 border-l border-green-900/30' : ''}`}>
+        <div className={`py-3 group ${depth > 0 
+            ? (contentIsArabic ? 'mr-6 pr-4 border-r' : 'ml-6 pl-4 border-l') + ' border-green-900/30' 
+            : ''}`}>
             {/* Header Row: Avatar + Username + Badge + Time */}
-            <div className="flex items-center gap-2 mb-2">
+            <div className={`flex items-center gap-2 mb-2 ${contentIsArabic ? 'flex-row-reverse' : ''}`}>
                 {/* Avatar */}
                 <Link to={`/user/${comment.author_username || comment.author_name}`} className="w-7 h-7 rounded-full bg-green-900/30 border border-green-700/50 flex items-center justify-center text-xs font-medium text-green-400 flex-shrink-0 overflow-hidden hover:border-green-500 transition-colors">
                     {comment.author_avatar ? (
@@ -196,7 +213,7 @@ export default function CommentItem({ comment, postId, postAuthorId, depth = 0 }
                 </Link>
 
                 {/* Username + Badge */}
-                <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className={`flex items-center gap-2 flex-1 min-w-0 ${contentIsArabic ? 'flex-row-reverse' : ''}`}>
                     <Link to={`/user/${comment.author_username || comment.author_name}`} className="font-medium text-green-300 text-sm truncate hover:underline hover:text-green-200 transaction-colors">
                         {comment.author_name}
                     </Link>
@@ -292,11 +309,12 @@ export default function CommentItem({ comment, postId, postAuthorId, depth = 0 }
                     <>
                         {comment.content && (
                             <p
-                                dir={contentIsArabic ? "rtl" : "ltr"}
-                                className={`text-sm text-gray-300 leading-relaxed whitespace-pre-wrap ${contentIsArabic ? 'arabic-text text-right' : 'text-left'}`}
+                                dir="auto"
                                 style={{
-                                    unicodeBidi: contentIsArabic ? 'plaintext' : undefined
+                                    unicodeBidi: 'plaintext',
+                                    textAlign: contentIsArabic ? 'right' : 'left'
                                 }}
+                                className={`text-sm text-gray-300 leading-relaxed whitespace-pre-wrap ${contentIsArabic ? 'arabic-text' : ''}`}
                             >
                                 {parseMentions(comment.content)}
                             </p>

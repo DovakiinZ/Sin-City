@@ -78,7 +78,8 @@ export function stripHtml(html: string): string {
     .replace(/&lt;/g, '<')   // Replace &lt; with <
     .replace(/&gt;/g, '>')   // Replace &gt; with >
     .replace(/&quot;/g, '"') // Replace &quot; with "
-    .replace(/\s+/g, ' ')    // Collapse multiple spaces
+    .replace(/[^\S\r\n]+/g, ' ') // Collapse horizontal spaces but preserve newlines
+    .replace(/\n\s*\n/g, '\n')   // Collapse multiple newlines into a single one for preview
     .trim();
 }
 

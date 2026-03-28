@@ -45,6 +45,12 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
     const fileInputRef = useRef<HTMLInputElement>(null);
     const musicInputRef = useRef<HTMLInputElement>(null);
     const { cropperImage, isCropping, remainingCount, processFiles, advanceQueue, cancelCrop } = useImageCropper();
+    
+    // Check if content is Arabic for real-time alignment
+    const contentIsArabic = useMemo(() => {
+        const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
+        return arabicRegex.test(content);
+    }, [content]);
 
     // Auto-resize textarea
     useEffect(() => {
@@ -184,7 +190,12 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
                         onChange={(e) => setContent(e.target.value)}
                         onFocus={() => setIsFocused(true)}
                         onBlur={() => setIsFocused(false)}
-                        className="w-full min-h-[120px] max-h-[60vh] bg-transparent text-gray-100 placeholder-gray-600 p-4 pb-14 focus:outline-none resize-none text-base leading-relaxed"
+                        dir="auto"
+                        style={{
+                            textAlign: contentIsArabic ? 'right' : 'left',
+                            direction: contentIsArabic ? 'rtl' : 'ltr'
+                        }}
+                        className={`w-full min-h-[120px] max-h-[60vh] bg-transparent text-gray-100 placeholder-gray-600 p-4 pb-14 focus:outline-none resize-none text-base leading-relaxed ${contentIsArabic ? 'arabic-text' : ''}`}
                         placeholder="What's on your mind?&#10;&#10;Use **bold**, _italic_, # heading, > quote..."
                     />
 
