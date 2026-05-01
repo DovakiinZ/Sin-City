@@ -82,7 +82,7 @@ export function useMarkdownPreview() {
     const parseInlineMarkdown = useCallback((text: string): string => {
         if (!text) return '';
 
-        let result = text
+        const result = text
             // Escape HTML
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')

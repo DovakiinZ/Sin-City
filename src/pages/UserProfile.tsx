@@ -87,7 +87,7 @@ export default function UserProfile() {
                 let foundUser: any = null;
 
                 // 1. Exact Username Match
-                let { data: usernameMatch } = await supabase
+                const { data: usernameMatch } = await supabase
                     .from('profiles')
                     .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username, discord_username, role')
                     .ilike('username', searchName)
@@ -111,7 +111,7 @@ export default function UserProfile() {
 
                 // 3. Post Author Lookup (Fallback)
                 if (!foundUser) {
-                    let { data: postData } = await supabase
+                    const { data: postData } = await supabase
                         .from('posts')
                         .select('user_id, author_name')
                         .ilike('author_name', searchName)

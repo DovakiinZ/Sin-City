@@ -25,7 +25,7 @@ export default function NotificationBell() {
 
     const getNotificationText = (notification: any) => {
         const { type, content } = notification;
-        const name = content.likerUsername || content.followerUsername || content.author || "Someone";
+        const name = content.likerUsername || content.followerUsername || content.author || content.senderUsername || "Someone";
 
         switch (type) {
             case "comment":
@@ -40,6 +40,13 @@ export default function NotificationBell() {
                 return `@${name} mentioned you in a post`;
             case "reply":
                 return `@${name} replied to your comment`;
+            case "dm_message":
+                return (
+                    <div className="flex flex-col">
+                        <span>@{name} sent you a message</span>
+                        <span className="text-gray-400 mt-1 italic">"{content.preview}"</span>
+                    </div>
+                );
             default:
                 return "New notification";
         }
@@ -49,7 +56,9 @@ export default function NotificationBell() {
         markGeneralAsRead(notification.id);
 
         // Navigate based on notification type
-        if (notification.content.postSlug) {
+        if (notification.type === 'dm_message' && notification.content.conversationId) {
+            navigate(`/chat?session=${notification.content.conversationId}`);
+        } else if (notification.content.postSlug) {
             navigate(`/post/${notification.content.postSlug}`);
         } else {
             const username = notification.content.username ||
@@ -135,7 +144,7 @@ export default function NotificationBell() {
                                 onClick={() => handleNotificationClick(notification)}
                                 className={`cursor-pointer p-3 hover:bg-green-900/20 transition-colors ${!notification.read ? "bg-green-900/10 border-l-2 border-green-400" : ""}`}
                             >
-                                <p className="text-sm text-green-300">{getNotificationText(notification)}</p>
+                                <div className="text-sm text-green-300">{getNotificationText(notification)}</div>
                                 <span className="text-xs text-green-600">
                                     {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                                 </span>

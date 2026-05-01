@@ -112,7 +112,7 @@ const QuickActions = ({ postId, postTitle, postSlug, className }: QuickActionsPr
         e.preventDefault(); e.stopPropagation();
         const shareUrl = `${window.location.origin}/post/${postSlug}`;
         if (navigator.share) {
-            try { await navigator.share({ title: postTitle, url: shareUrl }); } catch { }
+            try { await navigator.share({ title: postTitle, url: shareUrl }); } catch { /* ignore */ }
         } else {
             await navigator.clipboard.writeText(shareUrl);
             toast({ title: "Link copied!", description: "Post link copied to clipboard" });

@@ -64,7 +64,7 @@ function getClientIP(req: { headers: Record<string, string | string[] | undefine
         return false;
     };
 
-    tryExtract(allHeaders['x-vercel-forwarded-for'], 'vercel') ||
+    const _ = tryExtract(allHeaders['x-vercel-forwarded-for'], 'vercel') ||
     tryExtract(allHeaders['cf-connecting-ip'], 'cf') ||
     tryExtract(allHeaders['true-client-ip'], 'cf-true') ||
     tryExtract(allHeaders['x-forwarded-for'], 'xff') ||

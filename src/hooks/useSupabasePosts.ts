@@ -83,8 +83,8 @@ export function useSupabasePosts() {
                     .filter((p: any) => !p.user_id && p.author_name)
                     .map((p: any) => p.author_name.toLowerCase()))];
 
-                let profilesMap = new Map();
-                let profilesByDisplayName = new Map();
+                const profilesMap = new Map();
+                const profilesByDisplayName = new Map();
 
                 // Only fetch profiles we need - by user_id or by matching author_name
                 if (userIds.length > 0) {

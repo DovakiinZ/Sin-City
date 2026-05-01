@@ -38,7 +38,7 @@ const formatContent = (text: string, onCommand: (cmd: string) => void) => {
         const userRegex = /@(\w+)/g;
 
         const parts: React.ReactNode[] = [];
-        let lastIndex = 0;
+        const lastIndex = 0;
 
         // processing logic would be complex with multiple regexes. 
         // Simple approach: Split by space and check each word

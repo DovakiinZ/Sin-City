@@ -132,11 +132,11 @@ export default function Posts() {
     (async () => {
       setIsLoading(true);
 
-      let adminUserIds: Set<string> = new Set();
-      let userAvatars: Map<string, string> = new Map();
-      let userUsernames: Map<string, string> = new Map();
-      let userLastSeens: Map<string, string> = new Map();
-      let userRoles: Map<string, string> = new Map();
+      const adminUserIds: Set<string> = new Set();
+      const userAvatars: Map<string, string> = new Map();
+      const userUsernames: Map<string, string> = new Map();
+      const userLastSeens: Map<string, string> = new Map();
+      const userRoles: Map<string, string> = new Map();
 
       try {
         const { data: profiles } = await supabase
@@ -157,7 +157,7 @@ export default function Posts() {
 
       let allPosts: Post[] = [];
       try {
-        const result = await listPostsFromDb({ limit: 500 }); // Get ALL posts
+        const result = await listPostsFromDb({ limit: 50 }); // Fetch 50 instead of 500 for fast initial load
         allPosts = (result.posts || []).map((p: any) => {
           const createdDate = p.created_at ? new Date(p.created_at) : null;
           const formattedDate = createdDate
@@ -235,7 +235,7 @@ export default function Posts() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let result = posts.filter((p) => {
+    const result = posts.filter((p) => {
       const qOk = q
         ? [p.title, p.author, p.content]
           .filter(Boolean)

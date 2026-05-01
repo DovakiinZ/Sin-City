@@ -108,7 +108,7 @@ export default function NotificationSettings() {
                         </p>
                     </div>
                     <button
-                        onClick={() => setSettings(prev => ({ ...prev, email_en abled: !prev.email_enabled }))}
+                        onClick={() => setSettings(prev => ({ ...prev, email_enabled: !prev.email_enabled }))}
                         className={`
               relative w-14 h-7 rounded-full transition-colors
               ${settings.email_enabled ? 'bg-green-600' : 'bg-gray-600'}

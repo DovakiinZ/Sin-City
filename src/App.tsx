@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Terminal } from "lucide-react";
 import { Analytics } from "@vercel/analytics/react";
 import { Toaster } from "@/components/ui/toaster";
@@ -11,29 +11,29 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import MatrixRain from "@/components/effects/MatrixRain";
 import { usePresence } from "./hooks/usePresence";
 import useKonamiCode from "@/hooks/useKonamiCode";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import AdminMFAEnrollment from "./pages/AdminMFAEnrollment";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import Profile from "./pages/Profile";
-import ProfileEdit from "./pages/ProfileEdit";
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const AdminMFAEnrollment = lazy(() => import("./pages/AdminMFAEnrollment"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Profile = lazy(() => import("./pages/Profile"));
+const ProfileEdit = lazy(() => import("./pages/ProfileEdit"));
 import Index from "./pages/Index";
 import ManagePosts from "./pages/ManagePosts";
-import NotFound from "./pages/NotFound";
+const NotFound = lazy(() => import("./pages/NotFound"));
 import Posts from "./pages/Posts";
 import PostDetail from "./pages/PostDetail";
 import SearchResults from "./pages/SearchResults";
 import UserProfile from "./pages/UserProfile";
-import Bookmarks from "./pages/Bookmarks";
-import CreatePost from "./pages/CreatePost";
-import Drafts from "./pages/Drafts";
-import AdminDashboard from "./pages/AdminDashboard";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import AsciiTools from "./pages/AsciiTools";
-import ThreadView from "./pages/ThreadView";
-import ChatPage from "./pages/ChatPage";
+const Bookmarks = lazy(() => import("./pages/Bookmarks"));
+const CreatePost = lazy(() => import("./pages/CreatePost"));
+const Drafts = lazy(() => import("./pages/Drafts"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
+const AsciiTools = lazy(() => import("./pages/AsciiTools"));
+const ThreadView = lazy(() => import("./pages/ThreadView"));
+const ChatPage = lazy(() => import("./pages/ChatPage"));
 import QuickCreateButton from "./components/QuickCreateButton";
 import BootSequence from "./components/BootSequence";
 import ScanlineEffect from "./components/ScanlineEffect";
@@ -106,33 +106,35 @@ const AppContent = () => {
       <ScanlineEffect />
       {showTerminal && <TerminalCommand onClose={() => setShowTerminal(false)} />}
       <PageTransition>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/manage" element={<ManagePosts />} />
-          <Route path="/posts" element={<Posts />} />
-          <Route path="/post/:slug" element={<PostDetail />} />
-          <Route path="/thread/:threadId" element={<ThreadView />} />
-          <Route path="/search" element={<SearchResults />} />
-          <Route path="/user/:username" element={<UserProfile />} />
-          <Route path="/u/:username" element={<UserProfile />} />
-          <Route path="/bookmarks" element={<Bookmarks />} />
-          <Route path="/drafts" element={<Drafts />} />
-          <Route path="/create" element={<CreatePost />} />
-          <Route path="/admin/mfa" element={<AdminMFAEnrollment />} />
-          <Route path="/crowd" element={<AdminDashboard />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/ascii" element={<AsciiTools />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/profile/edit" element={<ProfileEdit />} />
-          <Route path="/chat" element={<ChatPage />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="text-primary animate-pulse">Loading...</div></div>}>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/manage" element={<ManagePosts />} />
+            <Route path="/posts" element={<Posts />} />
+            <Route path="/post/:slug" element={<PostDetail />} />
+            <Route path="/thread/:threadId" element={<ThreadView />} />
+            <Route path="/search" element={<SearchResults />} />
+            <Route path="/user/:username" element={<UserProfile />} />
+            <Route path="/u/:username" element={<UserProfile />} />
+            <Route path="/bookmarks" element={<Bookmarks />} />
+            <Route path="/drafts" element={<Drafts />} />
+            <Route path="/create" element={<CreatePost />} />
+            <Route path="/admin/mfa" element={<AdminMFAEnrollment />} />
+            <Route path="/crowd" element={<AdminDashboard />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/ascii" element={<AsciiTools />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/edit" element={<ProfileEdit />} />
+            <Route path="/chat" element={<ChatPage />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </PageTransition>
 
       {/* Quick Create FAB - hidden on mobile to avoid conflict with terminal */}
@@ -177,7 +179,7 @@ const App = () => {
         <AuthProvider>
           <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
             <TooltipProvider>
-              {hasBooted ? <AppContent /> : <BootSequence onComplete={handleBootComplete} />}
+              <AppContent />
               <Toaster />
               <Sonner />
               <Analytics />

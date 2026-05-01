@@ -34,7 +34,10 @@ export default function ChatPage() {
             otherUserName: conv.other_user?.username || 'Unknown',
             otherUserAvatar: conv.other_user?.avatar_url || undefined,
             lastMessage: conv.last_message?.content || null,
-            lastMessageType: 'text', // Simple mapping, could be enhanced
+            lastMessageType: conv.last_message?.voice_url ? 'voice' : 
+                             conv.last_message?.media_type === 'video' ? 'video' : 
+                             conv.last_message?.media_type === 'image' ? 'image' : 
+                             conv.last_message?.gif_url ? 'gif' : 'text',
             lastMessageTime: conv.last_message?.created_at || conv.last_activity_at,
             unreadCount: conv.unread_count || 0,
             isAnonymous: false

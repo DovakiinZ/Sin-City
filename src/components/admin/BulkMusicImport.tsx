@@ -35,7 +35,7 @@ export function BulkMusicImport({ onComplete }: { onComplete: () => void }) {
             if (validation.valid && validation.platform) {
                 // Try to guess title or fetch it (placeholder for now)
                 // For now, simple fallback
-                let title = `Song ${i + 1}`;
+                const title = `Song ${i + 1}`;
 
                 // Very basic OEmbed extraction attempt (often fails due to CORS, but worth a try if backend proxy existed)
                 // Since we are client-side only, we will use efficient fallbacks or simple text parsing if possible.

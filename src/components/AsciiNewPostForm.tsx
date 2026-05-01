@@ -111,7 +111,7 @@ export default function AsciiNewPostForm({ onAdd, onClose }: { onAdd: (p: NewPos
     e.preventDefault();
 
     // Check if there is pending music input
-    let currentMediaFiles = [...mediaFiles];
+    const currentMediaFiles = [...mediaFiles];
     if (showMusicInput && musicInputRef.current?.value) {
       currentMediaFiles.push({ url: musicInputRef.current.value, type: 'music' });
       // We don't need to clear the input since we're closing/submitting

@@ -94,16 +94,50 @@ export function useMessages(conversationId: string | null) {
         if (!user || !conversationId) return false;
 
         try {
-            const { error } = await supabase
+            const { data: newMessage, error } = await supabase
                 .from("messages")
                 .insert({
                     conversation_id: conversationId,
                     sender_id: user.id,
                     content: content || null,
                     attachments: attachments && attachments.length > 0 ? attachments : null,
-                });
+                })
+                .select()
+                .single();
 
             if (error) throw error;
+
+            // Send notification to the other user
+            if (otherUser && otherUser.id) {
+                let preview = content ? (content.length > 40 ? content.substring(0, 37) + '...' : content) : '';
+                if (!preview && attachments && attachments.length > 0) {
+                    const type = attachments[0].type;
+                    preview = `sent you a${type === 'image' ? 'n image' : type === 'audio' ? 'n audio' : ' file'}`;
+                }
+
+                // Make sure we have a user profile for the sender's username
+                const { data: currentUserProfile } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', user.id)
+                    .single();
+
+                const senderUsername = currentUserProfile?.username || 'Someone';
+
+                await supabase.from("notifications").insert({
+                    user_id: otherUser.id,
+                    type: 'dm_message',
+                    content: {
+                        senderUsername,
+                        senderId: user.id,
+                        conversationId,
+                        messageId: newMessage.id,
+                        preview
+                    },
+                    read: false
+                });
+            }
+
             return true;
         } catch (error) {
             console.error("Error sending message:", error);

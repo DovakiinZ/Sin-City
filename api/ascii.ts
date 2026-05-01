@@ -42,7 +42,7 @@ export default function handler(req: IncomingMessage, res: ServerResponse) {
         if (!fs.existsSync(binaryPath)) {
             console.warn("jp2a binary not found at", binaryPath);
             // Clean up
-            try { fs.unlinkSync(tmpFile); } catch (e) { }
+            try { fs.unlinkSync(tmpFile); } catch (e) { /* ignore */ }
 
             res.statusCode = 500;
             res.end(JSON.stringify({ error: 'Binary not found', fallback: true }));
@@ -58,7 +58,7 @@ export default function handler(req: IncomingMessage, res: ServerResponse) {
             tmpFile
         ], { timeout: 5000 }, (error, stdout, stderr) => {
             // Clean up
-            try { fs.unlinkSync(tmpFile); } catch (e) { }
+            try { fs.unlinkSync(tmpFile); } catch (e) { /* ignore */ }
 
             if (error) {
                 console.error("jp2a error:", error);

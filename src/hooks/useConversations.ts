@@ -138,7 +138,10 @@ export function useConversations() {
                     last_message: lastMsg ? {
                         content: lastMsg.content,
                         sender_id: '', // Not strictly needed here but following interface
-                        created_at: lastMsg.created_at
+                        created_at: lastMsg.created_at,
+                        media_type: lastMsg.media_type,
+                        gif_url: lastMsg.gif_url,
+                        voice_url: lastMsg.voice_url
                     } : undefined
                 } as Conversation;
             }));

@@ -47,7 +47,7 @@ function getClientIP(req: { headers: Record<string, string | string[] | undefine
         if (ips.length > 0 && isValidIP(ips[0])) { ip = ips[0]; source = s; return true; }
         return false;
     };
-    tryE(allHeaders['x-vercel-forwarded-for'], 'vercel') || tryE(allHeaders['cf-connecting-ip'], 'cf') ||
+    const _ = tryE(allHeaders['x-vercel-forwarded-for'], 'vercel') || tryE(allHeaders['cf-connecting-ip'], 'cf') ||
     tryE(allHeaders['x-forwarded-for'], 'xff') || tryE(allHeaders['x-real-ip'], 'real') || tryE(allHeaders['socket'], 'socket');
     return { ip, realIp: isPrivateIP(ip) ? null : ip, source, isPrivate: isPrivateIP(ip), allHeaders };
 }

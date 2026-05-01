@@ -143,7 +143,7 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
         e.preventDefault();
 
         // Check for pending music input
-        let currentMediaFiles = [...mediaFiles];
+        const currentMediaFiles = [...mediaFiles];
         if (showMusicInput && musicInputRef.current?.value) {
             currentMediaFiles.push({ url: musicInputRef.current.value, type: 'music' });
         }

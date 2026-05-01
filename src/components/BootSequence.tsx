@@ -4,12 +4,12 @@ const BootSequence = ({ onComplete }: { onComplete: () => void }) => {
     const [isVisible, setIsVisible] = useState(true);
 
     useEffect(() => {
-        // Show loader for 6 seconds then fade out
+        // Show loader for 1 second then fade out
         const timer = setTimeout(() => {
             setIsVisible(false);
             // Allow fade out animation to finish before unmounting
             setTimeout(onComplete, 500);
-        }, 6000);
+        }, 1000);
 
         return () => clearTimeout(timer);
     }, [onComplete]);

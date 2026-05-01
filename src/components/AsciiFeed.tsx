@@ -130,10 +130,10 @@ const AsciiFeed = () => {
       setLoading(true);
       try {
         // Fetch profiles for avatars and usernames
-        let userAvatars: Map<string, string> = new Map();
-        let userUsernames: Map<string, string> = new Map();
-        let userLastSeens: Map<string, string> = new Map();
-        let userRoles: Map<string, string> = new Map();
+        const userAvatars: Map<string, string> = new Map();
+        const userUsernames: Map<string, string> = new Map();
+        const userLastSeens: Map<string, string> = new Map();
+        const userRoles: Map<string, string> = new Map();
 
         const { data: profiles } = await supabase
           .from('profiles')
@@ -344,10 +344,10 @@ const AsciiFeed = () => {
                   const result = await listPostsFromDb({ limit: 30, cursor });
                   // Get profiles for the new posts
                   const newUserIds = [...new Set(result.posts.map(p => p.user_id).filter(Boolean))];
-                  let userAvatars = new Map<string, string>();
-                  let userUsernames = new Map<string, string>();
-                  let userLastSeens = new Map<string, string>();
-                  let userRoles = new Map<string, string>();
+                  const userAvatars = new Map<string, string>();
+                  const userUsernames = new Map<string, string>();
+                  const userLastSeens = new Map<string, string>();
+                  const userRoles = new Map<string, string>();
                   if (newUserIds.length > 0) {
                     const { data: profiles } = await supabase
                       .from('profiles')
