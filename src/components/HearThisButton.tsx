@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Music, Play, Pause, SkipForward, SkipBack, Square } from "lucide-react";
+import { Music, Play, Pause, SkipForward, SkipBack, Square, Users } from "lucide-react";
 import { useMusicLinks } from "@/hooks/useMusicLinks";
+import LiveListenersModal from "./effects/LiveListenersModal";
 
 const HearThisButton = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
+    const [isLiveModalOpen, setIsLiveModalOpen] = useState(false);
     const { musicLinks: allMusicLinks, loading } = useMusicLinks();
 
     // Filter out hidden songs for the public feed
@@ -77,7 +79,7 @@ const HearThisButton = () => {
     const currentSong = musicLinks[currentIndex];
 
     return (
-        <div className="w-full ascii-box p-4 space-y-3">
+        <div className="w-full ascii-box p-4 space-y-3 relative">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -91,17 +93,28 @@ const HearThisButton = () => {
                     />
                     <div className="text-left">
                         <pre className="ascii-highlight text-sm font-bold">HEAR THIS</pre>
-                        <pre className="ascii-dim text-xs">
-                            {musicLinks.length > 0
-                                ? `${currentIndex + 1}/${musicLinks.length} songs`
-                                : "No songs yet"}
-                        </pre>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <pre className="ascii-dim text-xs">
+                                {musicLinks.length > 0
+                                    ? `${currentIndex + 1}/${musicLinks.length} songs`
+                                    : "No songs yet"}
+                            </pre>
+                            <button 
+                                onClick={() => setIsLiveModalOpen(true)}
+                                className="flex items-center gap-1 text-[10px] text-green-500/80 hover:text-green-400 border border-green-900/50 hover:border-green-500/50 rounded px-1.5 py-0.5 transition-colors bg-green-950/20"
+                                title="See who is listening to Spotify live"
+                            >
+                                <Users className="w-3 h-3" />
+                                Live
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div className="ascii-dim text-xs hidden sm:block">
                     🎵
                 </div>
             </div>
+
 
             {/* Current Song Display */}
             {musicLinks.length > 0 && currentSong && (
@@ -173,6 +186,8 @@ const HearThisButton = () => {
                     </button>
                 </div>
             )}
+            
+            <LiveListenersModal isOpen={isLiveModalOpen} onClose={() => setIsLiveModalOpen(false)} />
         </div>
     );
 };
