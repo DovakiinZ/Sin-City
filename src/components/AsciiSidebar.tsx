@@ -92,6 +92,11 @@ const AsciiSidebar = () => {
             </Link>
           </li>
           <li>
+            <Link to="/leaderboard" className="ascii-nav-link hover:ascii-highlight text-green-500">
+              → Leaderboard
+            </Link>
+          </li>
+          <li>
             <Link to="/posts" className="ascii-nav-link hover:ascii-highlight">
               → Posts
             </Link>

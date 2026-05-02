@@ -100,8 +100,25 @@ export function useMarkdownPreview() {
             .replace(/^# (.+)$/gm, '<span class="text-2xl font-bold text-green-200">$1</span>')
             // Quote blocks
             .replace(/^> (.+)$/gm, '<span class="border-l-2 border-green-500 pl-3 text-gray-400 italic block">$1</span>')
-            // Links
-            .replace(/(https?:\/\/[^\s]+)/g, '<span class="text-green-400 underline">$1</span>');
+            // Code block: ```lang\ncode\n```
+            .replace(/```([\w-]+)?\n([\s\S]+?)```/g, (match, lang, code) => {
+                const language = lang || 'plaintext';
+                return `<div class="my-4 rounded-lg overflow-hidden border border-green-900/50 bg-black shadow-[0_0_15px_rgba(34,197,94,0.1)] group">
+                    <div class="flex items-center justify-between px-3 py-1.5 bg-green-900/20 border-b border-green-900/50">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-2.5 h-2.5 rounded-full bg-red-500/80"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-green-500/80"></div>
+                        </div>
+                        <span class="text-xs font-mono text-green-500/70 lowercase">${language}</span>
+                    </div>
+                    <div class="p-3 overflow-x-auto">
+                        <pre><code class="text-green-400 font-mono text-sm leading-relaxed">${code}</code></pre>
+                    </div>
+                </div>`;
+            })
+            // Links (only if not inside an HTML attribute like href="..." or src="...")
+            .replace(/(?<!["'])(https?:\/\/[^\s<]+)/g, '<span class="text-green-400 underline cursor-pointer" onclick="window.open(\'$1\', \'_blank\')">$1</span>');
 
         return result;
     }, []);

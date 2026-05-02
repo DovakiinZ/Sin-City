@@ -544,13 +544,13 @@ Built with: React + TypeScript + Vite`,
         },
 
         // Fun commands
-        hack: () => {
-            let output = "Initializing hack sequence...\n";
-            output += "[████████████████████] 100%\n";
-            output += "Access granted. Welcome to the mainframe.\n";
-            output += "⚠️  WARNING: Unauthorized access detected\n";
-            output += "Just kidding! This is just for fun 😄";
-            return output;
+        hack: (args?: string[]) => {
+            const target = args && args.length > 0 ? args[0] : 'admin';
+            window.dispatchEvent(new CustomEvent('trigger-easter-egg', { 
+                detail: { type: 'hack', target: target.replace('@', '') } 
+            }));
+            onClose();
+            return `Initiating sequence against ${target}...`;
         },
 
         quote: () => {
@@ -568,8 +568,29 @@ Built with: React + TypeScript + Vite`,
         },
 
         matrix: () => {
-            return `Wake up, 
-            ... The Matrix has you...\nFollow the white rabbit. 🐰`;
+            window.dispatchEvent(new CustomEvent('trigger-easter-egg', { 
+                detail: { type: 'matrix' } 
+            }));
+            return `Follow the white rabbit...`;
+        },
+        
+        "play": (args?: string[]) => {
+            if (args && args[0] === 'snake') {
+                window.dispatchEvent(new CustomEvent('trigger-easter-egg', { detail: { type: 'snake' } }));
+                onClose();
+                return "Loading Terminal.Snake...";
+            }
+            if (args && args[0] === 'tetris') {
+                window.dispatchEvent(new CustomEvent('trigger-easter-egg', { detail: { type: 'tetris' } }));
+                onClose();
+                return "Loading Terminal.Tetris...";
+            }
+            if (args && args[0] === 'pacman') {
+                window.dispatchEvent(new CustomEvent('trigger-easter-egg', { detail: { type: 'pacman' } }));
+                onClose();
+                return "Loading Terminal.Pacman...";
+            }
+            return "Usage: play <snake|tetris|pacman>";
         },
 
         poetry: () => {

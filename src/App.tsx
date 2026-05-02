@@ -34,6 +34,7 @@ const Contact = lazy(() => import("./pages/Contact"));
 const AsciiTools = lazy(() => import("./pages/AsciiTools"));
 const ThreadView = lazy(() => import("./pages/ThreadView"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
+const Leaderboard = lazy(() => import("./pages/Leaderboard"));
 import QuickCreateButton from "./components/QuickCreateButton";
 import BootSequence from "./components/BootSequence";
 import ScanlineEffect from "./components/ScanlineEffect";
@@ -42,6 +43,7 @@ import PageTransition from "./components/PageTransition";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useUserIPCapture } from "./hooks/useUserIPCapture";
 import useGuestFingerprint from "./hooks/useGuestFingerprint";
+import EasterEggs from "./components/effects/EasterEggs";
 
 const queryClient = new QueryClient();
 
@@ -131,6 +133,7 @@ const AppContent = () => {
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/edit" element={<ProfileEdit />} />
             <Route path="/chat" element={<ChatPage />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
@@ -179,7 +182,9 @@ const App = () => {
         <AuthProvider>
           <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
             <TooltipProvider>
-              <AppContent />
+              {showBoot && <BootSequence onComplete={handleBootComplete} />}
+              {hasBooted && <AppContent />}
+              <EasterEggs />
               <Toaster />
               <Sonner />
               <Analytics />

@@ -11,8 +11,34 @@ export default function SearchBar() {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        if (query.trim()) {
-            navigate(`/search?q=${encodeURIComponent(query)}`);
+        const trimmedQuery = query.trim();
+        
+        // Easter Egg Commands
+        if (trimmedQuery.startsWith('/play ')) {
+            const game = trimmedQuery.replace('/play ', '').toLowerCase();
+            if (['snake', 'tetris', 'pacman'].includes(game)) {
+                window.dispatchEvent(new CustomEvent('trigger-easter-egg', { detail: { type: game } }));
+                setQuery("");
+                setIsOpen(false);
+                return;
+            }
+        }
+        if (trimmedQuery === '/matrix') {
+            window.dispatchEvent(new CustomEvent('trigger-easter-egg', { detail: { type: 'matrix' } }));
+            setQuery("");
+            setIsOpen(false);
+            return;
+        }
+        if (trimmedQuery.startsWith('/hack ')) {
+            const target = trimmedQuery.replace('/hack ', '').replace('@', '');
+            window.dispatchEvent(new CustomEvent('trigger-easter-egg', { detail: { type: 'hack', target } }));
+            setQuery("");
+            setIsOpen(false);
+            return;
+        }
+
+        if (trimmedQuery) {
+            navigate(`/search?q=${encodeURIComponent(trimmedQuery)}`);
             setIsOpen(false);
         }
     };

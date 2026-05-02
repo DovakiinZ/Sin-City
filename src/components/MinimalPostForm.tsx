@@ -156,7 +156,7 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
         onAdd({
             title: autoTitle || "",
             date: new Date().toISOString().slice(0, 10),
-            content,
+            content: parseInlineMarkdown(content),
             attachments: currentMediaFiles.length > 0 ? currentMediaFiles : undefined,
             gif_url: selectedGif || undefined,
             is_registered_only: isRegisteredOnly,

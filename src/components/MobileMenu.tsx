@@ -152,6 +152,13 @@ const MobileMenu = ({ className }: MobileMenuProps) => {
                     >
                         ║ → Posts
                     </Link>
+                    <Link
+                        to="/leaderboard"
+                        onClick={handleLinkClick}
+                        className="block ascii-nav-link hover:ascii-highlight text-green-500 py-1"
+                    >
+                        ║ → Leaderboard
+                    </Link>
                     {isAdmin && (
                         <Link
                             to="/crowd"
