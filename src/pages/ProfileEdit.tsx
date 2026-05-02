@@ -83,6 +83,8 @@ export default function ProfileEdit() {
     }, [user?.id]);
 
     // Handle Spotify OAuth Callback
+    const spotifyAuthAttempted = useRef(false);
+
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
@@ -91,7 +93,8 @@ export default function ProfileEdit() {
         if (error) {
             toast({ title: "Spotify Error", description: `Spotify returned an error: ${error}. (If server_error, ensure your Spotify email is added to User Management in your Spotify Dev Dashboard!)`, variant: "destructive" });
             window.history.replaceState({}, document.title, window.location.pathname);
-        } else if (code) {
+        } else if (code && !spotifyAuthAttempted.current) {
+            spotifyAuthAttempted.current = true;
             handleSpotifyCallback(code)
                 .then(() => {
                     toast({ title: "Spotify Connected", description: "Successfully linked Spotify account" });
