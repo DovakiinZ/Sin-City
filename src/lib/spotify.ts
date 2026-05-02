@@ -1,6 +1,6 @@
 // Utilities for Spotify PKCE Authentication
 
-const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
+const clientId = (import.meta.env.VITE_SPOTIFY_CLIENT_ID || '').trim();
 const redirectUri = window.location.origin + '/profile/edit'; // Must match Spotify App exactly
 
 const generateRandomString = (length: number) => {
