@@ -488,7 +488,14 @@ export default function ProfileEdit() {
                                 </button>
                             ) : (
                                 <button
-                                    onClick={(e) => { e.preventDefault(); loginWithSpotify(); }}
+                                    onClick={async (e) => {
+                                        e.preventDefault();
+                                        try {
+                                            await loginWithSpotify();
+                                        } catch (err: any) {
+                                            toast({ title: "Configuration Error", description: err.message || "Failed to initiate Spotify login", variant: "destructive" });
+                                        }
+                                    }}
                                     className="px-3 py-1.5 bg-[#1DB954] text-black font-medium rounded-lg text-xs hover:bg-[#1ed760]"
                                 >
                                     Connect Spotify
