@@ -28,6 +28,8 @@ export interface Post {
     is_registered_only?: boolean;
     is_deleted?: boolean;
     author_role?: string;
+    authorDiscordId?: string;
+    authorSpotifyStatus?: any;
     created_at: string;
     updated_at: string;
 }

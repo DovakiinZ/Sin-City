@@ -137,17 +137,21 @@ export default function Posts() {
       const userUsernames: Map<string, string> = new Map();
       const userLastSeens: Map<string, string> = new Map();
       const userRoles: Map<string, string> = new Map();
+      const userDiscordIds: Map<string, string> = new Map();
+      const userSpotifyStatus: Map<string, any> = new Map();
 
       try {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, role, avatar_url, username, last_seen');
+          .select('id, role, avatar_url, username, last_seen, discord_id, spotify_status');
         if (profiles) {
           profiles.forEach(p => {
             if (p.role === 'admin' || p.role === 'ceo') adminUserIds.add(p.id);
             if (p.avatar_url) userAvatars.set(p.id, p.avatar_url);
             if (p.username) userUsernames.set(p.id, p.username);
             if (p.role) userRoles.set(p.id, p.role);
+            if (p.discord_id) userDiscordIds.set(p.id, p.discord_id);
+            if (p.spotify_status) userSpotifyStatus.set(p.id, p.spotify_status);
           });
           // Note: Current user check moved to separate useEffect
         }
@@ -193,6 +197,8 @@ export default function Posts() {
             is_deleted: p.is_deleted || false,
             is_registered_only: p.is_registered_only || false,
             author_role: p.user_id ? userRoles.get(p.user_id) : undefined,
+            authorDiscordId: p.user_id ? userDiscordIds.get(p.user_id) : undefined,
+            authorSpotifyStatus: p.user_id ? userSpotifyStatus.get(p.user_id) : undefined,
           };
         });
       } catch (error) {

@@ -15,6 +15,7 @@ import CommentList from "@/components/comments/CommentList";
 import { MusicMetadata } from "@/components/MusicCard";
 import AdminPostInspector from "@/components/admin/AdminPostInspector";
 import AdminPostTerminal from "@/components/admin/AdminPostTerminal";
+import NowPlayingStatus from "./effects/NowPlayingStatus";
 
 interface PostCardProps {
     post: {
@@ -28,6 +29,8 @@ interface PostCardProps {
         authorAvatar?: string;
         authorUsername?: string;
         authorLastSeen?: string; // New field for presence
+        authorDiscordId?: string;
+        authorSpotifyStatus?: any;
         isPinned?: boolean;
         isHtml?: boolean;
         attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
@@ -291,6 +294,9 @@ export default function PostCard({
                             @{post.authorUsername || post.author || "anonymous"}
                         </Link>
                         {getRoleBadge()}
+                        {(post.authorDiscordId || post.authorSpotifyStatus) && (
+                            <NowPlayingStatus discordId={post.authorDiscordId} officialSpotify={post.authorSpotifyStatus} compact={true} />
+                        )}
                         <span className="text-gray-500 text-xs">·</span>
                         <span className="text-gray-500 text-xs" title={post.rawDate ? new Date(post.rawDate).toLocaleString() : undefined}>
                             {relativeTime}

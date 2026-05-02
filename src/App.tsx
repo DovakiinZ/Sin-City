@@ -44,6 +44,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useUserIPCapture } from "./hooks/useUserIPCapture";
 import useGuestFingerprint from "./hooks/useGuestFingerprint";
 import EasterEggs from "./components/effects/EasterEggs";
+import { useSpotifyPresence } from "./hooks/useSpotifyPresence";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,9 @@ const AppContent = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
   const showMatrix = useKonamiCode();
+
+  // Polling for Spotify status
+  useSpotifyPresence();
 
   // Capture IP for logged-in users
   useUserIPCapture();

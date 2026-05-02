@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { Camera, ImagePlus, Save, X, Check } from "lucide-react";
 
 import { useLogger } from "@/hooks/useLogger";
+import { loginWithSpotify, handleSpotifyCallback, disconnectSpotify } from "@/lib/spotify";
 
 export default function ProfileEdit() {
     const { user, updateProfile } = useAuth();
@@ -23,6 +24,7 @@ export default function ProfileEdit() {
     const [twitterUsername, setTwitterUsername] = useState("");
     const [instagramUsername, setInstagramUsername] = useState("");
     const [discordUsername, setDiscordUsername] = useState("");
+    const [discordId, setDiscordId] = useState("");
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -66,6 +68,7 @@ export default function ProfileEdit() {
                     setTwitterUsername(data.twitter_username || "");
                     setInstagramUsername(data.instagram_username || "");
                     setDiscordUsername(data.discord_username || "");
+                    setDiscordId(data.discord_id || "");
                     setIsAdmin(data.role === 'admin');
                     setUsernameChangesThisYear(data.username_changes_this_year || 0);
                 }
@@ -78,6 +81,25 @@ export default function ProfileEdit() {
 
         loadProfile();
     }, [user?.id]);
+
+    // Handle Spotify OAuth Callback
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        
+        if (code) {
+            handleSpotifyCallback(code)
+                .then(() => {
+                    toast({ title: "Spotify Connected", description: "Successfully linked Spotify account" });
+                    // Remove code from URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                })
+                .catch(err => {
+                    console.error("Spotify Auth Error", err);
+                    toast({ title: "Spotify Error", description: err.message, variant: "destructive" });
+                });
+        }
+    }, []);
 
     // Handle avatar file selection
     function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -218,6 +240,7 @@ export default function ProfileEdit() {
                 twitter_username: twitterUsername || null,
                 instagram_username: instagramUsername || null,
                 discord_username: discordUsername || null,
+                discord_id: discordId || null,
             };
 
             // Add username change if changed
@@ -426,6 +449,55 @@ export default function ProfileEdit() {
                                 placeholder="username#1234"
                             />
                         </div>
+                        <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                                <span className="text-indigo-400 w-20 text-xs">Discord ID</span>
+                                <input
+                                    type="text"
+                                    value={discordId}
+                                    onChange={(e) => setDiscordId(e.target.value.replace(/[^0-9]/g, ''))}
+                                    className="flex-1 bg-black/50 border border-green-700/50 rounded-lg px-3 py-2 text-green-100 focus:border-green-500 focus:outline-none text-xs"
+                                    placeholder="18-digit Discord ID (for Now Playing)"
+                                />
+                            </div>
+                            <p className="text-[10px] text-gray-500 ml-22">
+                                To show your Spotify/Game status, join the <a href="https://discord.gg/lanyard" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">Lanyard Discord</a>. 
+                                Find your ID by enabling Developer Mode in Discord and right-clicking your profile.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Spotify Official Integration */}
+                <div className="mb-6">
+                    <label className="text-sm text-gray-500 mb-2 block">Official Spotify Integration</label>
+                    <div className="bg-black/50 border border-green-700/50 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 text-green-400">
+                                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+                                </svg>
+                                <span className="font-medium text-sm">Spotify Currently Playing</span>
+                            </div>
+                            {localStorage.getItem('spotify_access_token') ? (
+                                <button
+                                    onClick={(e) => { e.preventDefault(); disconnectSpotify(); window.location.reload(); }}
+                                    className="px-3 py-1.5 bg-red-900/30 text-red-400 border border-red-700/50 rounded-lg text-xs hover:bg-red-900/50"
+                                >
+                                    Disconnect
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={(e) => { e.preventDefault(); loginWithSpotify(); }}
+                                    className="px-3 py-1.5 bg-[#1DB954] text-black font-medium rounded-lg text-xs hover:bg-[#1ed760]"
+                                >
+                                    Connect Spotify
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-[10px] text-gray-400">
+                            Connect your official Spotify account. Note: Your status will only update while you have a Sin City tab open.
+                        </p>
                     </div>
                 </div>
 

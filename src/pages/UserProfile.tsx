@@ -10,6 +10,7 @@ import { UserPlus, UserMinus, Twitter, Instagram, X, Check, Edit2, LogOut, Messa
 import { useSessions } from "@/hooks/useSessions";
 import MessagingPanel from "@/components/messaging/MessagingPanel";
 import { Crown } from "lucide-react";
+import NowPlayingStatus from "@/components/effects/NowPlayingStatus";
 
 interface FollowUser {
     id: string;
@@ -89,7 +90,7 @@ export default function UserProfile() {
                 // 1. Exact Username Match
                 const { data: usernameMatch } = await supabase
                     .from('profiles')
-                    .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username, discord_username, role')
+                    .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username, discord_username, discord_id, role')
                     .ilike('username', searchName)
                     .limit(1);
 
@@ -100,7 +101,7 @@ export default function UserProfile() {
                 if (!foundUser) {
                     const { data: displayMatch } = await supabase
                         .from('profiles')
-                        .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username, discord_username, role')
+                        .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username, discord_username, discord_id, role')
                         .ilike('display_name', searchName)
                         .limit(1);
 
@@ -121,7 +122,7 @@ export default function UserProfile() {
                     if (postData && postData.length > 0 && postData[0].user_id) {
                         const { data: profileData } = await supabase
                             .from('profiles')
-                            .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username, role')
+                            .select('id, username, display_name, avatar_url, header_url, bio, website, location, created_at, twitter_username, instagram_username, discord_id, role')
                             .eq('id', postData[0].user_id)
                             .single();
 
@@ -523,6 +524,11 @@ export default function UserProfile() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Discord & Official Spotify Presence */}
+                    {(profile.discord_id || profile.spotify_status) && (
+                        <NowPlayingStatus discordId={profile.discord_id} officialSpotify={profile.spotify_status} showAvatar={true} compact={false} />
+                    )}
 
                     {/* Bio */}
                     {profile.bio && (
