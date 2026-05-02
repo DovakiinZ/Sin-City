@@ -86,8 +86,12 @@ export default function ProfileEdit() {
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
+        const error = urlParams.get('error');
         
-        if (code) {
+        if (error) {
+            toast({ title: "Spotify Error", description: `Spotify returned an error: ${error}. (If server_error, ensure your Spotify email is added to User Management in your Spotify Dev Dashboard!)`, variant: "destructive" });
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (code) {
             handleSpotifyCallback(code)
                 .then(() => {
                     toast({ title: "Spotify Connected", description: "Successfully linked Spotify account" });
