@@ -26,16 +26,59 @@ export default function LiveListenersModal({ isOpen, onClose }: LiveListenersMod
         const fetchListeners = async () => {
             setLoading(true);
             try {
+                // Fetch profiles that have either official spotify_status OR discord_id
                 const { data, error } = await supabase
                     .from('profiles')
-                    .select('id, username, avatar_url, spotify_status')
-                    .not('spotify_status', 'is', null);
+                    .select('id, username, avatar_url, spotify_status, discord_id');
 
                 if (error) throw error;
 
                 if (data) {
-                    // Filter for active listeners only
-                    const activeListeners = data.filter(p => p.spotify_status && p.spotify_status.is_playing);
+                    const activeListeners: Listener[] = [];
+                    const lanyardPromises: Promise<void>[] = [];
+
+                    for (const profile of data) {
+                        // 1. Check official Spotify integration first
+                        if (profile.spotify_status && profile.spotify_status.is_playing) {
+                            activeListeners.push({
+                                id: profile.id,
+                                username: profile.username,
+                                avatar_url: profile.avatar_url,
+                                spotify_status: profile.spotify_status
+                            });
+                            continue; // Skip Lanyard if official is playing
+                        }
+
+                        // 2. Check Discord Lanyard integration
+                        if (profile.discord_id) {
+                            lanyardPromises.push(
+                                fetch(`https://api.lanyard.rest/v1/users/${profile.discord_id}`)
+                                    .then(res => res.json())
+                                    .then(json => {
+                                        if (json.success && json.data.spotify) {
+                                            const spotify = json.data.spotify;
+                                            activeListeners.push({
+                                                id: profile.id,
+                                                username: profile.username,
+                                                avatar_url: profile.avatar_url,
+                                                spotify_status: {
+                                                    song: spotify.song,
+                                                    artist: spotify.artist,
+                                                    album_art_url: spotify.album_art_url,
+                                                    track_id: spotify.track_id,
+                                                    is_playing: true
+                                                }
+                                            });
+                                        }
+                                    })
+                                    .catch(err => console.error("Lanyard fetch error:", err))
+                            );
+                        }
+                    }
+
+                    // Wait for all Lanyard checks to complete
+                    await Promise.all(lanyardPromises);
+                    
                     setListeners(activeListeners);
                 }
             } catch (err) {
