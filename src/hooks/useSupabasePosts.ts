@@ -231,6 +231,8 @@ export async function createPost(post: Omit<Post, "id" | "created_at" | "updated
     if (error) throw error;
     
     if (pollData && pollData.question && pollData.options.length > 0) {
+        console.log('[createPost] Inserting poll data:', JSON.stringify(pollData));
+        console.log('[createPost] Post ID for poll:', data.id);
         try {
             // Insert poll
             const { data: poll, error: pollError } = await supabase
@@ -239,7 +241,11 @@ export async function createPost(post: Omit<Post, "id" | "created_at" | "updated
                 .select()
                 .single();
                 
-            if (pollError) throw pollError;
+            if (pollError) {
+                console.error('[createPost] Poll insert error:', pollError);
+                throw pollError;
+            }
+            console.log('[createPost] Poll created:', poll.id);
             
             // Insert options
             const optionsToInsert = pollData.options.map(text => ({
@@ -247,14 +253,21 @@ export async function createPost(post: Omit<Post, "id" | "created_at" | "updated
                 text
             }));
             
+            console.log('[createPost] Inserting options:', JSON.stringify(optionsToInsert));
             const { error: optionsError } = await supabase
                 .from("post_poll_options")
                 .insert(optionsToInsert);
                 
-            if (optionsError) throw optionsError;
+            if (optionsError) {
+                console.error('[createPost] Options insert error:', optionsError);
+                throw optionsError;
+            }
+            console.log('[createPost] Poll options created successfully');
         } catch (pollErr) {
             console.error("Failed to create poll for post:", pollErr);
         }
+    } else {
+        console.log('[createPost] No poll data provided or invalid:', pollData);
     }
     
     return data;
