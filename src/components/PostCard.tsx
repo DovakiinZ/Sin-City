@@ -112,6 +112,15 @@ export default function PostCard({
     const [pollVotes, setPollVotes] = useState<any[]>(batchPoll?.votes || []);
     const [isVoting, setIsVoting] = useState(false);
 
+    // Sync poll state when batchPoll prop arrives/changes
+    useEffect(() => {
+        if (batchPoll) {
+            setPoll(batchPoll);
+            setPollOptions(batchPoll.options || []);
+            setPollVotes(batchPoll.votes || []);
+        }
+    }, [batchPoll]);
+
     // Only fetch poll per-card on the detail page (fullContent) if no batch data provided
     useEffect(() => {
         if (batchPoll !== undefined) return; // batch data provided (even if null = no poll)

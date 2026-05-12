@@ -153,18 +153,29 @@ const AsciiFeed = () => {
         const userIds = [...new Set(filteredPosts.map((p: any) => p.user_id).filter(Boolean))] as string[];
         const postIds = filteredPosts.map((p: any) => p.id).filter(Boolean) as string[];
 
-        // Fetch profiles, polls, and reactions in parallel
+        // Fetch profiles, polls, and reactions in parallel (polls/reactions are fault-tolerant)
         const [profilesResult, pollsResult, reactionsResult] = await Promise.all([
           userIds.length > 0
             ? supabase.from('profiles').select('id, avatar_url, username, last_seen, role').in('id', userIds)
-            : { data: null },
+            : { data: null, error: null },
           postIds.length > 0
             ? supabase.from('post_polls').select('*, options:post_poll_options(*), votes:post_poll_votes(*)').in('post_id', postIds)
-            : { data: null },
+                .then(res => res)
+                .catch(() => ({ data: null, error: 'poll tables not found' }))
+            : { data: null, error: null },
           postIds.length > 0
             ? supabase.from('reactions').select('post_id, user_id, reaction_type').in('post_id', postIds)
-            : { data: null },
+                .then(res => res)
+                .catch(() => ({ data: null, error: 'reactions table not found' }))
+            : { data: null, error: null },
         ]);
+
+        // Log poll fetch result for debugging
+        if (pollsResult.error) {
+          console.warn('[AsciiFeed] Poll fetch issue:', pollsResult.error);
+        } else if (pollsResult.data) {
+          console.log(`[AsciiFeed] Fetched ${pollsResult.data.length} polls for ${postIds.length} posts`);
+        }
 
         // Build profiles maps
         const userAvatars: Map<string, string> = new Map();
