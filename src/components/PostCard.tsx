@@ -16,6 +16,21 @@ import { MusicMetadata } from "@/components/MusicCard";
 import AdminPostInspector from "@/components/admin/AdminPostInspector";
 import AdminPostTerminal from "@/components/admin/AdminPostTerminal";
 import NowPlayingStatus from "./effects/NowPlayingStatus";
+import { supabase } from "@/lib/supabase";
+
+// Batch-provided data to avoid N+1 queries in feed mode
+export interface BatchPollData {
+    id: string;
+    question: string;
+    post_id: string;
+    options: { id: string; text: string }[];
+    votes: { option_id: string; user_id: string }[];
+}
+
+export interface BatchReactionData {
+    likeCount: number;
+    hasLiked: boolean;
+}
 
 interface PostCardProps {
     post: {
@@ -52,6 +67,8 @@ interface PostCardProps {
     onDelete?: (postId: string) => void; // Admin delete post
     isAdmin?: boolean;
     isHidden?: boolean; // Track if post is hidden
+    batchPoll?: BatchPollData | null; // Pre-fetched poll data from parent
+    batchReaction?: BatchReactionData | null; // Pre-fetched reaction data from parent
 }
 
 export default function PostCard({
@@ -62,7 +79,9 @@ export default function PostCard({
     onHide,
     onDelete,
     isAdmin = false,
-    isHidden = false
+    isHidden = false,
+    batchPoll,
+    batchReaction
 }: PostCardProps) {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -70,7 +89,8 @@ export default function PostCard({
     const { identity } = useIdentity();
     const { user_id, guest_id, isReady } = useContentAuthor();
     const postIdForReactions = post.postId || post.slug;
-    const { reactions, counts, optimisticToggle } = useReactions(postIdForReactions);
+    // Only use the heavy useReactions hook (with realtime channel) on the detail page
+    const realtimeReactions = useReactions(fullContent ? postIdForReactions : '');
 
     // Comment state
     const [showCommentInput, setShowCommentInput] = useState(false);
@@ -85,6 +105,67 @@ export default function PostCard({
 
     // Admin terminal state
     const [showTerminal, setShowTerminal] = useState(false);
+
+    // Poll state — use batch data from parent if available, else fetch per-card (detail page only)
+    const [poll, setPoll] = useState<any>(batchPoll || null);
+    const [pollOptions, setPollOptions] = useState<any[]>(batchPoll?.options || []);
+    const [pollVotes, setPollVotes] = useState<any[]>(batchPoll?.votes || []);
+    const [isVoting, setIsVoting] = useState(false);
+
+    // Only fetch poll per-card on the detail page (fullContent) if no batch data provided
+    useEffect(() => {
+        if (batchPoll !== undefined) return; // batch data provided (even if null = no poll)
+        if (!fullContent) return; // Don't fetch in feed mode
+        if (!post.postId) return;
+        const fetchPoll = async () => {
+            const { data: pollData } = await supabase
+                .from('post_polls')
+                .select('*, options:post_poll_options(*), votes:post_poll_votes(*)')
+                .eq('post_id', post.postId)
+                .maybeSingle();
+
+            if (pollData) {
+                setPoll(pollData);
+                setPollOptions(pollData.options || []);
+                setPollVotes(pollData.votes || []);
+            }
+        };
+        fetchPoll();
+    }, [post.postId, fullContent, batchPoll]);
+
+    const handleVote = async (optionId: string) => {
+        if (!user) {
+            toast({ title: "Login required", description: "Please login to vote", variant: "destructive" });
+            return;
+        }
+        if (isVoting || !poll) return;
+
+        setIsVoting(true);
+        try {
+            const { error } = await supabase
+                .from('post_poll_votes')
+                .insert([{ poll_id: poll.id, option_id: optionId, user_id: user.id }]);
+            
+            if (error) {
+                if (error.code === '23505') {
+                    toast({ title: "Already voted", description: "You can only vote once.", variant: "destructive" });
+                } else {
+                    throw error;
+                }
+            } else {
+                // Optimistically update
+                setPollVotes(prev => [...prev, { poll_id: poll.id, option_id: optionId, user_id: user.id }]);
+            }
+        } catch (err) {
+            console.error("Voting error:", err);
+            toast({ title: "Error", description: "Failed to vote", variant: "destructive" });
+        } finally {
+            setIsVoting(false);
+        }
+    };
+    
+    const userVotedOptionId = user ? pollVotes.find(v => v.user_id === user.id)?.option_id : null;
+    const totalVotes = pollVotes.length;
 
     // Extract first image from content if no attachments
     const contentImage = useMemo(() => {
@@ -116,9 +197,13 @@ export default function PostCard({
         ? formatDistanceToNow(new Date(post.rawDate), { addSuffix: true })
         : post.date;
 
-    // Check if user has liked
-    const hasLiked = reactions.some(r => r.reaction_type === "like" && r.user_id === user?.id);
-    const likeCount = counts.find(c => c.reaction_type === "like")?.count || 0;
+    // Check if user has liked — prefer batch data in feed mode
+    const hasLiked = batchReaction
+        ? batchReaction.hasLiked
+        : realtimeReactions.reactions.some(r => r.reaction_type === "like" && r.user_id === user?.id);
+    const likeCount = batchReaction
+        ? batchReaction.likeCount
+        : realtimeReactions.counts.find(c => c.reaction_type === "like")?.count || 0;
 
     // Calculate read time
     const textContent = stripHtml(post.content);
@@ -143,8 +228,8 @@ export default function PostCard({
         if (toggling) return;
 
         setToggling(true);
-        if (user?.id) {
-            optimisticToggle(user.id, "like");
+        if (user?.id && fullContent) {
+            realtimeReactions.optimisticToggle(user.id, "like");
         }
         try {
             await toggleReaction(postIdForReactions, user.id, "like");
@@ -392,6 +477,57 @@ export default function PostCard({
             {displayMedia && displayMedia.length > 0 && (
                 <div className="my-4" onClick={(e) => e.stopPropagation()}>
                     <MediaCarousel media={displayMedia} compact={!fullContent} musicMetadata={post.music_metadata} />
+                </div>
+            )}
+
+            {/* Poll Display */}
+            {poll && (
+                <div className="my-4 border border-green-900/30 bg-black/30 rounded-lg p-4" onClick={(e) => e.stopPropagation()}>
+                    <h3 className="text-green-400 font-medium mb-3">{poll.question}</h3>
+                    <div className="space-y-2">
+                        {pollOptions.map(option => {
+                            const votesForOption = pollVotes.filter(v => v.option_id === option.id).length;
+                            const percentage = totalVotes > 0 ? Math.round((votesForOption / totalVotes) * 100) : 0;
+                            const isVotedByMe = userVotedOptionId === option.id;
+
+                            return (
+                                <button
+                                    key={option.id}
+                                    onClick={() => handleVote(option.id)}
+                                    disabled={userVotedOptionId !== null || isVoting}
+                                    className={`relative w-full text-left p-3 rounded-lg overflow-hidden transition-all ${
+                                        userVotedOptionId !== null
+                                            ? isVotedByMe
+                                                ? 'bg-green-900/40 border border-green-500/50'
+                                                : 'bg-gray-900/50 border border-gray-800'
+                                            : 'bg-gray-900/50 hover:bg-gray-800 border border-gray-800 hover:border-green-900/50 cursor-pointer'
+                                    }`}
+                                >
+                                    {/* Progress bar background */}
+                                    {userVotedOptionId !== null && (
+                                        <div 
+                                            className={`absolute inset-y-0 left-0 ${isVotedByMe ? 'bg-green-600/30' : 'bg-gray-700/30'}`}
+                                            style={{ width: `${percentage}%` }}
+                                        />
+                                    )}
+                                    
+                                    <div className="relative flex justify-between items-center z-10">
+                                        <span className={`text-sm ${isVotedByMe ? 'text-green-400 font-medium' : 'text-gray-300'}`}>
+                                            {option.text}
+                                        </span>
+                                        {userVotedOptionId !== null && (
+                                            <span className="text-xs text-gray-400 ml-4">
+                                                {percentage}%
+                                            </span>
+                                        )}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500 text-right">
+                        {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
+                    </div>
                 </div>
             )}
 

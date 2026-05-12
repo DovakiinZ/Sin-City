@@ -45,19 +45,14 @@ export function usePresence() {
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        // Activity listeners for more responsive presence
-        const handleActivity = () => sendHeartbeat();
-        window.addEventListener('mousemove', handleActivity);
-        window.addEventListener('keydown', handleActivity);
-        window.addEventListener('focus', handleActivity);
+        // Activity listener for responsive presence (only on focus, not mousemove)
+        window.addEventListener('focus', sendHeartbeat);
 
         // Cleanup on unmount
         return () => {
             clearInterval(interval);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('mousemove', handleActivity);
-            window.removeEventListener('keydown', handleActivity);
-            window.removeEventListener('focus', handleActivity);
+            window.removeEventListener('focus', sendHeartbeat);
         };
     }, [user, sendHeartbeat]);
 }

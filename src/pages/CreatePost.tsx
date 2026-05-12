@@ -7,7 +7,7 @@ import { createThread } from "@/hooks/useSupabasePosts";
 import { useToast } from "@/hooks/use-toast";
 import { useMarkdownPreview } from "@/hooks/useMarkdownPreview";
 import { useImageCropper } from "@/hooks/useImageCropper";
-import { X, Plus, Image, Film, Loader2, Link2, Music, Smile, ArrowLeft, Save, Send, AlignLeft, AlignCenter, AlignRight, Lock, Globe } from "lucide-react";
+import { X, Plus, Image, Film, Loader2, Link2, Music, Smile, ArrowLeft, Save, Send, AlignLeft, AlignCenter, AlignRight, Lock, Globe, ListOrdered } from "lucide-react";
 import GifPicker from "@/components/GifPicker";
 import MusicEmbed from "@/components/MusicEmbed";
 import ImageCropperModal from "@/components/ImageCropperModal";
@@ -41,6 +41,13 @@ interface MinimalEditorProps {
     removeMedia: (index: number) => void;
     addMusic: (url: string) => void;
     user: any;
+    // Poll props
+    showPollInput: boolean;
+    setShowPollInput: (v: boolean) => void;
+    pollQuestion: string;
+    setPollQuestion: (v: string) => void;
+    pollOptions: string[];
+    setPollOptions: (v: string[]) => void;
 }
 
 function MinimalSinglePostEditor({
@@ -48,7 +55,8 @@ function MinimalSinglePostEditor({
     mediaFiles, setMediaFiles, selectedGif, setSelectedGif,
     showMusicInput, setShowMusicInput, showGifPicker, setShowGifPicker,
     isRegisteredOnly, setIsRegisteredOnly,
-    uploadingMedia, fileInputRef, handleMediaUpload, removeMedia, addMusic, user
+    uploadingMedia, fileInputRef, handleMediaUpload, removeMedia, addMusic, user,
+    showPollInput, setShowPollInput, pollQuestion, setPollQuestion, pollOptions, setPollOptions
 }: MinimalEditorProps) {
     const [showFab, setShowFab] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -224,6 +232,48 @@ function MinimalSinglePostEditor({
                 )}
 
                 {/* Bottom Bar with FAB */}
+                {/* Poll Input Section */}
+                {showPollInput && (
+                    <div className="px-5 pb-3 relative z-40">
+                        <div className="border border-green-900/30 bg-black/30 rounded-lg p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-green-400 font-medium">📊 Create Poll</span>
+                                <button type="button" onClick={() => { setShowPollInput(false); setPollQuestion(""); setPollOptions(["", ""]); }} className="text-gray-500 hover:text-red-400">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Poll question..."
+                                value={pollQuestion}
+                                onChange={e => setPollQuestion(e.target.value)}
+                                className="w-full bg-gray-900/50 border border-green-900/30 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-green-500/50"
+                            />
+                            {pollOptions.map((opt, i) => (
+                                <div key={i} className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder={`Option ${i + 1}`}
+                                        value={opt}
+                                        onChange={e => {
+                                            const newOpts = [...pollOptions];
+                                            newOpts[i] = e.target.value;
+                                            setPollOptions(newOpts);
+                                        }}
+                                        className="flex-1 bg-gray-900/50 border border-green-900/30 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-green-500/50"
+                                    />
+                                    {pollOptions.length > 2 && (
+                                        <button type="button" onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))} className="text-gray-500 hover:text-red-400"><X className="w-4 h-4" /></button>
+                                    )}
+                                </div>
+                            ))}
+                            {pollOptions.length < 4 && (
+                                <button type="button" onClick={() => setPollOptions([...pollOptions, ""])} className="text-xs text-green-500 hover:text-green-400">+ Add option</button>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-3 border-t border-green-900/20 bg-black/30 rounded-b-xl">
                     {/* FAB */}
                     <div className="relative">
@@ -268,6 +318,16 @@ function MinimalSinglePostEditor({
                                         title="Add GIF"
                                     >
                                         <Smile className="w-5 h-5" />
+                                    </button>
+                                )}
+                                {!showPollInput && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowPollInput(true); setShowFab(false); }}
+                                        className="p-2.5 text-gray-400 hover:text-green-400 hover:bg-green-900/30 rounded-lg transition-colors"
+                                        title="Add Poll"
+                                    >
+                                        <ListOrdered className="w-5 h-5" />
                                     </button>
                                 )}
                             </div>
@@ -355,6 +415,11 @@ export default function CreatePost() {
     const [mediaExpanded, setMediaExpanded] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { cropperImage, isCropping, remainingCount, processFiles, advanceQueue, cancelCrop } = useImageCropper();
+
+    // Poll state (lifted from editor so handleSave can access it)
+    const [showPollInput, setShowPollInput] = useState(false);
+    const [pollQuestion, setPollQuestion] = useState("");
+    const [pollOptions, setPollOptions] = useState(["", ""]);
 
     // Identity
     const { identity, refreshIdentity } = useIdentity();
@@ -484,7 +549,10 @@ export default function CreatePost() {
     };
 
     const handleSave = async (draft: boolean = true) => {
-        if (!content.trim() && mediaFiles.length === 0 && !selectedGif) {
+        const validPollOpts = pollOptions.filter(o => o.trim() !== "");
+        const hasPoll = showPollInput && pollQuestion.trim() && validPollOpts.length >= 2;
+
+        if (!content.trim() && mediaFiles.length === 0 && !selectedGif && !hasPoll) {
             toast({ title: "Empty post", description: "Add some content", variant: "destructive" });
             return;
         }
@@ -567,6 +635,23 @@ export default function CreatePost() {
             if (error) {
                 console.error('[CreatePost] Insert error:', error);
                 throw error;
+            }
+
+            // Insert poll data if present
+            if (hasPoll && post) {
+                const { data: pollRow } = await supabase
+                    .from('post_polls')
+                    .insert({ post_id: post.id, question: pollQuestion.trim() })
+                    .select('id')
+                    .single();
+
+                if (pollRow) {
+                    const optionRows = validPollOpts.map(text => ({
+                        poll_id: pollRow.id,
+                        text: text.trim(),
+                    }));
+                    await supabase.from('post_poll_options').insert(optionRows);
+                }
             }
 
             toast({
@@ -694,6 +779,12 @@ export default function CreatePost() {
                                 isRegisteredOnly={isRegisteredOnly}
                                 setIsRegisteredOnly={setIsRegisteredOnly}
                                 user={user}
+                                showPollInput={showPollInput}
+                                setShowPollInput={setShowPollInput}
+                                pollQuestion={pollQuestion}
+                                setPollQuestion={setPollQuestion}
+                                pollOptions={pollOptions}
+                                setPollOptions={setPollOptions}
                             />
                         )}
                     </div>

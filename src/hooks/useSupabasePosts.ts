@@ -34,6 +34,11 @@ export interface Post {
     updated_at: string;
 }
 
+export interface PollData {
+    question: string;
+    options: string[];
+}
+
 export function useSupabasePosts() {
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
@@ -216,7 +221,7 @@ export function useSupabasePosts() {
     return { posts, loading, error };
 }
 
-export async function createPost(post: Omit<Post, "id" | "created_at" | "updated_at">) {
+export async function createPost(post: Omit<Post, "id" | "created_at" | "updated_at">, pollData?: PollData) {
     const { data, error } = await supabase
         .from("posts")
         .insert([post])
@@ -224,6 +229,34 @@ export async function createPost(post: Omit<Post, "id" | "created_at" | "updated
         .single();
 
     if (error) throw error;
+    
+    if (pollData && pollData.question && pollData.options.length > 0) {
+        try {
+            // Insert poll
+            const { data: poll, error: pollError } = await supabase
+                .from("post_polls")
+                .insert([{ post_id: data.id, question: pollData.question }])
+                .select()
+                .single();
+                
+            if (pollError) throw pollError;
+            
+            // Insert options
+            const optionsToInsert = pollData.options.map(text => ({
+                poll_id: poll.id,
+                text
+            }));
+            
+            const { error: optionsError } = await supabase
+                .from("post_poll_options")
+                .insert(optionsToInsert);
+                
+            if (optionsError) throw optionsError;
+        } catch (pollErr) {
+            console.error("Failed to create poll for post:", pollErr);
+        }
+    }
+    
     return data;
 }
 

@@ -9,7 +9,7 @@ import { listPostsFromDb } from "@/data/posts";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
-import PostCard from "@/components/PostCard";
+import PostCard, { BatchPollData, BatchReactionData } from "@/components/PostCard";
 import { Plus, SlidersHorizontal } from "lucide-react";
 import { useContentAuthor, useIdentity } from "@/hooks/useIdentity";
 
@@ -108,6 +108,10 @@ const AsciiFeed = () => {
   const { user_id, guest_id, isReady } = useContentAuthor();
   const { identity } = useIdentity();
 
+  // Batch data maps for polls and reactions
+  const [pollsMap, setPollsMap] = useState<Map<string, BatchPollData>>(new Map());
+  const [reactionsMap, setReactionsMap] = useState<Map<string, BatchReactionData>>(new Map());
+
   // Soft-delete: mark post as deleted (visible only to admin)
   const handleSoftDelete = async (postId: string) => {
     const { error } = await supabase
@@ -124,23 +128,52 @@ const AsciiFeed = () => {
     setDbPosts(prev => prev.filter(p => p.postId !== postId));
   };
 
-  // Load posts from database using listPostsFromDb (same as Posts.tsx for consistency)
+  // Load posts from database — parallelized for performance
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        // Fetch profiles for avatars and usernames
+        // Run posts + settings fetch in parallel (profiles fetched after posts)
+        const [postsResult, settingResult] = await Promise.all([
+          listPostsFromDb({ limit: 50 }),
+          supabase.from('site_settings').select('value').eq('id', 'allow_anonymous_posts').single(),
+        ]);
+
+        // Handle settings
+        if (settingResult.data) {
+          const val = settingResult.data.value === true || settingResult.data.value === 'true';
+          setAllowAnonPosts(val);
+        } else {
+          setAllowAnonPosts(true);
+        }
+
+        const filteredPosts = (postsResult.posts || []).filter((p: any) => !p.hidden);
+
+        // Collect unique user IDs from posts, then fetch only those profiles
+        const userIds = [...new Set(filteredPosts.map((p: any) => p.user_id).filter(Boolean))] as string[];
+        const postIds = filteredPosts.map((p: any) => p.id).filter(Boolean) as string[];
+
+        // Fetch profiles, polls, and reactions in parallel
+        const [profilesResult, pollsResult, reactionsResult] = await Promise.all([
+          userIds.length > 0
+            ? supabase.from('profiles').select('id, avatar_url, username, last_seen, role').in('id', userIds)
+            : { data: null },
+          postIds.length > 0
+            ? supabase.from('post_polls').select('*, options:post_poll_options(*), votes:post_poll_votes(*)').in('post_id', postIds)
+            : { data: null },
+          postIds.length > 0
+            ? supabase.from('reactions').select('post_id, user_id, reaction_type').in('post_id', postIds)
+            : { data: null },
+        ]);
+
+        // Build profiles maps
         const userAvatars: Map<string, string> = new Map();
         const userUsernames: Map<string, string> = new Map();
         const userLastSeens: Map<string, string> = new Map();
         const userRoles: Map<string, string> = new Map();
 
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, avatar_url, username, last_seen, role');
-
-        if (profiles) {
-          profiles.forEach(p => {
+        if (profilesResult.data) {
+          profilesResult.data.forEach(p => {
             if (p.avatar_url) userAvatars.set(p.id, p.avatar_url);
             if (p.username) userUsernames.set(p.id, p.username);
             if (p.last_seen) userLastSeens.set(p.id, p.last_seen);
@@ -148,37 +181,51 @@ const AsciiFeed = () => {
           });
           // Check if current user is admin
           if (user?.id) {
-            const currentProfile = profiles.find(p => p.id === user.id);
+            const currentProfile = profilesResult.data.find(p => p.id === user.id);
             if (currentProfile && (currentProfile as any).role === 'admin') {
               setIsAdmin(true);
             }
           }
         }
 
-        // Fetch allow_anonymous_posts setting
-        const { data: settingData } = await supabase
-          .from('site_settings')
-          .select('value')
-          .eq('id', 'allow_anonymous_posts')
-          .single();
-
-        if (settingData) {
-          const val = settingData.value === true || settingData.value === 'true';
-          console.log("[AsciiFeed] Site Setting 'allow_anonymous_posts':", val);
-          setAllowAnonPosts(val);
-        } else {
-          console.warn("[AsciiFeed] Site Setting 'allow_anonymous_posts' not found, defaulting to TRUE");
-          setAllowAnonPosts(true); // Fallback to allowed if not configured, for compatibility
+        // Build polls map (postId -> BatchPollData)
+        const newPollsMap = new Map<string, BatchPollData>();
+        if (pollsResult.data) {
+          pollsResult.data.forEach((poll: any) => {
+            newPollsMap.set(poll.post_id, {
+              id: poll.id,
+              question: poll.question,
+              post_id: poll.post_id,
+              options: poll.options || [],
+              votes: poll.votes || [],
+            });
+          });
         }
+        setPollsMap(newPollsMap);
 
-        // Use listPostsFromDb with cursor pagination - load more posts initially
-        const result = await listPostsFromDb({ limit: 50 });
-        const mapped: Post[] = (result.posts || [])
-          .filter((p: any) => !p.hidden)
+        // Build reactions map (postId -> { likeCount, hasLiked })
+        const newReactionsMap = new Map<string, BatchReactionData>();
+        if (reactionsResult.data) {
+          const grouped = new Map<string, { likes: number; userLiked: boolean }>();
+          reactionsResult.data.forEach((r: any) => {
+            const entry = grouped.get(r.post_id) || { likes: 0, userLiked: false };
+            if (r.reaction_type === 'like') {
+              entry.likes++;
+              if (user?.id && r.user_id === user.id) entry.userLiked = true;
+            }
+            grouped.set(r.post_id, entry);
+          });
+          grouped.forEach((val, postId) => {
+            newReactionsMap.set(postId, { likeCount: val.likes, hasLiked: val.userLiked });
+          });
+        }
+        setReactionsMap(newReactionsMap);
+
+        const mapped: Post[] = filteredPosts
           .map((p: any) => mapDbPostToPost(p, userUsernames, userAvatars, userLastSeens, userRoles));
         setDbPosts(mapped);
-        setCursor(result.nextCursor);
-        setHasMore(result.hasMore);
+        setCursor(postsResult.nextCursor);
+        setHasMore(postsResult.hasMore);
       } catch (error) {
         console.error("[AsciiFeed] Error loading posts:", error);
       } finally {
@@ -259,7 +306,7 @@ const AsciiFeed = () => {
         user_id: user?.id || null,
         guest_id: guest_id || null,
         is_registered_only: p.is_registered_only || false,
-      });
+      }, p.pollData);
       toast({ title: "Success", description: "Post created!" });
       setShowForm(false);
       // Reload posts
@@ -328,7 +375,14 @@ const AsciiFeed = () => {
         ) : (
           <div>
             {sortedPosts.map((post) => (
-              <PostCard key={post.slug} post={post} isAdmin={isAdmin} onDelete={handleSoftDelete} />
+              <PostCard
+                key={post.slug}
+                post={post}
+                isAdmin={isAdmin}
+                onDelete={handleSoftDelete}
+                batchPoll={pollsMap.get(post.postId || '') || null}
+                batchReaction={reactionsMap.get(post.postId || '') || { likeCount: 0, hasLiked: false }}
+              />
             ))}
           </div>
         )}

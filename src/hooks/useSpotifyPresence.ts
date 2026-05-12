@@ -60,8 +60,7 @@ export function useSpotifyPresence() {
                 console.error("Error polling Spotify:", err);
             } finally {
                 if (mounted) {
-                    // Poll every 15 seconds
-                    timeoutId = setTimeout(pollSpotify, 15000);
+                    // Poll every 30 seconds (reduced from 15s for performance)\n                    timeoutId = setTimeout(pollSpotify, 30000);
                 }
             }
         };

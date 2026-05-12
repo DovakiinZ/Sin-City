@@ -4,10 +4,11 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useMarkdownPreview } from "@/hooks/useMarkdownPreview";
 import { useImageCropper } from "@/hooks/useImageCropper";
-import { X, Plus, Image, Film, Loader2, Music, Smile, Send, Link2, Mic, Lock, Globe } from "lucide-react";
+import { X, Plus, Image, Film, Loader2, Music, Smile, Send, Link2, Mic, Lock, Globe, ListOrdered } from "lucide-react";
 import MusicEmbed from "./MusicEmbed";
 import GifPicker from "./GifPicker";
 import ImageCropperModal from "./ImageCropperModal";
+import { getValidAccessToken } from "@/lib/spotify";
 
 export type NewPost = {
     title: string;
@@ -16,6 +17,7 @@ export type NewPost = {
     attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
     gif_url?: string;
     is_registered_only?: boolean;
+    pollData?: { question: string; options: string[] };
 };
 
 interface MinimalPostFormProps {
@@ -40,6 +42,16 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
     const [showGifPicker, setShowGifPicker] = useState(false);
     const [showMusicInput, setShowMusicInput] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
+    
+    // Poll state
+    const [showPollInput, setShowPollInput] = useState(false);
+    const [pollQuestion, setPollQuestion] = useState("");
+    const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
+
+    // Spotify state
+    const [spotifySearchQuery, setSpotifySearchQuery] = useState("");
+    const [spotifySearchResults, setSpotifySearchResults] = useState<any[]>([]);
+    const [isSearchingSpotify, setIsSearchingSpotify] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -72,7 +84,41 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
         setMediaFiles(prev => [...prev, { url, type: 'music' }]);
         setShowMusicInput(false);
         setShowFab(false);
+        setSpotifySearchQuery("");
+        setSpotifySearchResults([]);
     };
+
+    const searchSpotify = async (query: string) => {
+        if (!query.trim()) {
+            setSpotifySearchResults([]);
+            return;
+        }
+        setIsSearchingSpotify(true);
+        try {
+            const token = await getValidAccessToken();
+            if (!token) throw new Error("No Spotify token");
+            
+            const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setSpotifySearchResults(data.tracks?.items || []);
+            }
+        } catch (err) {
+            console.error("Spotify search failed:", err);
+        } finally {
+            setIsSearchingSpotify(false);
+        }
+    };
+
+    // Auto-search when query changes
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (spotifySearchQuery) searchSpotify(spotifySearchQuery);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [spotifySearchQuery]);
 
     const uploadFileOrBlob = async (fileOrBlob: File | Blob, type: 'image' | 'video') => {
         const ext = fileOrBlob instanceof File ? fileOrBlob.name.split('.').pop() : 'jpg';
@@ -148,10 +194,19 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
             currentMediaFiles.push({ url: musicInputRef.current.value, type: 'music' });
         }
 
-        if (!content.trim() && currentMediaFiles.length === 0 && !selectedGif) return;
+        const validPollOptions = pollOptions.filter(o => o.trim() !== "");
+        const hasPoll = showPollInput && pollQuestion.trim() && validPollOptions.length >= 2;
+
+        if (!content.trim() && currentMediaFiles.length === 0 && !selectedGif && !hasPoll) return;
 
         // Extract title from first # heading
         const autoTitle = extractTitle(content);
+
+        // Validate poll
+        const validOptions = pollOptions.filter(o => o.trim() !== "");
+        const pollData = (showPollInput && pollQuestion.trim() && validOptions.length >= 2) 
+            ? { question: pollQuestion.trim(), options: validOptions } 
+            : undefined;
 
         onAdd({
             title: autoTitle || "",
@@ -160,6 +215,7 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
             attachments: currentMediaFiles.length > 0 ? currentMediaFiles : undefined,
             gif_url: selectedGif || undefined,
             is_registered_only: isRegisteredOnly,
+            pollData,
         });
 
         setContent("");
@@ -167,11 +223,14 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
         setSelectedGif(null);
         setIsRegisteredOnly(false);
         setShowMusicInput(false);
+        setShowPollInput(false);
+        setPollQuestion("");
+        setPollOptions(["", ""]);
         setShowFab(false);
         onClose?.();
     }
 
-    const hasContent = content.trim() || mediaFiles.length > 0 || selectedGif;
+    const hasContent = content.trim() || mediaFiles.length > 0 || selectedGif || (showPollInput && pollQuestion.trim());
     const mediaCount = mediaFiles.length + (selectedGif ? 1 : 0);
 
     return (
@@ -262,19 +321,26 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
                         </div>
                     )}
 
-                    {/* Music URL Input (inline) */}
+                    {/* Music Search / Input */}
                     {showMusicInput && (
                         <div className="px-4 pb-3 relative z-50">
                             <div className="flex gap-2 items-center">
                                 <input
                                     ref={musicInputRef}
-                                    type="url"
-                                    placeholder="Paste Spotify or YouTube URL..."
+                                    type="text"
+                                    placeholder="Search Spotify or paste URL..."
+                                    value={spotifySearchQuery}
+                                    onChange={(e) => setSpotifySearchQuery(e.target.value)}
                                     className="flex-1 bg-gray-900/50 border border-green-900/30 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-green-500/50"
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
                                             e.preventDefault();
-                                            if (e.currentTarget.value) addMusic(e.currentTarget.value);
+                                            // If it's a URL, add it directly
+                                            if (spotifySearchQuery.includes('http')) {
+                                                addMusic(spotifySearchQuery);
+                                            } else if (spotifySearchResults.length > 0) {
+                                                addMusic(spotifySearchResults[0].external_urls.spotify);
+                                            }
                                         }
                                         if (e.key === 'Escape') setShowMusicInput(false);
                                     }}
@@ -283,7 +349,8 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        if (musicInputRef.current?.value) addMusic(musicInputRef.current.value);
+                                        if (spotifySearchQuery.includes('http')) addMusic(spotifySearchQuery);
+                                        else if (spotifySearchResults.length > 0) addMusic(spotifySearchResults[0].external_urls.spotify);
                                     }}
                                     className="px-3 py-2 bg-green-600 hover:bg-green-500 text-black text-sm font-medium rounded-lg transition-colors"
                                 >
@@ -291,12 +358,103 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setShowMusicInput(false)}
+                                    onClick={() => {
+                                        setShowMusicInput(false);
+                                        setSpotifySearchQuery("");
+                                        setSpotifySearchResults([]);
+                                    }}
                                     className="p-2 text-gray-500 hover:text-red-400 transition-colors"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
+                            
+                            {/* Spotify Search Results Dropdown */}
+                            {spotifySearchQuery && !spotifySearchQuery.includes('http') && (
+                                <div className="mt-2 bg-gray-900 border border-green-900/30 rounded-lg max-h-48 overflow-y-auto">
+                                    {isSearchingSpotify ? (
+                                        <div className="p-3 text-center text-gray-500 text-sm">Searching...</div>
+                                    ) : spotifySearchResults.length > 0 ? (
+                                        spotifySearchResults.map((track) => (
+                                            <div 
+                                                key={track.id} 
+                                                className="flex items-center gap-3 p-2 hover:bg-green-900/20 cursor-pointer transition-colors"
+                                                onClick={() => addMusic(track.external_urls.spotify)}
+                                            >
+                                                <img src={track.album.images[2]?.url || track.album.images[0]?.url} alt="" className="w-10 h-10 rounded" />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sm text-green-400 truncate">{track.name}</div>
+                                                    <div className="text-xs text-gray-500 truncate">{track.artists.map((a: any) => a.name).join(', ')}</div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="p-3 text-center text-gray-500 text-sm">No results found</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    
+                    {/* Poll Input */}
+                    {showPollInput && (
+                        <div className="px-4 pb-3 relative z-40 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-medium text-green-400">Create Poll</h3>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowPollInput(false);
+                                        setPollQuestion("");
+                                        setPollOptions(["", ""]);
+                                    }}
+                                    className="text-gray-500 hover:text-red-400"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Ask a question..."
+                                value={pollQuestion}
+                                onChange={(e) => setPollQuestion(e.target.value)}
+                                className="w-full bg-gray-900/50 border border-green-900/30 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-green-500/50"
+                            />
+                            <div className="space-y-2">
+                                {pollOptions.map((opt, i) => (
+                                    <div key={i} className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder={`Option ${i + 1}`}
+                                            value={opt}
+                                            onChange={(e) => {
+                                                const newOpts = [...pollOptions];
+                                                newOpts[i] = e.target.value;
+                                                setPollOptions(newOpts);
+                                            }}
+                                            className="flex-1 bg-gray-900/50 border border-green-900/30 rounded-lg px-3 py-1.5 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-green-500/50"
+                                        />
+                                        {pollOptions.length > 2 && (
+                                            <button 
+                                                type="button"
+                                                onClick={() => setPollOptions(pollOptions.filter((_, idx) => idx !== i))}
+                                                className="text-gray-500 hover:text-red-400 p-1"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                            {pollOptions.length < 4 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setPollOptions([...pollOptions, ""])}
+                                    className="text-xs text-green-500 hover:text-green-400 flex items-center gap-1"
+                                >
+                                    <Plus className="w-3 h-3" /> Add Option
+                                </button>
+                            )}
                         </div>
                     )}
 
@@ -345,6 +503,16 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
                                             title="Add GIF"
                                         >
                                             <Smile className="w-5 h-5" />
+                                        </button>
+                                    )}
+                                    {!showPollInput && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShowPollInput(true); setShowFab(false); }}
+                                            className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-900/30 rounded-lg transition-colors"
+                                            title="Add Poll"
+                                        >
+                                            <ListOrdered className="w-5 h-5" />
                                         </button>
                                     )}
                                 </div>
