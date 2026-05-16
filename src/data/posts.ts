@@ -137,7 +137,7 @@ export async function listPostsFromDb(options?: ListPostsOptions): Promise<ListP
   let query = supabase
     .from("posts")
     .select(`
-      id,slug,title,type,content,text_align,attachments,gif_url,author_name,author_email,author_avatar,user_id,guest_id,view_count,created_at,draft,hidden,is_pinned,is_registered_only,thread_id,thread_position,music_metadata,
+      id,slug,title,type,content,text_align,attachments,gif_url,author_name,author_email,author_avatar,user_id,guest_id,view_count,created_at,draft,hidden,is_pinned,is_registered_only,is_deleted,thread_id,thread_position,music_metadata,
       guests:guest_id (anonymous_id)
     `)
     .or("hidden.is.null,hidden.eq.false")

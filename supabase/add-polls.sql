@@ -45,4 +45,6 @@ CREATE POLICY "Anyone can read poll votes" ON public.post_poll_votes FOR SELECT 
 CREATE POLICY "Users can vote once" ON public.post_poll_votes FOR INSERT WITH CHECK (
     auth.role() = 'authenticated' AND auth.uid() = user_id
 );
--- Optional: Allow guests to vote if they have a guest profile (this requires more complex setup, for now we only allow authenticated voting or anonymous with guest ID if mapped to profiles). But since user_id references profiles(id), only valid profiles can vote.
+CREATE POLICY "Users can change their vote" ON public.post_poll_votes FOR DELETE USING (
+    auth.role() = 'authenticated' AND auth.uid() = user_id
+);

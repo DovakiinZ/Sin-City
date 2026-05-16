@@ -147,7 +147,7 @@ const AsciiFeed = () => {
           setAllowAnonPosts(true);
         }
 
-        const filteredPosts = (postsResult.posts || []).filter((p: any) => !p.hidden);
+        const filteredPosts = (postsResult.posts || []).filter((p: any) => !p.hidden && !p.is_deleted);
 
         // Collect unique user IDs from posts, then fetch only those profiles
         const userIds = [...new Set(filteredPosts.map((p: any) => p.user_id).filter(Boolean))] as string[];
@@ -172,9 +172,14 @@ const AsciiFeed = () => {
 
         // Log poll fetch result for debugging
         if (pollsResult.error) {
-          console.warn('[AsciiFeed] Poll fetch issue:', pollsResult.error);
+          console.warn('[AsciiFeed] Poll fetch error:', pollsResult.error);
         } else if (pollsResult.data) {
           console.log(`[AsciiFeed] Fetched ${pollsResult.data.length} polls for ${postIds.length} posts`);
+          if (pollsResult.data.length > 0) {
+            console.log('[AsciiFeed] Sample poll:', JSON.stringify(pollsResult.data[0], null, 2));
+          }
+        } else {
+          console.warn('[AsciiFeed] Poll fetch returned null data with no error — tables may not exist');
         }
 
         // Build profiles maps
@@ -409,6 +414,7 @@ const AsciiFeed = () => {
                   const result = await listPostsFromDb({ limit: 30, cursor });
                   // Get profiles for the new posts
                   const newUserIds = [...new Set(result.posts.map(p => p.user_id).filter(Boolean))];
+                  const newPostIds = result.posts.map(p => p.id).filter(Boolean) as string[];
                   const userAvatars = new Map<string, string>();
                   const userUsernames = new Map<string, string>();
                   const userLastSeens = new Map<string, string>();
@@ -427,8 +433,34 @@ const AsciiFeed = () => {
                       });
                     }
                   }
+                  // Fetch polls for new posts
+                  if (newPostIds.length > 0) {
+                    try {
+                      const { data: pollsData } = await supabase
+                        .from('post_polls')
+                        .select('*, options:post_poll_options(*), votes:post_poll_votes(*)')
+                        .in('post_id', newPostIds);
+                      if (pollsData && pollsData.length > 0) {
+                        setPollsMap(prev => {
+                          const updated = new Map(prev);
+                          pollsData.forEach((poll: any) => {
+                            updated.set(poll.post_id, {
+                              id: poll.id,
+                              question: poll.question,
+                              post_id: poll.post_id,
+                              options: poll.options || [],
+                              votes: poll.votes || [],
+                            });
+                          });
+                          return updated;
+                        });
+                      }
+                    } catch (err) {
+                      // Poll tables may not exist — non-fatal
+                    }
+                  }
                   const newPosts = result.posts
-                    .filter((p: any) => !p.hidden)
+                    .filter((p: any) => !p.hidden && !p.is_deleted)
                     .map((p: any) => mapDbPostToPost(p, userUsernames, userAvatars, userLastSeens, userRoles));
                   setDbPosts(prev => [...prev, ...newPosts]);
                   setCursor(result.nextCursor);

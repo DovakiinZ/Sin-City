@@ -265,6 +265,8 @@ export async function createPost(post: Omit<Post, "id" | "created_at" | "updated
             console.log('[createPost] Poll options created successfully');
         } catch (pollErr) {
             console.error("Failed to create poll for post:", pollErr);
+            // Re-throw so the caller can show an error to the user
+            throw pollErr;
         }
     } else {
         console.log('[createPost] No poll data provided or invalid:', pollData);

@@ -127,16 +127,26 @@ export default function PostCard({
         if (!fullContent) return; // Don't fetch in feed mode
         if (!post.postId) return;
         const fetchPoll = async () => {
-            const { data: pollData } = await supabase
-                .from('post_polls')
-                .select('*, options:post_poll_options(*), votes:post_poll_votes(*)')
-                .eq('post_id', post.postId)
-                .maybeSingle();
+            try {
+                const { data: pollData, error } = await supabase
+                    .from('post_polls')
+                    .select('*, options:post_poll_options(*), votes:post_poll_votes(*)')
+                    .eq('post_id', post.postId)
+                    .maybeSingle();
 
-            if (pollData) {
-                setPoll(pollData);
-                setPollOptions(pollData.options || []);
-                setPollVotes(pollData.votes || []);
+                if (error) {
+                    console.warn('[PostCard] Poll fetch error for post', post.postId, ':', error);
+                    return;
+                }
+
+                if (pollData) {
+                    console.log('[PostCard] Found poll for post', post.postId, ':', pollData.question);
+                    setPoll(pollData);
+                    setPollOptions(pollData.options || []);
+                    setPollVotes(pollData.votes || []);
+                }
+            } catch (err) {
+                console.warn('[PostCard] Poll fetch exception:', err);
             }
         };
         fetchPoll();
@@ -149,20 +159,42 @@ export default function PostCard({
         }
         if (isVoting || !poll) return;
 
+        const existingVote = pollVotes.find(v => v.user_id === user.id);
+
+        // If clicking the same option, do nothing
+        if (existingVote?.option_id === optionId) return;
+
         setIsVoting(true);
         try {
-            const { error } = await supabase
-                .from('post_poll_votes')
-                .insert([{ poll_id: poll.id, option_id: optionId, user_id: user.id }]);
-            
-            if (error) {
-                if (error.code === '23505') {
-                    toast({ title: "Already voted", description: "You can only vote once.", variant: "destructive" });
-                } else {
-                    throw error;
-                }
-            } else {
+            if (existingVote) {
+                // Change vote: delete old, insert new
+                const { error: deleteError } = await supabase
+                    .from('post_poll_votes')
+                    .delete()
+                    .eq('poll_id', poll.id)
+                    .eq('user_id', user.id);
+
+                if (deleteError) throw deleteError;
+
+                const { error: insertError } = await supabase
+                    .from('post_poll_votes')
+                    .insert([{ poll_id: poll.id, option_id: optionId, user_id: user.id }]);
+
+                if (insertError) throw insertError;
+
                 // Optimistically update
+                setPollVotes(prev => [
+                    ...prev.filter(v => v.user_id !== user.id),
+                    { poll_id: poll.id, option_id: optionId, user_id: user.id }
+                ]);
+            } else {
+                // First vote
+                const { error } = await supabase
+                    .from('post_poll_votes')
+                    .insert([{ poll_id: poll.id, option_id: optionId, user_id: user.id }]);
+
+                if (error) throw error;
+
                 setPollVotes(prev => [...prev, { poll_id: poll.id, option_id: optionId, user_id: user.id }]);
             }
         } catch (err) {
@@ -498,33 +530,35 @@ export default function PostCard({
                             const votesForOption = pollVotes.filter(v => v.option_id === option.id).length;
                             const percentage = totalVotes > 0 ? Math.round((votesForOption / totalVotes) * 100) : 0;
                             const isVotedByMe = userVotedOptionId === option.id;
+                            const hasVoted = userVotedOptionId !== null;
 
                             return (
                                 <button
                                     key={option.id}
                                     onClick={() => handleVote(option.id)}
-                                    disabled={userVotedOptionId !== null || isVoting}
+                                    disabled={isVoting || !user}
                                     className={`relative w-full text-left p-3 rounded-lg overflow-hidden transition-all ${
-                                        userVotedOptionId !== null
-                                            ? isVotedByMe
-                                                ? 'bg-green-900/40 border border-green-500/50'
-                                                : 'bg-gray-900/50 border border-gray-800'
-                                            : 'bg-gray-900/50 hover:bg-gray-800 border border-gray-800 hover:border-green-900/50 cursor-pointer'
+                                        isVotedByMe
+                                            ? 'bg-green-900/40 border border-green-500/50'
+                                            : hasVoted
+                                                ? 'bg-gray-900/50 border border-gray-800 hover:border-green-900/50 cursor-pointer'
+                                                : 'bg-gray-900/50 hover:bg-gray-800 border border-gray-800 hover:border-green-900/50 cursor-pointer'
                                     }`}
                                 >
                                     {/* Progress bar background */}
-                                    {userVotedOptionId !== null && (
+                                    {hasVoted && (
                                         <div 
-                                            className={`absolute inset-y-0 left-0 ${isVotedByMe ? 'bg-green-600/30' : 'bg-gray-700/30'}`}
+                                            className={`absolute inset-y-0 left-0 transition-all duration-500 ${isVotedByMe ? 'bg-green-600/30' : 'bg-gray-700/30'}`}
                                             style={{ width: `${percentage}%` }}
                                         />
                                     )}
                                     
                                     <div className="relative flex justify-between items-center z-10">
-                                        <span className={`text-sm ${isVotedByMe ? 'text-green-400 font-medium' : 'text-gray-300'}`}>
+                                        <span className={`text-sm flex items-center gap-2 ${isVotedByMe ? 'text-green-400 font-medium' : 'text-gray-300'}`}>
+                                            {isVotedByMe && <span className="text-green-400">✓</span>}
                                             {option.text}
                                         </span>
-                                        {userVotedOptionId !== null && (
+                                        {hasVoted && (
                                             <span className="text-xs text-gray-400 ml-4">
                                                 {percentage}%
                                             </span>
@@ -534,8 +568,9 @@ export default function PostCard({
                             );
                         })}
                     </div>
-                    <div className="mt-2 text-xs text-gray-500 text-right">
-                        {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
+                    <div className="mt-2 flex justify-between items-center text-xs text-gray-500">
+                        {userVotedOptionId && <span className="text-gray-600">Tap another option to change your vote</span>}
+                        <span className="ml-auto">{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</span>
                     </div>
                 </div>
             )}

@@ -5,7 +5,7 @@ import BackButton from "@/components/BackButton";
 import { listPostsFromDb } from "@/data/posts";
 import { slugify } from "@/lib/markdown";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import PostCard from "@/components/PostCard";
+import PostCard, { BatchPollData } from "@/components/PostCard";
 import { supabase } from "@/lib/supabase";
 import { Search, Terminal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -51,6 +51,9 @@ export default function Posts() {
   const qParam = params.get("q") || "";
   const [query, setQuery] = useState(qParam);
   const { toast } = useToast();
+
+  // Batch poll data
+  const [pollsMap, setPollsMap] = useState<Map<string, BatchPollData>>(new Map());
 
   // Admin terminal state
   const [showTerminal, setShowTerminal] = useState(false);
@@ -162,7 +165,39 @@ export default function Posts() {
       let allPosts: Post[] = [];
       try {
         const result = await listPostsFromDb({ limit: 50 }); // Fetch 50 instead of 500 for fast initial load
-        allPosts = (result.posts || []).map((p: any) => {
+        const rawPosts = result.posts || [];
+
+        // Batch fetch polls for all posts
+        const postIds = rawPosts.map((p: any) => p.id).filter(Boolean) as string[];
+        if (postIds.length > 0) {
+          try {
+            const { data: pollsData, error: pollsError } = await supabase
+              .from('post_polls')
+              .select('*, options:post_poll_options(*), votes:post_poll_votes(*)')
+              .in('post_id', postIds);
+
+            if (pollsError) {
+              console.warn('[Posts] Poll fetch error:', pollsError);
+            } else if (pollsData && pollsData.length > 0) {
+              const newPollsMap = new Map<string, BatchPollData>();
+              pollsData.forEach((poll: any) => {
+                newPollsMap.set(poll.post_id, {
+                  id: poll.id,
+                  question: poll.question,
+                  post_id: poll.post_id,
+                  options: poll.options || [],
+                  votes: poll.votes || [],
+                });
+              });
+              setPollsMap(newPollsMap);
+              console.log(`[Posts] Fetched ${pollsData.length} polls for ${postIds.length} posts`);
+            }
+          } catch (err) {
+            console.warn('[Posts] Poll fetch exception (tables may not exist):', err);
+          }
+        }
+
+        allPosts = rawPosts.map((p: any) => {
           const createdDate = p.created_at ? new Date(p.created_at) : null;
           const formattedDate = createdDate
             ? createdDate.toLocaleDateString('en-US', {
@@ -206,7 +241,7 @@ export default function Posts() {
       }
 
       const showDrafts = import.meta.env.VITE_SHOW_DRAFTS === "true";
-      const filtered = allPosts.filter((p) => (showDrafts ? true : !p.draft));
+      const filtered = allPosts.filter((p) => (showDrafts ? true : !p.draft) && !p.is_deleted);
       filtered.sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
@@ -338,6 +373,7 @@ export default function Posts() {
                 onTogglePin={togglePin}
                 onHide={hidePost}
                 onDelete={deletePost}
+                batchPoll={pollsMap.get(post.postId) || null}
               />
             ))}
 
