@@ -197,6 +197,17 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
         const validPollOptions = pollOptions.filter(o => o.trim() !== "");
         const hasPoll = showPollInput && pollQuestion.trim() && validPollOptions.length >= 2;
 
+        if (showPollInput) {
+            if (!pollQuestion.trim()) {
+                toast({ title: "Poll incomplete", description: "Add a poll question or remove the poll", variant: "destructive" });
+                return;
+            }
+            if (validPollOptions.length < 2) {
+                toast({ title: "Poll incomplete", description: "Add at least 2 options or remove the poll", variant: "destructive" });
+                return;
+            }
+        }
+
         if (!content.trim() && currentMediaFiles.length === 0 && !selectedGif && !hasPoll) return;
 
         // Extract title from first # heading

@@ -552,6 +552,17 @@ export default function CreatePost() {
         const validPollOpts = pollOptions.filter(o => o.trim() !== "");
         const hasPoll = showPollInput && pollQuestion.trim() && validPollOpts.length >= 2;
 
+        if (showPollInput && !draft) {
+            if (!pollQuestion.trim()) {
+                toast({ title: "Poll incomplete", description: "Add a poll question or remove the poll", variant: "destructive" });
+                return;
+            }
+            if (validPollOpts.length < 2) {
+                toast({ title: "Poll incomplete", description: "Add at least 2 options or remove the poll", variant: "destructive" });
+                return;
+            }
+        }
+
         if (!content.trim() && mediaFiles.length === 0 && !selectedGif && !hasPoll) {
             toast({ title: "Empty post", description: "Add some content", variant: "destructive" });
             return;
@@ -639,18 +650,50 @@ export default function CreatePost() {
 
             // Insert poll data if present
             if (hasPoll && post) {
-                const { data: pollRow } = await supabase
+                console.log('[CreatePost] Inserting poll for post', post.id, '— question:', pollQuestion.trim(), 'options:', validPollOpts);
+                const { data: pollRow, error: pollError } = await supabase
                     .from('post_polls')
                     .insert({ post_id: post.id, question: pollQuestion.trim() })
                     .select('id')
                     .single();
 
-                if (pollRow) {
+                if (pollError) {
+                    console.error('[CreatePost] Poll insert error:', pollError);
+                    toast({
+                        title: "Poll failed to save",
+                        description: pollError.message || "Could not create the poll",
+                        variant: "destructive",
+                    });
+                    throw pollError;
+                }
+
+                if (!pollRow) {
+                    console.error('[CreatePost] Poll insert returned no row and no error');
+                    toast({
+                        title: "Poll failed to save",
+                        description: "Poll insert returned empty",
+                        variant: "destructive",
+                    });
+                } else {
                     const optionRows = validPollOpts.map(text => ({
                         poll_id: pollRow.id,
                         text: text.trim(),
                     }));
-                    await supabase.from('post_poll_options').insert(optionRows);
+                    console.log('[CreatePost] Inserting poll options:', optionRows);
+                    const { error: optionsError } = await supabase
+                        .from('post_poll_options')
+                        .insert(optionRows);
+
+                    if (optionsError) {
+                        console.error('[CreatePost] Poll options insert error:', optionsError);
+                        toast({
+                            title: "Poll options failed",
+                            description: optionsError.message || "Could not save poll options",
+                            variant: "destructive",
+                        });
+                        throw optionsError;
+                    }
+                    console.log('[CreatePost] Poll + options saved successfully');
                 }
             }
 
