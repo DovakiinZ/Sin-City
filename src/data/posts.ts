@@ -139,20 +139,24 @@ export async function listPostsFromDb(options?: ListPostsOptions): Promise<ListP
   // Build query - include guest data for admin visibility
   // Push visibility filters to the DB so each page returns exactly `limit` visible rows
   // and cursor pagination doesn't dead-end on pages full of filtered-out rows.
+  //
+  // Use `.not(col, 'is', true)` (translates to `col IS NOT TRUE`) for boolean flags
+  // so NULL rows are kept. Chaining multiple `.or()` calls would emit duplicate
+  // `or=` query params, which PostgREST can mishandle silently.
   let query = supabase
     .from("posts")
     .select(`
       id,slug,title,type,content,text_align,attachments,gif_url,author_name,author_email,author_avatar,user_id,guest_id,view_count,created_at,draft,hidden,is_pinned,is_registered_only,is_deleted,thread_id,thread_position,music_metadata,
       guests:guest_id (anonymous_id)
     `)
-    .or("hidden.is.null,hidden.eq.false")
+    .not("hidden", "is", true)
     .order("created_at", { ascending: false });
 
   if (!options?.includeDeleted) {
-    query = query.or("is_deleted.is.null,is_deleted.eq.false");
+    query = query.not("is_deleted", "is", true);
   }
   if (!options?.includeDrafts) {
-    query = query.or("draft.is.null,draft.eq.false");
+    query = query.not("draft", "is", true);
   }
   if (!options?.includeThreadReplies) {
     // Standalone posts (thread_position null) OR first post in a thread (thread_position = 1)
