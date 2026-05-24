@@ -100,10 +100,13 @@ export async function addPostToDb(post: DbPost): Promise<DbPost | null> {
  * Pagination options for listing posts
  */
 export interface ListPostsOptions {
-  limit?: number;         // Number of posts per page (default: 20)
-  cursor?: string;        // created_at of last post for cursor pagination
-  userId?: string;        // Filter by user ID (for profile pages)
+  limit?: number;           // Number of posts per page (default: 20)
+  cursor?: string;          // created_at of last post for cursor pagination
+  userId?: string;          // Filter by user ID (for profile pages)
   olderThanMonths?: number; // Filter posts older than X months
+  includeDrafts?: boolean;  // If true, include draft posts (default: false)
+  includeDeleted?: boolean; // If true, include soft-deleted posts (admin only, default: false)
+  includeThreadReplies?: boolean; // If true, include thread reply posts (default: false)
 }
 
 /**
@@ -134,6 +137,8 @@ export async function listPostsFromDb(options?: ListPostsOptions): Promise<ListP
   const isAuthenticated = !!session;
 
   // Build query - include guest data for admin visibility
+  // Push visibility filters to the DB so each page returns exactly `limit` visible rows
+  // and cursor pagination doesn't dead-end on pages full of filtered-out rows.
   let query = supabase
     .from("posts")
     .select(`
@@ -142,6 +147,17 @@ export async function listPostsFromDb(options?: ListPostsOptions): Promise<ListP
     `)
     .or("hidden.is.null,hidden.eq.false")
     .order("created_at", { ascending: false });
+
+  if (!options?.includeDeleted) {
+    query = query.or("is_deleted.is.null,is_deleted.eq.false");
+  }
+  if (!options?.includeDrafts) {
+    query = query.or("draft.is.null,draft.eq.false");
+  }
+  if (!options?.includeThreadReplies) {
+    // Standalone posts (thread_position null) OR first post in a thread (thread_position = 1)
+    query = query.or("thread_position.is.null,thread_position.eq.1");
+  }
 
   // If NOT authenticated, only show public posts
   if (!isAuthenticated) {
@@ -174,16 +190,12 @@ export async function listPostsFromDb(options?: ListPostsOptions): Promise<ListP
     throw error;
   }
 
-  // Check if there are more posts
+  // Check if there are more posts and slice off the peek row
   const hasMore = (data?.length || 0) > limit;
-  let posts = hasMore ? (data || []).slice(0, limit) : (data || []);
+  const posts = hasMore ? (data || []).slice(0, limit) : (data || []);
 
-  // Filter to only show first post of threads or standalone posts
-  posts = posts.filter(
-    (p) => p.thread_position === null || p.thread_position === undefined || p.thread_position === 1
-  );
-
-  // Get next cursor from last post's created_at
+  // Cursor = created_at of the LAST raw row we used (not a re-filtered subset),
+  // so pagination can never dead-end even if a callsite adds further filters.
   const nextCursor = hasMore && posts.length > 0 ? posts[posts.length - 1].created_at : null;
 
   console.log(`[listPostsFromDb] Fetched ${posts.length} posts, hasMore: ${hasMore}`);

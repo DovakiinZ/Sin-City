@@ -51,6 +51,10 @@ export default function UserProfile() {
     const [stats, setStats] = useState({ posts: 0, comments: 0 });
     const [userPosts, setUserPosts] = useState<UserPost[]>([]);
     const [lookingUp, setLookingUp] = useState(true);
+    const [postsCursor, setPostsCursor] = useState<string | null>(null);
+    const [postsHasMore, setPostsHasMore] = useState(true);
+    const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+    const POSTS_PAGE_SIZE = 10;
 
     // Is this the current user's own profile?
     const isOwnProfile = user?.id && profile?.id && user.id === profile.id;
@@ -183,51 +187,71 @@ export default function UserProfile() {
         checkFollowStatus();
     }, [profile?.id, user?.id]);
 
-    // Load user data and posts
+    const mapDbPostToUserPost = (p: any): UserPost => {
+        const createdDate = p.created_at ? new Date(p.created_at) : null;
+        const formattedDate = createdDate
+            ? createdDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : '';
+        return {
+            slug: p.id,
+            postId: p.id,
+            title: p.title,
+            content: p.content || "",
+            date: formattedDate,
+            rawDate: p.created_at || '',
+            author: profile?.username,
+            authorAvatar: profile?.avatar_url,
+            authorUsername: profile?.username,
+            userId: p.user_id,
+            isPinned: p.is_pinned || false,
+            isHtml: true,
+            viewCount: p.view_count || 0,
+            attachments: p.attachments?.map((a: any) => ({
+                url: a.url || '',
+                type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
+            })).filter((a: any) => a.url) || undefined,
+            author_role: (profile as any)?.role,
+        };
+    };
+
+    // Load user data + first page of posts (paginated by user_id)
     useEffect(() => {
         const loadUserData = async () => {
             if (profile?.id) {
                 const userStats = await getUserStats(profile.id);
                 setStats(userStats);
 
-                const result = await listPostsFromDb({ limit: 200 });
-                const filtered = result.posts.filter((p) =>
-                    p.user_id === profile.id ||
-                    (profile.display_name && p.author_name?.toLowerCase() === profile.display_name?.toLowerCase()) ||
-                    (profile.username && p.author_name?.toLowerCase() === profile.username?.toLowerCase())
-                );
-
-                const formattedPosts: UserPost[] = filtered.map((p: any) => {
-                    const createdDate = p.created_at ? new Date(p.created_at) : null;
-                    const formattedDate = createdDate
-                        ? createdDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                        : '';
-                    return {
-                        slug: p.id,
-                        postId: p.id,
-                        title: p.title,
-                        content: p.content || "",
-                        date: formattedDate,
-                        rawDate: p.created_at || '',
-                        author: profile.username,
-                        authorAvatar: profile.avatar_url,
-                        authorUsername: profile.username,
-                        userId: p.user_id,
-                        isPinned: p.is_pinned || false,
-                        isHtml: true,
-                        viewCount: p.view_count || 0,
-                        attachments: p.attachments?.map((a: any) => ({
-                            url: a.url || '',
-                            type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
-                        })).filter((a: any) => a.url) || undefined,
-                        author_role: (profile as any).role,
-                    };
-                });
-                setUserPosts(formattedPosts);
+                const result = await listPostsFromDb({ limit: POSTS_PAGE_SIZE, userId: profile.id });
+                setUserPosts(result.posts.map(mapDbPostToUserPost));
+                setPostsCursor(result.nextCursor);
+                setPostsHasMore(result.hasMore);
             }
         };
         loadUserData();
     }, [profile]);
+
+    const loadMorePosts = async () => {
+        if (!profile?.id || loadingMorePosts || !postsHasMore) return;
+        setLoadingMorePosts(true);
+        try {
+            const result = await listPostsFromDb({
+                limit: POSTS_PAGE_SIZE,
+                userId: profile.id,
+                cursor: postsCursor || undefined,
+            });
+            const newPosts = result.posts.map(mapDbPostToUserPost);
+            setUserPosts(prev => {
+                const seen = new Set(prev.map(p => p.postId));
+                return [...prev, ...newPosts.filter(p => !seen.has(p.postId))];
+            });
+            setPostsCursor(result.nextCursor);
+            setPostsHasMore(result.hasMore);
+        } catch (err) {
+            console.error('[UserProfile] Error loading more posts:', err);
+        } finally {
+            setLoadingMorePosts(false);
+        }
+    };
 
     // Load followers list
     const loadFollowers = async () => {
@@ -631,6 +655,17 @@ export default function UserProfile() {
                                     showComments={false}
                                 />
                             ))}
+                            {postsHasMore && (
+                                <div className="text-center py-4 border-t border-green-900/30">
+                                    <button
+                                        onClick={loadMorePosts}
+                                        disabled={loadingMorePosts}
+                                        className="text-green-400 hover:text-green-300 text-sm disabled:opacity-50"
+                                    >
+                                        {loadingMorePosts ? "Loading..." : `Show more (${POSTS_PAGE_SIZE} posts)`}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

@@ -135,7 +135,7 @@ const AsciiFeed = () => {
       try {
         // Run posts + settings fetch in parallel (profiles fetched after posts)
         const [postsResult, settingResult] = await Promise.all([
-          listPostsFromDb({ limit: 50 }),
+          listPostsFromDb({ limit: 10 }),
           supabase.from('site_settings').select('value').eq('id', 'allow_anonymous_posts').single(),
         ]);
 
@@ -147,7 +147,8 @@ const AsciiFeed = () => {
           setAllowAnonPosts(true);
         }
 
-        const filteredPosts = (postsResult.posts || []).filter((p: any) => !p.hidden && !p.is_deleted);
+        // DB already filters hidden + is_deleted, no client-side filter needed
+        const filteredPosts = postsResult.posts || [];
 
         // Collect unique user IDs from posts, then fetch only those profiles
         const userIds = [...new Set(filteredPosts.map((p: any) => p.user_id).filter(Boolean))] as string[];
@@ -411,7 +412,7 @@ const AsciiFeed = () => {
                 if (!cursor || loadingMore) return;
                 setLoadingMore(true);
                 try {
-                  const result = await listPostsFromDb({ limit: 30, cursor });
+                  const result = await listPostsFromDb({ limit: 10, cursor });
                   // Get profiles for the new posts
                   const newUserIds = [...new Set(result.posts.map(p => p.user_id).filter(Boolean))];
                   const newPostIds = result.posts.map(p => p.id).filter(Boolean) as string[];
@@ -459,8 +460,8 @@ const AsciiFeed = () => {
                       // Poll tables may not exist — non-fatal
                     }
                   }
+                  // DB already filters hidden + is_deleted, no client-side filter needed
                   const newPosts = result.posts
-                    .filter((p: any) => !p.hidden && !p.is_deleted)
                     .map((p: any) => mapDbPostToPost(p, userUsernames, userAvatars, userLastSeens, userRoles));
                   setDbPosts(prev => [...prev, ...newPosts]);
                   setCursor(result.nextCursor);

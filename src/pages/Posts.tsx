@@ -38,11 +38,15 @@ type Post = {
 
 const FILES = ["post1.md", "post2.md"];
 
+const PAGE_SIZE = 10;
+
 export default function Posts() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "title">("recent");
-  const [visibleCount, setVisibleCount] = useState(10);
   const [currentUserIsAdmin, setCurrentUserIsAdmin] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -131,126 +135,155 @@ export default function Posts() {
     }
   };
 
-  useEffect(() => {
-    (async () => {
-      setIsLoading(true);
+  // Fetch one page of posts and enrich them (profiles for authors + polls).
+  // Returns the mapped Post[] for the page so callers can append/replace.
+  const fetchPage = async (pageCursor: string | null): Promise<{ posts: Post[]; nextCursor: string | null; hasMore: boolean }> => {
+    const showDrafts = import.meta.env.VITE_SHOW_DRAFTS === "true";
+    // Filters (hidden, is_deleted, draft, thread-replies) happen at the DB —
+    // each page returns exactly PAGE_SIZE visible posts and pagination cannot dead-end.
+    const result = await listPostsFromDb({
+      limit: PAGE_SIZE,
+      cursor: pageCursor || undefined,
+      includeDrafts: showDrafts,
+    });
+    const rawPosts = result.posts || [];
 
-      const adminUserIds: Set<string> = new Set();
-      const userAvatars: Map<string, string> = new Map();
-      const userUsernames: Map<string, string> = new Map();
-      const userLastSeens: Map<string, string> = new Map();
-      const userRoles: Map<string, string> = new Map();
-      const userDiscordIds: Map<string, string> = new Map();
-      const userSpotifyStatus: Map<string, any> = new Map();
+    if (rawPosts.length === 0) {
+      return { posts: [], nextCursor: result.nextCursor, hasMore: result.hasMore };
+    }
 
-      try {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, role, avatar_url, username, last_seen, discord_id, spotify_status');
-        if (profiles) {
-          profiles.forEach(p => {
-            if (p.role === 'admin' || p.role === 'ceo') adminUserIds.add(p.id);
-            if (p.avatar_url) userAvatars.set(p.id, p.avatar_url);
-            if (p.username) userUsernames.set(p.id, p.username);
-            if (p.role) userRoles.set(p.id, p.role);
-            if (p.discord_id) userDiscordIds.set(p.id, p.discord_id);
-            if (p.spotify_status) userSpotifyStatus.set(p.id, p.spotify_status);
+    // Collect author user_ids on this page, fetch only those profiles
+    const userIds = [...new Set(rawPosts.map((p: any) => p.user_id).filter(Boolean))] as string[];
+    const postIds = rawPosts.map((p: any) => p.id).filter(Boolean) as string[];
+
+    const [profilesResult, pollsResult] = await Promise.all([
+      userIds.length > 0
+        ? supabase.from('profiles').select('id, role, avatar_url, username, last_seen, discord_id, spotify_status').in('id', userIds)
+        : Promise.resolve({ data: null, error: null }),
+      postIds.length > 0
+        ? supabase.from('post_polls')
+            .select('*, options:post_poll_options(*), votes:post_poll_votes(*)')
+            .in('post_id', postIds)
+            .then(res => res)
+            .catch(err => ({ data: null, error: err }))
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+    const adminUserIds = new Set<string>();
+    const userAvatars = new Map<string, string>();
+    const userUsernames = new Map<string, string>();
+    const userRoles = new Map<string, string>();
+    const userDiscordIds = new Map<string, string>();
+    const userSpotifyStatus = new Map<string, any>();
+
+    if (profilesResult.data) {
+      profilesResult.data.forEach((p: any) => {
+        if (p.role === 'admin' || p.role === 'ceo') adminUserIds.add(p.id);
+        if (p.avatar_url) userAvatars.set(p.id, p.avatar_url);
+        if (p.username) userUsernames.set(p.id, p.username);
+        if (p.role) userRoles.set(p.id, p.role);
+        if (p.discord_id) userDiscordIds.set(p.id, p.discord_id);
+        if (p.spotify_status) userSpotifyStatus.set(p.id, p.spotify_status);
+      });
+    }
+
+    if (pollsResult.error) {
+      console.warn('[Posts] Poll fetch error:', pollsResult.error);
+    } else if (pollsResult.data && pollsResult.data.length > 0) {
+      setPollsMap(prev => {
+        const updated = new Map(prev);
+        (pollsResult.data as any[]).forEach((poll: any) => {
+          updated.set(poll.post_id, {
+            id: poll.id,
+            question: poll.question,
+            post_id: poll.post_id,
+            options: poll.options || [],
+            votes: poll.votes || [],
           });
-          // Note: Current user check moved to separate useEffect
-        }
-      } catch (error) {
-        console.error("[Posts] Error fetching profiles:", error);
-      }
+        });
+        return updated;
+      });
+    }
 
-      let allPosts: Post[] = [];
-      try {
-        const result = await listPostsFromDb({ limit: 50 }); // Fetch 50 instead of 500 for fast initial load
-        const rawPosts = result.posts || [];
-
-        // Batch fetch polls for all posts
-        const postIds = rawPosts.map((p: any) => p.id).filter(Boolean) as string[];
-        if (postIds.length > 0) {
-          try {
-            const { data: pollsData, error: pollsError } = await supabase
-              .from('post_polls')
-              .select('*, options:post_poll_options(*), votes:post_poll_votes(*)')
-              .in('post_id', postIds);
-
-            if (pollsError) {
-              console.warn('[Posts] Poll fetch error:', pollsError);
-            } else if (pollsData && pollsData.length > 0) {
-              const newPollsMap = new Map<string, BatchPollData>();
-              pollsData.forEach((poll: any) => {
-                newPollsMap.set(poll.post_id, {
-                  id: poll.id,
-                  question: poll.question,
-                  post_id: poll.post_id,
-                  options: poll.options || [],
-                  votes: poll.votes || [],
-                });
-              });
-              setPollsMap(newPollsMap);
-              console.log(`[Posts] Fetched ${pollsData.length} polls for ${postIds.length} posts`);
-            }
-          } catch (err) {
-            console.warn('[Posts] Poll fetch exception (tables may not exist):', err);
-          }
-        }
-
-        allPosts = rawPosts.map((p: any) => {
-          const createdDate = p.created_at ? new Date(p.created_at) : null;
-          const formattedDate = createdDate
-            ? createdDate.toLocaleDateString('en-US', {
+    const mapped: Post[] = rawPosts.map((p: any) => {
+        const createdDate = p.created_at ? new Date(p.created_at) : null;
+        const formattedDate = createdDate
+          ? createdDate.toLocaleDateString('en-US', {
               month: 'short',
               day: 'numeric',
               year: 'numeric',
             })
-            : '';
-          return {
-            title: p.title,
-            date: formattedDate,
-            rawDate: p.created_at || '',
-            content: p.content || "",
-            slug: p.slug || p.id || slugify(p.title),
-            postId: p.id,
-            author: p.user_id ? userUsernames.get(p.user_id) || p.author_name : p.author_name || undefined,
-            authorAvatar: p.author_avatar || (p.user_id ? userAvatars.get(p.user_id) : undefined) || undefined,
-            authorUsername: p.user_id ? userUsernames.get(p.user_id) : undefined,
-            userId: p.user_id || undefined,
-            guestId: p.guest_id || undefined,  // For anonymous tracking
-            anonymousId: p.anonymous_id || undefined,  // ANON-XXXX for admin view
-            isAdmin: p.user_id ? adminUserIds.has(p.user_id) : false,
-            draft: p.draft || false,
-            viewCount: p.view_count || 0,
-            isPinned: p.is_pinned || false,
-            isHtml: true,
-            attachments: p.attachments?.map((a: any) => ({
-              url: a.url || '',
-              type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
-            })).filter((a: any) => a.url) || undefined,
-            gif_url: p.gif_url || undefined,
-            is_deleted: p.is_deleted || false,
-            is_registered_only: p.is_registered_only || false,
-            author_role: p.user_id ? userRoles.get(p.user_id) : undefined,
-            authorDiscordId: p.user_id ? userDiscordIds.get(p.user_id) : undefined,
-            authorSpotifyStatus: p.user_id ? userSpotifyStatus.get(p.user_id) : undefined,
-          };
-        });
+          : '';
+        return {
+          title: p.title,
+          date: formattedDate,
+          rawDate: p.created_at || '',
+          content: p.content || "",
+          slug: p.slug || p.id || slugify(p.title),
+          postId: p.id,
+          author: p.user_id ? userUsernames.get(p.user_id) || p.author_name : p.author_name || undefined,
+          authorAvatar: p.author_avatar || (p.user_id ? userAvatars.get(p.user_id) : undefined) || undefined,
+          authorUsername: p.user_id ? userUsernames.get(p.user_id) : undefined,
+          userId: p.user_id || undefined,
+          guestId: p.guest_id || undefined,
+          anonymousId: p.anonymous_id || undefined,
+          isAdmin: p.user_id ? adminUserIds.has(p.user_id) : false,
+          draft: p.draft || false,
+          viewCount: p.view_count || 0,
+          isPinned: p.is_pinned || false,
+          isHtml: true,
+          attachments: p.attachments?.map((a: any) => ({
+            url: a.url || '',
+            type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
+          })).filter((a: any) => a.url) || undefined,
+          gif_url: p.gif_url || undefined,
+          is_deleted: p.is_deleted || false,
+          is_registered_only: p.is_registered_only || false,
+          author_role: p.user_id ? userRoles.get(p.user_id) : undefined,
+          authorDiscordId: p.user_id ? userDiscordIds.get(p.user_id) : undefined,
+          authorSpotifyStatus: p.user_id ? userSpotifyStatus.get(p.user_id) : undefined,
+        } as Post;
+      });
+
+    return { posts: mapped, nextCursor: result.nextCursor, hasMore: result.hasMore };
+  };
+
+  // Initial load: first page only
+  useEffect(() => {
+    (async () => {
+      setIsLoading(true);
+      try {
+        const page = await fetchPage(null);
+        setPosts(page.posts);
+        setCursor(page.nextCursor);
+        setHasMore(page.hasMore);
       } catch (error) {
         console.error("[Posts] Error loading posts:", error);
+      } finally {
+        setIsLoading(false);
       }
-
-      const showDrafts = import.meta.env.VITE_SHOW_DRAFTS === "true";
-      const filtered = allPosts.filter((p) => (showDrafts ? true : !p.draft) && !p.is_deleted);
-      filtered.sort((a, b) => {
-        if (a.isPinned && !b.isPinned) return -1;
-        if (!a.isPinned && b.isPinned) return 1;
-        return a.date < b.date ? 1 : -1;
-      });
-      setPosts(filtered);
-      setIsLoading(false);
     })();
   }, []);
+
+  const loadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    try {
+      const page = await fetchPage(cursor);
+      // Dedupe by postId in case cursor overlap occurs
+      setPosts(prev => {
+        const seen = new Set(prev.map(p => p.postId));
+        return [...prev, ...page.posts.filter(p => !seen.has(p.postId))];
+      });
+      setCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+    } catch (error) {
+      console.error("[Posts] Error loading more posts:", error);
+      toast({ title: "Error", description: "Failed to load more posts", variant: "destructive" });
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   // Separate effect to check admin status when user loads
   useEffect(() => {
@@ -362,7 +395,7 @@ export default function Posts() {
           </div>
         ) : (
           <div>
-            {filtered.slice(0, visibleCount).map((post) => (
+            {filtered.map((post) => (
               <PostCard
                 key={post.slug}
                 post={post}
@@ -377,21 +410,38 @@ export default function Posts() {
               />
             ))}
 
-            {/* Load More */}
-            {filtered.length > visibleCount && (
+            {/* Load More from DB */}
+            {hasMore && !query && (
               <div className="text-center py-6 border-t border-green-800/40">
                 <button
-                  onClick={() => setVisibleCount(prev => prev + 10)}
-                  className="text-green-400 hover:text-green-300 text-sm"
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className="text-green-400 hover:text-green-300 text-sm disabled:opacity-50"
                 >
-                  Show more ({filtered.length - visibleCount} remaining)
+                  {isLoadingMore ? "Loading..." : `Show more (${PAGE_SIZE} posts)`}
                 </button>
               </div>
             )}
 
-            {filtered.length > 0 && visibleCount >= filtered.length && (
+            {/* When searching, hint user to load more if no/few matches */}
+            {hasMore && query && (
+              <div className="text-center py-4 border-t border-green-800/40 space-y-2">
+                <p className="text-gray-500 text-xs">
+                  Searching {posts.length} loaded posts. More exist on the server.
+                </p>
+                <button
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className="text-green-400 hover:text-green-300 text-sm disabled:opacity-50"
+                >
+                  {isLoadingMore ? "Loading..." : `Load ${PAGE_SIZE} more to expand search`}
+                </button>
+              </div>
+            )}
+
+            {!hasMore && posts.length > 0 && (
               <div className="text-center py-4 text-gray-500 text-xs">
-                Showing all {filtered.length} posts
+                Showing all {posts.length} posts
               </div>
             )}
           </div>
