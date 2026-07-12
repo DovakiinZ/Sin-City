@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { getFirstTouch, computeGeoMismatch } from '@/lib/tracking';
 
 /**
  * Hook that captures IP/network data for logged-in users
@@ -41,6 +42,26 @@ export function useUserIPCapture() {
 
                 const networkData = await response.json();
 
+                // Merge a light client-side device snapshot into the network profile
+                const nav = navigator as any;
+                const deviceSnapshot = {
+                    userAgent: navigator.userAgent,
+                    language: navigator.language,
+                    platform: navigator.platform || 'unknown',
+                    screen: `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`,
+                    pixelRatio: window.devicePixelRatio || 1,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    deviceMemory: nav.deviceMemory || null,
+                    hardwareConcurrency: navigator.hardwareConcurrency || null,
+                    touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+                };
+                const networkInfo = { ...(networkData.network_info || {}), device: deviceSnapshot };
+                const firstTouch = getFirstTouch();
+                const geoMismatch = computeGeoMismatch(
+                    deviceSnapshot.timezone,
+                    (networkData.network_info || {}).timezone
+                );
+
                 // Update the user's profile with IP data
                 const { error } = await supabase
                     .from('profiles')
@@ -53,6 +74,14 @@ export function useUserIPCapture() {
                         isp: networkData.isp || null,
                         vpn_detected: networkData.vpn_detected || false,
                         tor_detected: networkData.tor_detected || false,
+                        proxy_detected: networkData.proxy_detected || false,
+                        hosting_detected: networkData.hosting_detected || false,
+                        mobile_detected: networkData.mobile_detected || false,
+                        network_info: networkInfo,
+                        geo_mismatch: geoMismatch,
+                        referrer: firstTouch.referrer || null,
+                        landing_page: firstTouch.landing_page || null,
+                        utm: firstTouch.utm || {},
                         last_ip_update: new Date().toISOString()
                     })
                     .eq('id', user.id);

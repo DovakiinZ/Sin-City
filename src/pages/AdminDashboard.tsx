@@ -6,11 +6,12 @@ import BackButton from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Shield, Users, FileText, Music, Eye, EyeOff, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, UserX, Settings } from "lucide-react";
+import { Trash2, Shield, Users, FileText, Music, Eye, EyeOff, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, UserX, Settings, BarChart3 } from "lucide-react";
 import MusicManager from "@/components/admin/MusicManager";
 import UserManagement from "@/components/admin/UserManagement";
 import GuestManagement from "@/components/admin/GuestManagement";
 import SettingsManagement from "@/components/admin/SettingsManagement";
+import AnalyticsDashboard from "@/components/admin/AnalyticsDashboard";
 
 const POSTS_PER_PAGE = 20;
 
@@ -243,6 +244,9 @@ export default function AdminDashboard() {
                         <TabsTrigger value="music" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
                             <Music className="w-4 h-4 mr-2" /> Music
                         </TabsTrigger>
+                        <TabsTrigger value="analytics" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
+                            <BarChart3 className="w-4 h-4 mr-2" /> Analytics
+                        </TabsTrigger>
                         <TabsTrigger value="settings" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
                             <Settings className="w-4 h-4 mr-2" /> Settings
                         </TabsTrigger>
@@ -375,6 +379,10 @@ export default function AdminDashboard() {
 
                     <TabsContent value="music" className="mt-4">
                         <MusicManager />
+                    </TabsContent>
+
+                    <TabsContent value="analytics" className="mt-4">
+                        <AnalyticsDashboard />
                     </TabsContent>
 
                     <TabsContent value="settings" className="mt-4">

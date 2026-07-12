@@ -43,6 +43,7 @@ import PageTransition from "./components/PageTransition";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useUserIPCapture } from "./hooks/useUserIPCapture";
 import useGuestFingerprint from "./hooks/useGuestFingerprint";
+import useAnalytics from "./hooks/useAnalytics";
 import EasterEggs from "./components/effects/EasterEggs";
 import { useSpotifyPresence } from "./hooks/useSpotifyPresence";
 
@@ -61,7 +62,10 @@ const AppContent = () => {
   useUserIPCapture();
 
   // Capture Guest Fingerprint & Logging
-  const { createOrUpdateGuest, fingerprint } = useGuestFingerprint();
+  const { createOrUpdateGuest, fingerprint, guestId } = useGuestFingerprint();
+
+  // First-party page-view / engagement analytics
+  useAnalytics({ userId: user?.id, guestId });
 
   useEffect(() => {
     // If not loading and no user, log as guest

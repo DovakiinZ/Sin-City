@@ -47,6 +47,16 @@ interface Guest {
         touchSupport?: boolean;
         deviceMemory?: number;
         hardwareConcurrency?: number;
+        browser?: string;
+        browserVersion?: string;
+        os?: string;
+        osVersion?: string;
+        deviceType?: string;
+        webglRenderer?: string;
+        webglVendor?: string;
+        pixelRatio?: number;
+        effectiveType?: string;
+        connectionType?: string;
     };
     // Network info
     ip_hash: string | null;
@@ -55,6 +65,30 @@ interface Guest {
     isp: string | null;
     vpn_detected: boolean;
     tor_detected: boolean;
+    proxy_detected?: boolean;
+    hosting_detected?: boolean;
+    mobile_detected?: boolean;
+    network_info?: {
+        region?: string;
+        postal?: string;
+        latitude?: number | null;
+        longitude?: number | null;
+        timezone?: string;
+        continent?: string;
+        asn?: string;
+        isp_domain?: string;
+        is_eu?: boolean;
+        providers?: string[];
+    } | null;
+    // Abuse + identity signals
+    fingerprint_legacy?: string | null;
+    geo_mismatch?: boolean;
+    referrer?: string | null;
+    landing_page?: string | null;
+    utm?: Record<string, string> | null;
+    gravatar_hash?: string | null;
+    has_gravatar?: boolean;
+    email_mx_valid?: boolean | null;
     // Behavior metrics
     posts_per_hour: number | null;
     avg_time_between_posts: number | null;
@@ -107,12 +141,31 @@ export default function GuestDetailModal({ guest, onClose, onUpdate }: GuestDeta
     } | null>(null);
     const [showIPContent, setShowIPContent] = useState<'posts' | 'comments' | null>(null);
     const [showRealIP, setShowRealIP] = useState(false);
+    const [related, setRelated] = useState<Array<{
+        kind: string; id: string; label: string; status: string;
+        post_count: number; matched_on: string; last_seen: string | null;
+    }>>([]);
     const { toast } = useToast();
 
     useEffect(() => {
         loadGuestPosts();
         loadSecurityData();
+        loadRelatedIdentities();
     }, [guest.id]);
+
+    const loadRelatedIdentities = async () => {
+        try {
+            const { data, error } = await supabase.rpc('get_related_identities', {
+                p_fingerprint: guest.fingerprint || null,
+                p_fingerprint_legacy: guest.fingerprint_legacy || null,
+                p_ip_hash: guest.ip_hash || null,
+                p_exclude_guest_id: guest.id,
+            });
+            if (!error && Array.isArray(data)) setRelated(data);
+        } catch (err) {
+            console.error('Error loading related identities:', err);
+        }
+    };
 
     const loadSecurityData = async () => {
         try {
@@ -420,7 +473,90 @@ export default function GuestDetailModal({ guest, onClose, onUpdate }: GuestDeta
                         </div>
                     </div>
 
-                    {/* Network Info - New Section */}
+                    {/* Related identities (shared fingerprint / IP) */}
+                    {related.length > 0 && (
+                        <div className="ascii-box p-4 space-y-3">
+                            <h3 className="ascii-highlight text-sm border-b border-ascii-border pb-2 flex items-center gap-2">
+                                <Users className="w-4 h-4" />
+                                LINKED IDENTITIES ({related.length})
+                            </h3>
+                            <div className="space-y-1 max-h-48 overflow-y-auto">
+                                {related.map((r) => (
+                                    <div key={`${r.kind}-${r.id}`} className="flex items-center justify-between text-sm py-1 border-b border-ascii-border/30 last:border-0">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className={`text-xs px-1.5 py-0.5 rounded ${r.kind === 'user' ? 'bg-blue-950/30 text-blue-400' : 'bg-purple-950/30 text-purple-400'}`}>
+                                                {r.kind}
+                                            </span>
+                                            <span className="truncate font-mono">{r.label}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 shrink-0 text-xs ascii-dim">
+                                            <span title="matched on">{r.matched_on === 'fingerprint' ? '🔗 fingerprint' : '🌐 IP'}</span>
+                                            {r.status && <span className={r.status === 'blocked' ? 'text-red-400' : ''}>{r.status}</span>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="text-xs ascii-dim">Guests/users sharing this device fingerprint or IP — likely the same person.</div>
+                        </div>
+                    )}
+
+                    {/* Email intelligence */}
+                    {guest.email && (
+                        <div className="ascii-box p-4 space-y-3">
+                            <h3 className="ascii-highlight text-sm border-b border-ascii-border pb-2 flex items-center gap-2">
+                                <Mail className="w-4 h-4" />
+                                EMAIL INTEL
+                            </h3>
+                            <div className="flex items-center gap-3">
+                                {guest.gravatar_hash && guest.has_gravatar && (
+                                    <img
+                                        src={`https://www.gravatar.com/avatar/${guest.gravatar_hash}?s=48&d=mp`}
+                                        alt="gravatar"
+                                        className="w-12 h-12 rounded border border-ascii-border"
+                                    />
+                                )}
+                                <div className="min-w-0">
+                                    <div className="font-mono truncate">{guest.email}</div>
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                        {guest.email_verified && <span className="text-xs px-2 py-0.5 rounded border border-green-500/40 text-green-400 bg-green-950/20">VERIFIED</span>}
+                                        {guest.has_gravatar && <span className="text-xs px-2 py-0.5 rounded border border-green-500/40 text-green-400 bg-green-950/20">HAS GRAVATAR</span>}
+                                        {guest.disposable_email_detected && <span className="text-xs px-2 py-0.5 rounded border border-red-500/40 text-red-400 bg-red-950/20">DISPOSABLE</span>}
+                                        {guest.email_mx_valid === false && <span className="text-xs px-2 py-0.5 rounded border border-red-500/40 text-red-400 bg-red-950/20">NO MX (unreachable)</span>}
+                                        {guest.email_mx_valid === true && <span className="text-xs px-2 py-0.5 rounded border border-ascii-border text-ascii-dim">MX OK</span>}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Traffic source (first-touch attribution) */}
+                    {(guest.referrer || (guest.utm && Object.keys(guest.utm).length > 0)) && (
+                        <div className="ascii-box p-4 space-y-2">
+                            <h3 className="ascii-highlight text-sm border-b border-ascii-border pb-2 flex items-center gap-2">
+                                <ExternalLink className="w-4 h-4" />
+                                TRAFFIC SOURCE
+                            </h3>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                                <div>
+                                    <div className="ascii-dim text-xs">Referrer</div>
+                                    <div className="truncate">{guest.referrer || '(direct)'}</div>
+                                </div>
+                                {guest.landing_page && (
+                                    <div>
+                                        <div className="ascii-dim text-xs">Landing page</div>
+                                        <div className="truncate font-mono">{guest.landing_page}</div>
+                                    </div>
+                                )}
+                                {guest.utm && Object.entries(guest.utm).map(([k, v]) => (
+                                    <div key={k}>
+                                        <div className="ascii-dim text-xs">utm_{k}</div>
+                                        <div className="truncate">{v}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Network Info - New Section */}
                     {guest.country || guest.isp || securityData ? (
                         <div className="ascii-box p-4 space-y-3">
@@ -456,6 +592,71 @@ export default function GuestDetailModal({ guest, onClose, onUpdate }: GuestDeta
                                             </div>
                                         </div>
                                     </div>
+                                    {/* Proxy / Hosting / Mobile flags (real, from ip-api.com) */}
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                        {guest.proxy_detected && (
+                                            <span className="text-xs px-2 py-0.5 rounded border border-red-500/40 text-red-400 bg-red-950/20">PROXY / VPN</span>
+                                        )}
+                                        {guest.hosting_detected && (
+                                            <span className="text-xs px-2 py-0.5 rounded border border-yellow-500/40 text-yellow-400 bg-yellow-950/20">DATACENTER</span>
+                                        )}
+                                        {guest.mobile_detected && (
+                                            <span className="text-xs px-2 py-0.5 rounded border border-blue-500/40 text-blue-400 bg-blue-950/20">MOBILE NET</span>
+                                        )}
+                                        {guest.geo_mismatch && (
+                                            <span className="text-xs px-2 py-0.5 rounded border border-orange-500/40 text-orange-400 bg-orange-950/20" title="Browser timezone disagrees with IP location">TZ MISMATCH</span>
+                                        )}
+                                    </div>
+
+                                    {/* Extended geo/network details */}
+                                    {guest.network_info && (
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-3 pt-3 border-t border-ascii-border/50">
+                                            {(guest.network_info.region || guest.network_info.postal) && (
+                                                <div>
+                                                    <div className="ascii-dim text-xs">Region</div>
+                                                    <div>{guest.network_info.region || '—'}{guest.network_info.postal ? ` (${guest.network_info.postal})` : ''}</div>
+                                                </div>
+                                            )}
+                                            {guest.network_info.timezone && (
+                                                <div>
+                                                    <div className="ascii-dim text-xs">Timezone</div>
+                                                    <div>{guest.network_info.timezone}</div>
+                                                </div>
+                                            )}
+                                            {guest.network_info.asn && (
+                                                <div>
+                                                    <div className="ascii-dim text-xs">ASN</div>
+                                                    <div className="font-mono">{guest.network_info.asn}</div>
+                                                </div>
+                                            )}
+                                            {guest.network_info.isp_domain && (
+                                                <div>
+                                                    <div className="ascii-dim text-xs">ISP Domain</div>
+                                                    <div>{guest.network_info.isp_domain}</div>
+                                                </div>
+                                            )}
+                                            {(guest.network_info.latitude != null && guest.network_info.longitude != null) && (
+                                                <div>
+                                                    <div className="ascii-dim text-xs">Coordinates</div>
+                                                    <a
+                                                        href={`https://www.google.com/maps?q=${guest.network_info.latitude},${guest.network_info.longitude}`}
+                                                        target="_blank" rel="noopener noreferrer"
+                                                        className="flex items-center gap-1 text-ascii-highlight hover:underline"
+                                                    >
+                                                        <MapPin className="w-3 h-3" />
+                                                        {guest.network_info.latitude?.toFixed(2)}, {guest.network_info.longitude?.toFixed(2)}
+                                                    </a>
+                                                </div>
+                                            )}
+                                            {guest.network_info.providers && guest.network_info.providers.length > 0 && (
+                                                <div>
+                                                    <div className="ascii-dim text-xs">Sources</div>
+                                                    <div className="ascii-dim">{guest.network_info.providers.join(', ')}</div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {guest.ip_hash && (
                                         <div className="text-xs ascii-dim mt-2">
                                             Public Hash: <span className="font-mono select-all">{guest.ip_hash}</span>
