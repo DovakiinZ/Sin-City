@@ -96,6 +96,89 @@ function maskIP(ip: string): string {
 }
 
 // ============================================================
+// GEO LOOKUP (dual-provider, free, datacenter-friendly)
+// Vercel edge headers (x-vercel-ip-*) give country/city for free on every
+// request. We enrich in parallel with two free, keyless providers:
+//   - ip-api.com -> real proxy / hosting / mobile flags + ISP/ASN (HTTP, 45 req/min)
+//   - ipwho.is   -> postal, ASN org, ISP domain, is_eu (HTTPS)
+// Results are merged so a single provider being down/rate-limited still yields
+// data. ipapi.co was dropped: it now 403s all server-side requests behind Cloudflare.
+// ============================================================
+interface GeoResult {
+    country: string; country_code: string; city: string; region: string; postal: string;
+    latitude: number | null; longitude: number | null; timezone: string; continent: string;
+    isp: string; org: string; asn: string; isp_domain: string;
+    is_eu: boolean; proxy: boolean; hosting: boolean; mobile: boolean;
+    providers: string[];
+}
+
+function getVercelGeo(headers: Record<string, string | string[] | undefined>) {
+    let city = getHeader(headers, 'x-vercel-ip-city');
+    if (city) { try { city = decodeURIComponent(city); } catch { /* keep raw */ } }
+    return {
+        country: getHeader(headers, 'x-vercel-ip-country') || null,
+        city: city || null,
+        region: getHeader(headers, 'x-vercel-ip-country-region') || null,
+        latitude: getHeader(headers, 'x-vercel-ip-latitude') || null,
+        longitude: getHeader(headers, 'x-vercel-ip-longitude') || null,
+        timezone: getHeader(headers, 'x-vercel-ip-timezone') || null,
+    };
+}
+
+async function fetchJSON(url: string, ms: number): Promise<any | null> {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), ms);
+    try {
+        const res = await fetch(url, { signal: ctrl.signal });
+        if (!res.ok) return null;
+        return await res.json();
+    } catch { return null; }
+    finally { clearTimeout(tid); }
+}
+
+async function lookupGeo(ip: string, headers: Record<string, string | string[] | undefined>): Promise<GeoResult> {
+    const v = getVercelGeo(headers);
+    const pick = (...vals: any[]) => vals.find(x => x !== undefined && x !== null && x !== '');
+    const num = (x: any) => { const n = typeof x === 'number' ? x : parseFloat(x); return Number.isFinite(n) ? n : null; };
+
+    const IPAPI_FIELDS = 'status,message,continent,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,mobile,proxy,hosting';
+    const [ipapi, ipwho] = await Promise.all([
+        fetchJSON(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=${IPAPI_FIELDS}`, 4000),
+        fetchJSON(`https://ipwho.is/${encodeURIComponent(ip)}`, 4000),
+    ]);
+
+    const a = ipapi && ipapi.status === 'success' ? ipapi : null;
+    const b = ipwho && ipwho.success !== false ? ipwho : null;
+    const bc = (b && b.connection) || {};
+    const providers: string[] = [];
+    if (a) providers.push('ip-api');
+    if (b) providers.push('ipwho');
+
+    const asn = a?.as ? String(a.as).split(' ')[0] : (bc.asn ? `AS${bc.asn}` : '');
+
+    return {
+        country: pick(a?.country, b?.country, v.country, 'Unknown'),
+        country_code: pick(a?.countryCode, b?.country_code, ''),
+        city: pick(a?.city, b?.city, v.city, 'Unknown'),
+        region: pick(a?.regionName, b?.region, v.region, ''),
+        postal: pick(a?.zip, b?.postal, ''),
+        latitude: num(pick(a?.lat, b?.latitude, v.latitude)),
+        longitude: num(pick(a?.lon, b?.longitude, v.longitude)),
+        timezone: pick(a?.timezone, b?.timezone?.id, v.timezone, ''),
+        continent: pick(a?.continent, b?.continent, ''),
+        isp: pick(a?.isp, bc.isp, bc.org, a?.org, 'Unknown'),
+        org: pick(a?.org, bc.org, a?.isp, bc.isp, 'Unknown'),
+        asn: asn || '',
+        isp_domain: pick(bc.domain, ''),
+        is_eu: Boolean(b?.is_eu),
+        proxy: Boolean(a?.proxy),
+        hosting: Boolean(a?.hosting),
+        mobile: Boolean(a?.mobile),
+        providers,
+    };
+}
+
+// ============================================================
 // HANDLER
 // ============================================================
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -116,35 +199,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ip_hash: hashIP(ip), ip_source: source,
                 country: 'Local', city: 'Development', isp: 'localhost',
                 vpn_detected: false, tor_detected: false,
+                proxy_detected: false, hosting_detected: false, mobile_detected: false,
+                network_info: { country: 'Local', city: 'Development', isp: 'localhost', providers: [] },
                 _server_data: { real_ip: null },
             };
             if (debugMode) result.debug = { all_headers: allHeaders, selected_source: source, is_private: true, raw_ip_masked: maskIP(ip) };
             return res.status(200).json(result);
         }
 
-        // Geo lookup with 5s timeout
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 5000);
-        let country = 'Unknown', city = 'Unknown', isp = 'Unknown', vpn = false, tor = false;
+        // Geo lookup: Vercel edge headers + ip-api.com + ipwho.is (parallel, merged)
+        const geo = await lookupGeo(ip, req.headers);
+        const vpn = geo.proxy || geo.hosting || detectVPN(geo.isp, geo.org, geo.asn);
+        const tor = detectTor(geo.isp, geo.org);
 
-        try {
-            const geoRes = await fetch(`https://ipapi.co/${ip}/json/`, { signal: ctrl.signal });
-            clearTimeout(tid);
-            if (geoRes.ok) {
-                const g = await geoRes.json();
-                if (!g.error) {
-                    country = g.country_name || 'Unknown';
-                    city = g.city || 'Unknown';
-                    isp = g.org || 'Unknown';
-                    vpn = detectVPN(g.org || '', g.org || '', g.asn || '');
-                    tor = detectTor(g.org || '', g.org || '');
-                }
-            }
-        } catch { clearTimeout(tid); }
+        const network_info = {
+            country: geo.country, country_code: geo.country_code, city: geo.city,
+            region: geo.region, postal: geo.postal,
+            latitude: geo.latitude, longitude: geo.longitude,
+            timezone: geo.timezone, continent: geo.continent,
+            isp: geo.isp, org: geo.org, asn: geo.asn, isp_domain: geo.isp_domain,
+            is_eu: geo.is_eu, proxy: geo.proxy, hosting: geo.hosting, mobile: geo.mobile,
+            vpn_detected: vpn, tor_detected: tor, providers: geo.providers,
+        };
 
         const result: any = {
             ip_hash: hashIP(ip), ip_source: source,
-            country, city, isp, vpn_detected: vpn, tor_detected: tor,
+            country: geo.country, city: geo.city, isp: geo.isp,
+            region: geo.region, timezone: geo.timezone, asn: geo.asn,
+            vpn_detected: vpn, tor_detected: tor,
+            proxy_detected: geo.proxy, hosting_detected: geo.hosting, mobile_detected: geo.mobile,
+            network_info,
             _server_data: { real_ip: realIp },
             ip_encrypted: realIp,
         };
