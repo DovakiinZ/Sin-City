@@ -46,14 +46,19 @@ Status: ONLINE`}
       <div className="text-center overflow-x-auto">
         {/* Full ASCII box for larger screens */}
         <pre className="ascii-dim text-xs hidden sm:block">
-          {`╔════════════════════════════════════════════════════════════╗
-║  SIN CITY © 2025 | Built with ♥ and ASCII                 ║
-║  Press '?' for keyboard shortcuts | '~' for terminal      ║
-╚════════════════════════════════════════════════════════════╝`}
+          {[
+            "╔" + "═".repeat(60) + "╗",
+            "║" + "  SIN CITY © 2025 | Built with ♥ and ASCII".padEnd(60) + "║",
+            "║" + "  Press '?' for keyboard shortcuts | '~' for terminal".padEnd(60) + "║",
+            "║" + "  © Designed By Dovakin".padEnd(60) + "║",
+            "╚" + "═".repeat(60) + "╝",
+          ].join("\n")}
         </pre>
         {/* Simple footer for mobile */}
         <div className="sm:hidden ascii-dim text-xs py-2">
           SIN CITY © 2025 | Built with ♥ and ASCII
+          <br />
+          © Designed By Dovakin
         </div>
       </div>
     </footer>
