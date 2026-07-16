@@ -163,9 +163,12 @@ export async function listPostsFromDb(options?: ListPostsOptions): Promise<ListP
     query = query.or("thread_position.is.null,thread_position.eq.1");
   }
 
-  // If NOT authenticated, only show public posts
+  // If NOT authenticated, only show public posts.
+  // Use `.not(col, 'is', true)` (col IS NOT TRUE) rather than `.eq(false)` so
+  // posts where is_registered_only is NULL (older rows / rows created before the
+  // column existed) are still shown to logged-out visitors instead of vanishing.
   if (!isAuthenticated) {
-    query = query.eq("is_registered_only", false);
+    query = query.not("is_registered_only", "is", true);
   }
 
   query = query.limit(limit + 1); // Fetch one extra to check if more exist

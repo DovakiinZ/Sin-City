@@ -1,9 +1,16 @@
 -- Add full-text search support to posts
 create extension if not exists pg_trgm;
 
--- Add search index
-create index if not exists idx_posts_search on public.posts 
-using gin(to_tsvector('english', title || ' ' || coalesce(content, '')));
+-- Full-text index. Use the 'simple' config (no English stemming/stop-words) so
+-- non-English content — e.g. Arabic posts — is tokenized verbatim and stays
+-- searchable. coalesce(title) guards against a NULL title nulling the whole vector.
+drop index if exists idx_posts_search;
+create index if not exists idx_posts_search on public.posts
+using gin(to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(content, '')));
+
+-- Trigram indexes power the ILIKE substring fallback below (partial-word matches).
+create index if not exists idx_posts_title_trgm on public.posts using gin (title gin_trgm_ops);
+create index if not exists idx_posts_content_trgm on public.posts using gin (content gin_trgm_ops);
 
 -- Full-text search function
 create or replace function search_posts(search_query text)
@@ -17,21 +24,31 @@ returns table (
 ) as $$
 begin
   return query
-  select 
+  select
     p.id,
     p.title,
     p.content,
     p.author_name,
     p.created_at,
     ts_rank(
-      to_tsvector('english', p.title || ' ' || coalesce(p.content, '')),
-      plainto_tsquery('english', search_query)
+      to_tsvector('simple', coalesce(p.title, '') || ' ' || coalesce(p.content, '')),
+      plainto_tsquery('simple', search_query)
     ) as rank
   from public.posts p
-  where 
-    p.draft = false
-    and to_tsvector('english', p.title || ' ' || coalesce(p.content, ''))
-    @@ plainto_tsquery('english', search_query)
+  where
+    -- Use IS NOT TRUE (not "= false") so rows with NULL flags are still returned.
+    -- Respect the "everything except deleted/removed" rule.
+    p.draft is not true
+    and p.hidden is not true
+    and p.is_deleted is not true
+    and (
+      -- Ranked full-text match...
+      to_tsvector('simple', coalesce(p.title, '') || ' ' || coalesce(p.content, ''))
+        @@ plainto_tsquery('simple', search_query)
+      -- ...plus a forgiving substring fallback for partial words / mixed scripts.
+      or p.title ilike '%' || search_query || '%'
+      or p.content ilike '%' || search_query || '%'
+    )
   order by rank desc, p.created_at desc;
 end;
 $$ language plpgsql security definer;
