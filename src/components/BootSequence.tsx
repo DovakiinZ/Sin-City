@@ -83,10 +83,11 @@ const BootSequence = ({ onComplete }: { onComplete: () => void }) => {
             >
                 <div
                     style={{
-                        fontSize: 11,
-                        letterSpacing: "0.5em",
+                        fontSize: "clamp(9px, 2.6vw, 12px)",
+                        letterSpacing: "clamp(0.1em, 0.9vw, 0.5em)",
                         color: "hsl(var(--ascii-dim))",
-                        marginBottom: 26,
+                        marginBottom: "clamp(18px, 5vw, 26px)",
+                        lineHeight: 1.7,
                     }}
                 >
                     ἆρα · ἀληθῶς · ἐβίων; · ἡ · ἀμφιβολία · σχεδόν · με · κατέχει
@@ -100,7 +101,7 @@ const BootSequence = ({ onComplete }: { onComplete: () => void }) => {
                         margin: "0 auto",
                         textAlign: "left",
                         fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-                        fontSize: "clamp(2.4px, 0.72vw, 6.5px)",
+                        fontSize: "clamp(3.4px, 1.15vw, 6.5px)",
                         lineHeight: 1.05,
                         letterSpacing: 0,
                         whiteSpace: "pre",
@@ -114,11 +115,11 @@ const BootSequence = ({ onComplete }: { onComplete: () => void }) => {
 
                 <div
                     style={{
-                        marginTop: 16,
-                        fontSize: 11,
+                        marginTop: "clamp(12px, 3vw, 16px)",
+                        fontSize: "clamp(8px, 2.4vw, 11px)",
                         color: "hsl(var(--ascii-dim))",
-                        letterSpacing: "0.14em",
-                        wordBreak: "break-all",
+                        letterSpacing: "clamp(0.02em, 0.4vw, 0.14em)",
+                        wordBreak: "break-word",
                         lineHeight: 1.9,
                     }}
                 >
@@ -129,10 +130,11 @@ const BootSequence = ({ onComplete }: { onComplete: () => void }) => {
 
                 <div
                     style={{
-                        marginTop: 26,
-                        fontSize: 12,
+                        marginTop: "clamp(20px, 5vw, 26px)",
+                        fontSize: "clamp(11px, 3.1vw, 13px)",
                         color: "hsl(var(--ascii-text))",
-                        lineHeight: 2,
+                        lineHeight: 1.9,
+                        padding: "0 4px",
                     }}
                 >
                     ever have that feeling where you're not sure if you're awake or dreaming?
@@ -140,57 +142,70 @@ const BootSequence = ({ onComplete }: { onComplete: () => void }) => {
 
                 <div
                     style={{
-                        marginTop: 34,
-                        fontSize: 14,
+                        marginTop: "clamp(26px, 6vw, 34px)",
+                        fontSize: "clamp(12px, 3.4vw, 15px)",
                         color: "hsl(var(--ascii-text))",
                     }}
                 >
-                    <span style={{ color: "hsl(var(--ascii-text))" }}>seeker@sin.city:~$ </span>
-                    <input
-                        ref={inputRef}
-                        value={value}
-                        onChange={(e) => {
-                            setValue(e.target.value);
-                            if (resp) setResp("");
-                        }}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                                e.preventDefault();
-                                attempt(value);
-                                setValue("");
-                            }
-                        }}
-                        autoComplete="off"
-                        spellCheck={false}
-                        placeholder="enter"
+                    <div
                         style={{
-                            background: "transparent",
-                            border: "none",
-                            color: "hsl(var(--ascii-highlight))",
-                            font: "inherit",
-                            fontSize: 14,
-                            outline: "none",
-                            caretColor: "hsl(var(--ascii-highlight))",
-                            width: 130,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexWrap: "wrap",
+                            gap: 2,
                         }}
-                    />
-                    <span
-                        style={{
-                            display: "inline-block",
-                            width: 8,
-                            height: 15,
-                            background: "hsl(var(--ascii-highlight))",
-                            verticalAlign: "-2px",
-                            animation: "bootBlink 1.1s steps(1) infinite",
-                            boxShadow: "0 0 8px hsl(var(--ascii-highlight) / .5)",
-                        }}
-                    />
+                    >
+                        <span style={{ color: "hsl(var(--ascii-text))" }}>seeker@sin.city:~$&nbsp;</span>
+                        <input
+                            ref={inputRef}
+                            value={value}
+                            size={Math.max(value.length, 5)}
+                            onChange={(e) => {
+                                setValue(e.target.value);
+                                if (resp) setResp("");
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    attempt(value);
+                                    setValue("");
+                                }
+                            }}
+                            autoComplete="off"
+                            spellCheck={false}
+                            placeholder="enter"
+                            style={{
+                                background: "transparent",
+                                border: "none",
+                                color: "hsl(var(--ascii-highlight))",
+                                font: "inherit",
+                                fontSize: "inherit",
+                                outline: "none",
+                                caretColor: "transparent",
+                                width: "auto",
+                                padding: 0,
+                            }}
+                        />
+                        <span
+                            style={{
+                                display: "inline-block",
+                                width: "0.55em",
+                                height: "1.05em",
+                                background: "hsl(var(--ascii-highlight))",
+                                verticalAlign: "-2px",
+                                animation: "bootBlink 1.1s steps(1) infinite",
+                                boxShadow: "0 0 8px hsl(var(--ascii-highlight) / .5)",
+                            }}
+                        />
+                    </div>
                     <div
                         style={{
                             marginTop: 18,
-                            fontSize: 12,
+                            fontSize: "clamp(11px, 3vw, 12px)",
                             color: "hsl(var(--ascii-highlight))",
                             minHeight: 18,
+                            padding: "0 4px",
                         }}
                     >
                         {resp}
@@ -201,12 +216,14 @@ const BootSequence = ({ onComplete }: { onComplete: () => void }) => {
             <div
                 style={{
                     position: "absolute",
-                    bottom: 16,
+                    bottom: "clamp(14px, 4vw, 20px)",
                     left: 0,
                     right: 0,
+                    padding: "0 16px",
                     textAlign: "center",
-                    fontSize: 10,
-                    letterSpacing: "0.3em",
+                    fontSize: "clamp(8px, 2.2vw, 10px)",
+                    letterSpacing: "clamp(0.08em, 0.6vw, 0.3em)",
+                    lineHeight: 1.8,
                     color: "hsl(var(--ascii-dim))",
                     zIndex: 3,
                     opacity: 0,
@@ -217,8 +234,8 @@ const BootSequence = ({ onComplete }: { onComplete: () => void }) => {
                 <div
                     style={{
                         marginTop: 8,
-                        fontSize: 9,
-                        letterSpacing: "0.24em",
+                        fontSize: "clamp(7px, 1.9vw, 9px)",
+                        letterSpacing: "clamp(0.08em, 0.5vw, 0.24em)",
                         color: "hsl(var(--ascii-dim))",
                         opacity: 0.75,
                     }}
