@@ -14,7 +14,7 @@ export default function VerificationPanel() {
       <table className="w-full border border-green-800">
         <thead><tr className="border-b border-green-800">
           <th className="text-left p-1">Email</th><th className="text-left p-1">Phone</th><th className="text-left p-1">Status</th>
-          <th className="text-left p-1">Deadline</th><th className="text-left p-1">Verified</th><th className="text-left p-1">Reminders</th>
+          <th className="text-left p-1">Deadline</th><th className="text-left p-1">Verified</th><th className="text-left p-1">Reminders</th><th className="text-left p-1">Last reminder</th>
           <th className="text-left p-1">Suspended</th><th className="text-left p-1">Actions</th>
         </tr></thead>
         <tbody>{rows.map(r => (
@@ -22,7 +22,7 @@ export default function VerificationPanel() {
             <td className="p-1">{r.email}</td><td className="p-1">{r.phone ?? '—'}</td><td className="p-1">{r.account_status}</td>
             <td className="p-1">{new Date(r.verification_deadline).toLocaleString()}</td>
             <td className="p-1">{r.verified_at ? `✓ ${r.verified_channel ?? ''}` : '—'}</td>
-            <td className="p-1">{stages(r.reminders_sent)}</td>
+            <td className="p-1">{stages(r.reminders_sent)}</td><td className="p-1">{r.last_reminder_sent_at ? new Date(r.last_reminder_sent_at).toLocaleString() : '—'}</td>
             <td className="p-1">{r.suspended_at ? (r.suspension_reason ?? 'yes') : '—'}</td>
             <td className="p-1"><button className="underline mr-2" onClick={() => act(r.user_id, 'verify')}>verify</button><button className="underline" onClick={() => act(r.user_id, 'restore')}>restore</button></td>
           </tr>))}</tbody>
