@@ -264,6 +264,29 @@ verification-flow tests pass, an implementation step deletes it via the admin AP
 records the deletion in `verification_events` (`event_type` metadata `{probe_cleanup:
 true}`).
 
+## Amendment J — OTP verification, two channels (approved 2026-07-25)
+
+Supersedes the "magic link" delivery method. Verification is now a **6-digit OTP**,
+and the user may verify via **email OR phone** — verifying **either one** satisfies
+the 5-day requirement and lifts restriction.
+
+- **Email OTP (ours):** 6-digit code via Resend (same pattern as the existing guest
+  `send-verification.ts`). Code is SHA-256 hashed at rest, expires in 10 minutes,
+  single-use, max 5 attempts, then the code is invalidated (must resend).
+- **Phone OTP (Supabase native):** phone auth is **currently disabled**
+  (`external.phone: false`) — enabling it (dashboard + Twilio credentials) is a
+  prerequisite. Client attaches/verifies the phone on the existing account via
+  `supabase.auth.updateUser({ phone })` → SMS → `verifyOtp({ type: 'phone_change' })`.
+  A server endpoint then confirms `auth.users.phone_confirmed_at` and stamps the
+  app-level verified state (client cannot write `user_verification` under RLS).
+- **Data-model changes to `user_verification`:** the single `email_verified_at`
+  becomes generic **`verified_at`** + **`verified_channel` (`email`|`phone`)**. The
+  magic-link `token_hash`/`token_expires_at` are replaced by **`otp_hash`**,
+  **`otp_expires_at`**, **`otp_attempts`**, **`otp_channel`**. Add **`phone`**.
+- Auto-restore trigger, cron `verified_at IS NULL` checks, reminders, rate limits,
+  anti-enumeration, and audit events all key off `verified_at` and apply to both
+  channels equally.
+
 ## Out of scope (YAGNI)
 
 - Self-service recovery for the terminal `suspended` state (admin restores).
