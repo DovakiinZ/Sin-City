@@ -1,10 +1,4 @@
 {
-    "crons": [
-        {
-            "path": "/api/cron/enforce-email-verification",
-            "schedule": "0 * * * *"
-        }
-    ],
     "rewrites": [
         {
             "source": "/api/og/:slug",
