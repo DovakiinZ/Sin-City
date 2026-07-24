@@ -21,7 +21,8 @@ export async function updateVerification(userId: string, patch: Record<string, u
   if (error) throw error;
 }
 export async function logEvent(userId: string | null, type: string, metadata: Record<string, unknown> = {}) {
-  await getServiceClient().from('verification_events').insert({ user_id: userId, event_type: type, metadata });
+  const { error } = await getServiceClient().from('verification_events').insert({ user_id: userId, event_type: type, metadata });
+  if (error) throw error;
 }
 export async function launchDate(): Promise<string> {
   const envDate = process.env.EMAIL_VERIFICATION_LAUNCH_DATE;
