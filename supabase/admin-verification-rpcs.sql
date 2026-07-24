@@ -16,7 +16,10 @@ RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
   IF NOT public.is_admin(auth.uid()) THEN RAISE EXCEPTION 'not authorized'; END IF;
   UPDATE public.user_verification
-    SET account_status='active', suspended_at=NULL, suspension_reason=NULL WHERE user_id = target;
+    SET account_status='active', suspended_at=NULL, suspension_reason=NULL,
+        verification_deadline = now() + interval '5 days',
+        reminders_sent = 0, last_reminder_sent_at = NULL
+  WHERE user_id = target;
   INSERT INTO public.verification_events(user_id, event_type, metadata)
   VALUES (target, 'AccountRestored', jsonb_build_object('by', auth.uid(), 'reason', reason, 'manual', true));
 END; $$;

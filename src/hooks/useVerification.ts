@@ -45,5 +45,5 @@ export function useVerification() {
   const changeEmail = useCallback(async (new_email: string) => { await post('/api/change-email', { new_email }); await refresh(); }, [refresh]);
 
   const remaining = s.deadline ? Date.parse(s.deadline) - Date.now() : 0;
-  return { ...s, remainingMs: remaining, restricted: s.status !== 'active' && !s.verifiedAt, sendEmailOtp, verifyEmailOtp, startPhone, verifyPhoneOtp, changeEmail, refresh };
+  return { ...s, remainingMs: remaining, restricted: s.status !== 'active', sendEmailOtp, verifyEmailOtp, startPhone, verifyPhoneOtp, changeEmail, refresh };
 }

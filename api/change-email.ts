@@ -33,8 +33,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       patch.account_status = 'active'; patch.suspended_at = null; patch.suspension_reason = null;
       patch.reminders_sent = 0; patch.last_reminder_sent_at = null;
     }
-    await updateVerification(user.id, patch);
-    await logEvent(user.id, 'EmailChanged', { was_verified: wasVerified });
+    try {
+      await updateVerification(user.id, patch);
+      await logEvent(user.id, 'EmailChanged', { was_verified: wasVerified });
+    } catch (inner) {
+      // auth email already changed but verification-row reset failed — record for reconciliation
+      try { await logEvent(user.id, 'EmailChanged', { was_verified: wasVerified, partial: true }); } catch { /* best effort */ }
+    }
     return res.status(200).json({ ok: true });
   } catch (e) {
     console.error('[change-email]', e);
