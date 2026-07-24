@@ -131,6 +131,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const mapped = mapSupabaseUser(data.user);
           if (!mapped) throw new Error("Sign up succeeded but user data is missing.");
           setUser(mapped);
+          try {
+            await fetch('/api/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` }, body: JSON.stringify({ channel: 'email' }) });
+          } catch { /* non-critical; banner + cron recover */ }
         } else {
           throw new Error("Sign up successful. Please check your email to confirm.");
         }
