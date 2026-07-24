@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeDeadline, remainingMs, isVerified, isRestricted, shouldRestrict,
-  dueReminderStage, canResendUser, otpAttemptsExceeded, GRACE_MS,
+  dueReminderStage, canResendUser, otpAttemptsExceeded, generateOtp, GRACE_MS,
 } from '../verification-state';
 
 const base = {
@@ -92,5 +92,39 @@ describe('otp attempt lock', () => {
   it('locks after 5 wrong attempts', () => {
     expect(otpAttemptsExceeded({ ...base, otp_attempts: 5 })).toBe(true);
     expect(otpAttemptsExceeded({ ...base, otp_attempts: 4 })).toBe(false);
+  });
+});
+
+describe('isRestricted', () => {
+  it('returns false for active account', () => {
+    expect(isRestricted({ ...base, account_status: 'active' })).toBe(false);
+  });
+  it('returns true for verification_overdue', () => {
+    expect(isRestricted({ ...base, account_status: 'verification_overdue' })).toBe(true);
+  });
+  it('returns true for suspended', () => {
+    expect(isRestricted({ ...base, account_status: 'suspended' })).toBe(true);
+  });
+});
+
+describe('dueReminderStage past-deadline guard', () => {
+  it('returns 0 when now === deadline (remain = 0)', () => {
+    // deadline is base.verification_deadline = '2026-07-30T00:00:00Z'
+    const row = { ...base, account_status: 'active' as const, verified_at: null };
+    const now = '2026-07-30T00:00:00Z'; // exactly at deadline, remain = 0
+    expect(dueReminderStage(row, now)).toBe(0);
+  });
+  it('returns 0 when now > deadline (remain < 0)', () => {
+    const row = { ...base, account_status: 'active' as const, verified_at: null };
+    const now = '2026-07-31T00:00:00Z'; // past deadline
+    expect(dueReminderStage(row, now)).toBe(0);
+  });
+});
+
+describe('generateOtp', () => {
+  it('always returns a 6-digit numeric string', () => {
+    for (let i = 0; i < 20; i++) {
+      expect(generateOtp()).toMatch(/^\d{6}$/);
+    }
   });
 });
