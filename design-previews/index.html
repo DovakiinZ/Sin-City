@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIN CITY // design candidates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --green:#00ff41; --amber:#ffb000; --cyan:#00ffff; --purple:#c77dff; --red:#ff2a3d;
+    --bg:#050705; --dim:#0e3a19; --text:#57d97a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'JetBrains Mono',ui-monospace,monospace;
+    line-height:1.5; letter-spacing:.02em;
+    padding:clamp(20px,5vw,64px);
+    min-height:100%;
+    background-image:radial-gradient(120% 90% at 50% -10%, rgba(0,255,65,.10), transparent 60%);
+  }
+  /* scanlines */
+  body::after{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:50;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,.28) 3px, rgba(0,0,0,0) 4px);
+    mix-blend-mode:multiply;
+  }
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--dim);padding-bottom:14px;margin-bottom:6px}
+  .brand{font-weight:800;font-size:clamp(22px,4vw,34px);color:var(--green);text-shadow:0 0 14px rgba(0,255,65,.45)}
+  .brand small{display:block;font-weight:400;font-size:12px;color:var(--text);letter-spacing:.28em;margin-top:4px}
+  .meta{font-size:12px;color:#3f8f56;text-align:right}
+  .lead{font-size:13px;color:#4fbf72;margin:22px 0 26px;max-width:60ch}
+  .lead .cur{display:inline-block;width:9px;height:15px;background:var(--green);margin-left:3px;vertical-align:-2px;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+  .card{
+    border:1px solid var(--dim); background:linear-gradient(180deg, rgba(0,255,65,.03), rgba(0,0,0,.2));
+    padding:18px; display:flex; flex-direction:column; gap:12px; position:relative;
+    transition:border-color .18s, transform .18s, box-shadow .18s;
+  }
+  .card:hover{border-color:var(--green);transform:translateY(-3px);box-shadow:0 0 0 1px rgba(0,255,65,.25),0 10px 40px -18px rgba(0,255,65,.6)}
+  .idx{font-size:11px;color:#3f8f56;letter-spacing:.2em}
+  .name{font-weight:700;font-size:18px;color:#c9ffd6}
+  .card:hover .name{color:var(--green)}
+  .desc{font-size:12.5px;color:#4fbf72;min-height:52px}
+  .pre{border:1px solid var(--dim);background:#020402;padding:10px;font-size:10.5px;line-height:1.15;color:#59c47a;white-space:pre;overflow:hidden;height:132px}
+  .go{margin-top:2px;font-size:11px;color:#3f8f56;display:flex;justify-content:space-between;align-items:center}
+  .go .arrow{color:var(--green);opacity:0;transform:translateX(-6px);transition:.18s}
+  .card:hover .go .arrow{opacity:1;transform:translateX(0)}
+  .tag{border:1px solid currentColor;padding:1px 7px;font-size:10px;border-radius:2px}
+  .t-green{color:var(--green)} .t-purple{color:var(--purple)} .t-amber{color:var(--amber)}
+  .t-red{color:var(--red)} .t-cyan{color:var(--cyan)}
+  footer{margin-top:34px;border-top:1px solid var(--dim);padding-top:12px;font-size:11px;color:#3f8f56;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">SIN&nbsp;CITY<small>DESIGN CANDIDATES</small></div>
+    <div class="meta">node #03 · uptime 42:11<br/>5 candidates loaded<br/>select one to preview</div>
+  </div>
+  <p class="lead">// five homepage directions, same DNA — pure-black, JetBrains Mono, neon theme colors, scanlines, cicada motif. click any panel to open the full page. tell me the number to ship.<span class="cur"></span></p>
+
+  <div class="grid">
+    <a class="card" href="./01-boot.html">
+      <div class="idx">01</div>
+      <div class="name">Cicada Boot Sequence <span class="tag t-green">green</span></div>
+      <div class="desc">Fake boot/decrypt animation types an ASCII cicada, runs system checks, then reveals the feed. Maximum terminal nostalgia.</div>
+      <pre class="pre">> booting sin.city v3.301
+> loading kernel...... [OK]
+> decrypting cicada... [OK]
+
+       ,_      _,
+        '.\    /.'
+         |.\  /.|   ((
+         :  \/  :  //
+   __.--''      ''--.__
+
+> access granted _</pre>
+      <div class="go"><span>open →</span><span class="arrow">▸ enter</span></div>
+    </a>
+
+    <a class="card" href="./02-cryptic.html">
+      <div class="idx">02</div>
+      <div class="name">Cicada 3301 Cryptic <span class="tag t-purple">purple</span></div>
+      <div class="desc">Near-empty black page, one glowing centered cicada, cryptic hex/rune line, single command prompt. Quiet and ominous.</div>
+      <pre class="pre">
+
+
+
+           /\_/\
+          ( o.o )
+         >  ^_^  <
+        cicada.3301
+
+    3301 · trust the process
+        type 'begin' _</pre>
+      <div class="go"><span>open →</span><span class="arrow">▸ enter</span></div>
+    </a>
+
+    <a class="card" href="./03-bbs.html">
+      <div class="idx">03</div>
+      <div class="name">Retro BBS Board <span class="tag t-amber">amber</span></div>
+      <div class="desc">90s dial-up bulletin board. ANSI double-line panels, hotkey post menu, sysinfo sidebar. Dense, boxy, nostalgic.</div>
+      <pre class="pre">+========================+
+|  S I N  C I T Y  BBS   |
++===========+============+
+| [A] latest| UPTIME 42:11
+| [B] archiv| USERS   1337
+| [C] term  | NODE    #03
++-----------+------------+
+| >> post_001 cicada...  |
+| >> post_002 on silence |
++========================+</pre>
+      <div class="go"><span>open →</span><span class="arrow">▸ enter</span></div>
+    </a>
+
+    <a class="card" href="./04-noir.html">
+      <div class="idx">04</div>
+      <div class="name">Sin City Noir <span class="tag t-red">b/w+red</span></div>
+      <div class="desc">Cinematic take on the name. High-contrast black/white, one blood-red accent, big headline, bento grid of posts.</div>
+      <pre class="pre">####  SIN CITY  ########
+
+ THE  CITY
+ NEVER     [cicada
+ SLEEPS.    in red]
+
++------+ +-----+ +----+
+| 01   | | 02  | | 03 |
++------+ +-----+ +----+
+ a blog that bites _</pre>
+      <div class="go"><span>open →</span><span class="arrow">▸ enter</span></div>
+    </a>
+
+    <a class="card" href="./05-crtos.html">
+      <div class="idx">05</div>
+      <div class="name">CRT Desktop OS <span class="tag t-cyan">cyan</span></div>
+      <div class="desc">Fake retro operating system. Draggable windows, top menu bar, live system HUD, post feed in a window, scanlines over all.</div>
+      <pre class="pre">[sin.os] file view cicada x
++----------------------+
+| FEED ______ [_][o][x]|
+| > post_001 ......... |
+| > post_002 ......... |
++----------------------+
+| SYS _______ [_][o][x]|
+| cpu 3% mem 42% ONLINE|
++----------------------+</pre>
+      <div class="go"><span>open →</span><span class="arrow">▸ enter</span></div>
+    </a>
+  </div>
+
+  <footer>
+    <span>SIN CITY // ascii blog &amp; playground</span>
+    <span>← use browser back to return here from any preview</span>
+  </footer>
+</div>
+</body>
+</html>

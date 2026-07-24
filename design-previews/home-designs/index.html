@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIN CITY // home redesigns</title>
+<link rel="stylesheet" href="./base.css" />
+<style>
+  body{padding:clamp(20px,5vw,56px);background-image:radial-gradient(120% 80% at 50% -10%, rgba(0,255,65,.08), transparent 60%)}
+  .wrap{max-width:1080px;margin:0 auto}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;
+    border-bottom:1px solid var(--dim);padding-bottom:14px}
+  .brand{font-weight:800;font-size:clamp(24px,4vw,36px);color:var(--green);text-shadow:0 0 14px var(--glow)}
+  .brand small{display:block;font-weight:400;font-size:11px;letter-spacing:.3em;color:var(--muted);margin-top:5px}
+  .meta{font-size:12px;color:var(--muted);text-align:right}
+  .lead{font-size:13px;color:var(--text);margin:22px 0 26px;max-width:70ch}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+  .card{border:1px solid var(--dim);background:linear-gradient(180deg,rgba(0,255,65,.03),rgba(0,0,0,.2));
+    padding:18px;display:flex;flex-direction:column;gap:12px;transition:.18s}
+  .card:hover{border-color:var(--green);transform:translateY(-3px);box-shadow:0 10px 40px -18px var(--glow)}
+  .idx{font-size:11px;color:var(--muted);letter-spacing:.2em}
+  .name{font-weight:700;font-size:18px;color:var(--hi)}
+  .card:hover .name{color:var(--green)}
+  .desc{font-size:12.5px;color:var(--text);min-height:60px}
+  .pre{border:1px solid var(--dim);background:#020402;padding:10px;font-size:9px;line-height:1.25;
+    color:#59c47a;white-space:pre;overflow:hidden;height:120px}
+  .go{font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
+  .go .a{color:var(--green);opacity:0;transition:.18s}
+  .card:hover .go .a{opacity:1}
+  footer{margin-top:32px;border-top:1px solid var(--dim);padding-top:12px;font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div class="brand">SIN&nbsp;CITY<small>HOME / FEED REDESIGNS</small></div>
+    <div class="meta">5 candidates · all boot-aligned<br/>black · green · mono · scanlines<br/>click a panel to open</div>
+  </div>
+  <p class="lead">// five ways to bring the boot-entrance DNA into the actual dashboard — same header, music player, nav & system widgets, and post feed, five different structures. pick a number.<span class="cur"></span></p>
+
+  <div class="grid">
+    <a class="card" href="./1-terminal.html">
+      <div class="idx">01</div>
+      <div class="name">Terminal Console</div>
+      <div class="desc">The whole home rendered as a live terminal session. Posts are command output (<code>&gt; cat post_001</code>), nav is a file tree, everything prefixed with prompts. Maximum cohesion with the boot.</div>
+      <pre class="pre">seeker@sin.city:~$ ls ~/feed
+> post_001  post_002  post_003
+seeker@sin.city:~$ cat post_001
+┌ @v4xd [ADMIN] · 2d ago ────────
+│ منورة نايمة
+│ [img] rig.png
+└ ♥ 12  ⌘ save  ✎ 3
+seeker@sin.city:~$ _</pre>
+      <div class="go"><span>open →</span><span class="a">▸ enter</span></div>
+    </a>
+
+    <a class="card" href="./2-editorial.html">
+      <div class="idx">02</div>
+      <div class="name">Cryptic Editorial</div>
+      <div class="desc">Minimal & spacious like the boot's quiet moment. Big Greek epigraph header, cicada watermark, hairline borders, lots of black. Posts as calm, generously-spaced entries.</div>
+      <pre class="pre">   ἆρα · ἀληθῶς · ἐβίων;
+
+        (cicada watermark)
+
+   ──────────────────────────
+   @v4xd                 2d ago
+   منورة نايمة
+   ──────────────────────────
+        ♥        save      ✎</pre>
+      <div class="go"><span>open →</span><span class="a">▸ enter</span></div>
+    </a>
+
+    <a class="card" href="./3-crtos.html">
+      <div class="idx">03</div>
+      <div class="name">CRT OS Windows</div>
+      <div class="desc">A fake retro OS desktop. Feed, music, nav & system live in draggable-style windows with titlebars and a live HUD. Menubar + taskbar. Playful, rich, monitoring-console feel.</div>
+      <pre class="pre">[sin.os] file view cicada  x
++-- feed.exe ----[_][o][x]--+
+| > post_001 ............. |
++--------------------------+
++-- sysmon ------[_][o][x]--+
+| cpu 3%  mem 42% ONLINE   |
++--------------------------+</pre>
+      <div class="go"><span>open →</span><span class="a">▸ enter</span></div>
+    </a>
+
+    <a class="card" href="./4-bbs.html">
+      <div class="idx">04</div>
+      <div class="name">ASCII Boxed BBS</div>
+      <div class="desc">Everything inside double-line ASCII boxes (╔═╗). Dense, boxy, hotkey-driven bulletin-board layout. Sidebar & feed as bordered panels. The most "ASCII blog" of the set.</div>
+      <pre class="pre">╔══════════════════════════╗
+║  SIN CITY · NODE #03      ║
+╠════════════╦═════════════╣
+║ [H] home   ║ >> post_001  ║
+║ [C] create ║    منورة     ║
+║ [A] ascii  ║    [img]     ║
+╚════════════╩═════════════╝</pre>
+      <div class="go"><span>open →</span><span class="a">▸ enter</span></div>
+    </a>
+
+    <a class="card" href="./5-bento.html">
+      <div class="idx">05</div>
+      <div class="name">Neo Bento Grid</div>
+      <div class="desc">The most modern take: a dark bento grid of glowing green-bordered tiles — cicada hero, music tile, system tile, nav tile — with the feed as clean post cards. Product-grade, still unmistakably SIN CITY.</div>
+      <pre class="pre">+--------+ +------+ +-------+
+| cicada | | now  | | sys   |
+| hero   | | play | | ONLINE|
++--------+ +------+ +-------+
++--------------------------+
+| @v4xd  منورة نايمة  [img] |
++--------------------------+</pre>
+      <div class="go"><span>open →</span><span class="a">▸ enter</span></div>
+    </a>
+  </div>
+
+  <footer>SIN CITY // home redesign candidates · use browser back to return from any preview</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIN CITY // 04 ascii bbs</title>
+<link rel="stylesheet" href="./base.css" />
+<style>
+  body{font-size:14px;background-image:radial-gradient(120% 70% at 50% 0%, rgba(0,255,65,.05), transparent 55%)}
+  .wrap{max-width:1120px;margin:0 auto;padding:16px 16px 60px}
+  .box{border:2px solid var(--dim);background:var(--panel);margin-bottom:14px}
+  .box.glow{border-color:var(--green);box-shadow:0 0 0 1px rgba(0,255,65,.15)}
+  .bar{border-bottom:2px solid var(--dim);padding:6px 12px;font-weight:700;letter-spacing:.12em;color:var(--hi);
+    background:rgba(0,255,65,.05);display:flex;justify-content:space-between;font-size:12px;align-items:center}
+  .bd{padding:10px 12px}
+  /* header banner */
+  .banner{display:flex;align-items:center;justify-content:space-between;gap:14px}
+  .banner .logo{font-weight:800;color:var(--green);font-size:22px;letter-spacing:.08em;text-shadow:0 0 12px var(--glow)}
+  .banner .moth{color:var(--green);opacity:.7}
+  .banner .icons{display:flex;align-items:center;gap:12px;color:var(--muted)}
+  .banner .icons span{cursor:pointer}.banner .icons span:hover{color:var(--green)}
+  .cols{display:grid;grid-template-columns:280px 1fr;gap:14px}
+  @media(max-width:820px){.cols{grid-template-columns:1fr}}
+  .menu a{display:flex;justify-content:space-between;padding:6px 4px;border-bottom:1px dashed var(--dim);font-size:13px}
+  .menu a:last-child{border:none}
+  .menu a:hover{background:rgba(0,255,65,.07);color:var(--green)}
+  .menu .k{color:var(--green);font-weight:700}
+  .kv{display:flex;justify-content:space-between;padding:4px 2px;font-size:12px;border-bottom:1px dotted var(--dim)}
+  .kv b{color:var(--hi);font-weight:500}
+  .music .ctrl{display:flex;gap:6px;margin-top:8px}
+  .music .ctrl span{border:1px solid var(--dim);padding:3px 8px;cursor:pointer}.music .ctrl span:hover{border-color:var(--green);color:var(--green)}
+  .search{width:100%;background:transparent;border:1px solid var(--dim);color:var(--green);font:inherit;padding:6px 10px;outline:none}
+  /* posts */
+  .toolbar{display:flex;gap:8px;align-items:center}
+  .toolbar .new{border:1px solid var(--green);color:var(--green);padding:3px 12px;cursor:pointer;font-size:12px}
+  .post .bar{font-size:12px;font-weight:500}
+  .post .who{color:var(--hi);font-weight:700}
+  .post .bd .rtl{direction:rtl;text-align:right}
+  .imgph{height:210px;border:1px solid var(--dim);display:grid;place-items:center;margin:10px 0;
+    background:repeating-linear-gradient(45deg,#020402 0 10px,#050805 10px 20px)}
+  .imgph .play{width:46px;height:46px;border:1px solid var(--green);border-radius:50%;display:grid;place-items:center;color:var(--green);box-shadow:0 0 14px var(--glow)}
+  .act{display:flex;gap:16px;color:var(--muted);font-size:12px;padding-top:8px;border-top:1px dashed var(--dim)}
+  .act span:hover{color:var(--green);cursor:pointer}
+  .cmd{border:2px solid var(--dim);padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:13px;margin-top:14px}
+  .cmd .lbl{color:var(--muted)}
+  .cmd input{background:transparent;border:none;color:var(--green);font:inherit;outline:none;flex:1}
+</style>
+</head>
+<body>
+<a class="back" href="./index.html">← candidates</a>
+<div class="wrap">
+  <!-- banner -->
+  <div class="box glow">
+    <div class="bd banner">
+      <div class="logo">◈ SIN CITY BBS</div>
+      <div class="moth">╲╱ ▲ ╲╱</div>
+      <div class="icons"><span>[⁝]</span><span>[✉]</span><span class="av sm"></span></div>
+    </div>
+  </div>
+
+  <div class="cols">
+    <!-- sidebar -->
+    <div>
+      <div class="box">
+        <div class="bar">▓ SEARCH</div>
+        <div class="bd"><input class="search" placeholder="grep posts…" /></div>
+      </div>
+      <div class="box music">
+        <div class="bar"><span>▓ HEAR THIS</span><span>1/11</span></div>
+        <div class="bd">
+          <div style="color:var(--hi)">ويشكا ؟</div>
+          <div style="color:var(--muted);font-size:11px">YouTube Music · LIVE</div>
+          <div class="ctrl"><span>⏮</span><span>▶</span><span>⏭</span><span>■</span></div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="bar">▓ MAIN MENU</div>
+        <div class="bd menu">
+          <a><span><span class="k">[H]</span> home</span><span>»</span></a>
+          <a><span><span class="k">[C]</span> create post</span><span>»</span></a>
+          <a><span><span class="k">[A]</span> ascii tools</span><span>»</span></a>
+          <a><span><span class="k">[L]</span> leaderboard</span><span>»</span></a>
+          <a><span><span class="k">[P]</span> posts</span><span>»</span></a>
+          <a><span><span class="k">[X]</span> admin console</span><span>»</span></a>
+          <a><span><span class="k">[U]</span> profile</span><span>»</span></a>
+          <a><span><span class="k">[Q]</span> logout</span><span>»</span></a>
+        </div>
+      </div>
+      <div class="box">
+        <div class="bar">▓ SYSINFO</div>
+        <div class="bd">
+          <div class="kv"><span>STATUS</span><b>● ONLINE</b></div>
+          <div class="kv"><span>MODE</span><b>ASCII</b></div>
+          <div class="kv"><span>THEME</span><b>TERMINAL</b></div>
+          <div class="kv"><span>USER</span><b>v4xd</b></div>
+          <div class="kv"><span>NODE</span><b>#03</b></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- feed -->
+    <div>
+      <div class="box">
+        <div class="bar"><span>▓ MESSAGE BASE : /general</span>
+          <span class="toolbar"><span>Recent ▾</span><span class="new">+ Post</span></span></div>
+        <div class="bd" style="color:var(--muted);font-size:12px">+-- User Panel --+ &nbsp; Username: <span style="color:var(--green)">@v4xd</span> &nbsp; · posts you create show this name</div>
+      </div>
+
+      <div class="box post">
+        <div class="bar"><span><span class="who">@v4xd</span> <span class="badge">ADMIN</span></span><span>2 days ago · 10:26 PM</span></div>
+        <div class="bd">
+          <div class="rtl">منورة نايمة</div>
+          <div class="imgph"><div class="play">▶</div></div>
+          <div class="act"><span>♥ 12</span><span>⌘ save</span><span>✎ comment (3)</span></div>
+        </div>
+      </div>
+
+      <div class="box post">
+        <div class="bar"><span><span class="who">@v4xd</span> <span class="badge">ADMIN</span></span><span>3 days ago · 09:44 PM</span></div>
+        <div class="bd">
+          <div>&gt; decrypting the cicada, night three. the answer is patience.</div>
+          <div class="act"><span>♥ 31</span><span>⌘ save</span><span>✎ comment (7)</span></div>
+        </div>
+      </div>
+
+      <div class="cmd">
+        <span class="lbl">command [H,C,A,L,P,X,U,Q] ?</span>
+        <input placeholder="_" />
+        <span class="cur"></span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

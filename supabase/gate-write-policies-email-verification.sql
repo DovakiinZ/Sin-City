@@ -1,47 +1,71 @@
--- SELECT policies are intentionally NOT modified in this migration.
--- This migration only gates INSERT/UPDATE write policies behind account_can_write().
+-- Gate writes for verification_overdue/suspended REGISTERED users at the DB boundary.
+--
+-- Approach: RESTRICTIVE policies (not drop/recreate of existing permissive policies).
+-- A restrictive policy is AND-combined with every permissive policy on the table, so a
+-- table can have any number of permissive INSERT/UPDATE policies and an authenticated
+-- write still requires account_can_write() to be true. This avoids the fail-open risk of
+-- trying to enumerate/replace the real (and overlapping) permissive policy names.
+--
+-- Scoped TO authenticated so anonymous/guest writes are unaffected (account_can_write()
+-- also returns true when the caller has no user_verification row). service_role bypasses
+-- RLS entirely, so the cron and admin actions are unaffected. SELECT/DELETE are NOT gated
+-- (restricted users can still read; un-like/un-follow via DELETE is allowed).
+--
+-- Idempotent: DROP POLICY IF EXISTS before each CREATE.
 
--- Implementation note: `SELECT policyname FROM pg_policies WHERE tablename='<t>';` and `\d <t>`
--- first to confirm exact policy names + `user_id`/`author_id` columns; adjust DROP names, keep
--- the gate clause identical. Do not touch guest/anon insert policies (no `auth.uid()` → gate returns true).
-
-DROP POLICY IF EXISTS "posts_insert" ON public.posts;
-DROP POLICY IF EXISTS "posts_insert_anyone" ON public.posts;
-DROP POLICY IF EXISTS "Authenticated users can insert posts" ON public.posts;
-CREATE POLICY "posts_insert" ON public.posts FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = user_id AND public.account_can_write());
-DROP POLICY IF EXISTS "posts_update" ON public.posts;
-CREATE POLICY "posts_update" ON public.posts FOR UPDATE TO authenticated
-  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id AND public.account_can_write());
-
-DROP POLICY IF EXISTS "comments_insert_anyone" ON public.comments;
-DROP POLICY IF EXISTS "comments_insert" ON public.comments;
-CREATE POLICY "comments_insert" ON public.comments FOR INSERT TO authenticated
+-- POSTS — block creating and editing posts while restricted
+DROP POLICY IF EXISTS "ev_require_verified_insert" ON public.posts;
+CREATE POLICY "ev_require_verified_insert" ON public.posts
+  AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (public.account_can_write());
+DROP POLICY IF EXISTS "ev_require_verified_update" ON public.posts;
+CREATE POLICY "ev_require_verified_update" ON public.posts
+  AS RESTRICTIVE FOR UPDATE TO authenticated
+  USING (public.account_can_write())
   WITH CHECK (public.account_can_write());
 
-DROP POLICY IF EXISTS "messages_insert" ON public.messages;
-CREATE POLICY "messages_insert" ON public.messages FOR INSERT TO authenticated
-  WITH CHECK (public.account_can_write());
-DROP POLICY IF EXISTS "session_messages_insert" ON public.session_messages;
-CREATE POLICY "session_messages_insert" ON public.session_messages FOR INSERT TO authenticated
-  WITH CHECK (public.account_can_write());
-
-DROP POLICY IF EXISTS "follows_insert" ON public.follows;
-CREATE POLICY "follows_insert" ON public.follows FOR INSERT TO authenticated
+-- COMMENTS / REPLIES
+DROP POLICY IF EXISTS "ev_require_verified_insert" ON public.comments;
+CREATE POLICY "ev_require_verified_insert" ON public.comments
+  AS RESTRICTIVE FOR INSERT TO authenticated
   WITH CHECK (public.account_can_write());
 
-DROP POLICY IF EXISTS "reactions_insert" ON public.reactions;
-CREATE POLICY "reactions_insert" ON public.reactions FOR INSERT TO authenticated
+-- DIRECT MESSAGES
+DROP POLICY IF EXISTS "ev_require_verified_insert" ON public.messages;
+CREATE POLICY "ev_require_verified_insert" ON public.messages
+  AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (public.account_can_write());
+DROP POLICY IF EXISTS "ev_require_verified_insert" ON public.session_messages;
+CREATE POLICY "ev_require_verified_insert" ON public.session_messages
+  AS RESTRICTIVE FOR INSERT TO authenticated
   WITH CHECK (public.account_can_write());
 
-DROP POLICY IF EXISTS "Users can vote once" ON public.post_poll_votes;
-CREATE POLICY "Users can vote once" ON public.post_poll_votes FOR INSERT TO authenticated
+-- FOLLOWS
+DROP POLICY IF EXISTS "ev_require_verified_insert" ON public.follows;
+CREATE POLICY "ev_require_verified_insert" ON public.follows
+  AS RESTRICTIVE FOR INSERT TO authenticated
   WITH CHECK (public.account_can_write());
 
-DROP POLICY IF EXISTS "Users can create own bookmarks" ON public.bookmarks;
-CREATE POLICY "Users can create own bookmarks" ON public.bookmarks FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = user_id AND public.account_can_write());
+-- REACTIONS (likes)
+DROP POLICY IF EXISTS "ev_require_verified_insert" ON public.reactions;
+CREATE POLICY "ev_require_verified_insert" ON public.reactions
+  AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (public.account_can_write());
 
-DROP POLICY IF EXISTS "Allow public uploads" ON storage.objects;
-CREATE POLICY "Allow authenticated uploads (verified only)" ON storage.objects FOR INSERT TO authenticated
+-- POLL VOTES
+DROP POLICY IF EXISTS "ev_require_verified_insert" ON public.post_poll_votes;
+CREATE POLICY "ev_require_verified_insert" ON public.post_poll_votes
+  AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (public.account_can_write());
+
+-- BOOKMARKS
+DROP POLICY IF EXISTS "ev_require_verified_insert" ON public.bookmarks;
+CREATE POLICY "ev_require_verified_insert" ON public.bookmarks
+  AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (public.account_can_write());
+
+-- STORAGE UPLOADS (media)
+DROP POLICY IF EXISTS "ev_require_verified_insert" ON storage.objects;
+CREATE POLICY "ev_require_verified_insert" ON storage.objects
+  AS RESTRICTIVE FOR INSERT TO authenticated
   WITH CHECK (public.account_can_write());

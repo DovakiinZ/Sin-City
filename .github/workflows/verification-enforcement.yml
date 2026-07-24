@@ -1,0 +1,34 @@
+name: Email verification enforcement (hourly)
+
+# $0 replacement for a Vercel Pro cron (Hobby plan caps Vercel crons at daily).
+# Hits the enforcement endpoint hourly with the shared CRON_SECRET so it runs the
+# same idempotent reminders + restriction passes. Also runnable on demand.
+
+on:
+  schedule:
+    - cron: '0 * * * *' # top of every hour (UTC); GitHub may delay under load
+  workflow_dispatch: {}
+
+concurrency:
+  group: verification-enforcement
+  cancel-in-progress: false
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger enforcement endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          ENDPOINT: https://cicada.city/api/verification?action=cron
+        run: |
+          code=$(curl -sS -o /tmp/resp.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${CRON_SECRET}" "${ENDPOINT}")
+          echo "HTTP ${code}"
+          cat /tmp/resp.json || true
+          echo
+          if [ "${code}" != "200" ]; then
+            echo "::error::enforcement endpoint returned ${code}"
+            exit 1
+          fi

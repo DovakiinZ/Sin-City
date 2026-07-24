@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIN CITY // 03 bbs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{--amber:#ffb000;--glow:rgba(255,176,0,.4);--bg:#0a0700;--dim:#5a3f00;--text:#d69b2e}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;min-height:100vh;
+    font-size:14px;line-height:1.5;padding:clamp(14px,3vw,34px);
+    background-image:radial-gradient(120% 80% at 50% 0%, rgba(255,176,0,.08), transparent 55%);}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:80;
+    background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.30) 3px,transparent 4px);mix-blend-mode:multiply}
+  a{color:inherit;text-decoration:none}
+  .back{position:fixed;top:14px;right:16px;z-index:90;font-size:11px;color:#8a6410;border:1px solid var(--dim);padding:4px 9px;background:#000}
+  .back:hover{color:var(--amber);border-color:var(--amber)}
+  .wrap{max-width:900px;margin:0 auto}
+  pre{white-space:pre;font:inherit;color:var(--amber);text-shadow:0 0 8px var(--glow)}
+  .banner{font-size:clamp(6px,1.5vw,11px);line-height:1.05;text-align:center;margin-bottom:6px}
+  .strap{text-align:center;font-size:11px;letter-spacing:.34em;color:#8a6410;margin-bottom:18px}
+  .cols{display:grid;grid-template-columns:1fr 260px;gap:16px}
+  @media(max-width:720px){.cols{grid-template-columns:1fr}}
+  .panel{border:2px solid var(--dim);background:linear-gradient(180deg,rgba(255,176,0,.03),transparent)}
+  .panel .bar{border-bottom:2px solid var(--dim);padding:6px 12px;font-weight:700;letter-spacing:.14em;color:#ffd27a;
+    background:rgba(255,176,0,.05);display:flex;justify-content:space-between;font-size:12px}
+  .panel .body{padding:10px 12px}
+  .row{display:flex;gap:10px;padding:8px 6px;border-bottom:1px dashed var(--dim);align-items:baseline;transition:.14s}
+  .row:last-child{border-bottom:none}
+  .row:hover{background:rgba(255,176,0,.08);padding-left:12px}
+  .key{color:#ffd27a;font-weight:700;min-width:34px}
+  .no{color:#8a6410;font-size:11px;min-width:74px}
+  .ti{color:#eab84a}
+  .row:hover .ti{color:var(--amber);text-shadow:0 0 8px var(--glow)}
+  .rmeta{margin-left:auto;font-size:10px;color:#8a6410;white-space:nowrap}
+  .menu a{display:flex;justify-content:space-between;padding:7px 6px;border-bottom:1px dashed var(--dim);font-size:13px}
+  .menu a:last-child{border:none}
+  .menu a:hover{background:rgba(255,176,0,.08);color:var(--amber)}
+  .stat{display:flex;justify-content:space-between;padding:5px 6px;font-size:12px;border-bottom:1px dotted var(--dim)}
+  .stat b{color:#ffd27a;font-weight:500}
+  .art{font-size:10px;line-height:1.1;text-align:center;color:var(--amber);opacity:.8;margin:10px 0}
+  .cmd{margin-top:16px;border:2px solid var(--dim);padding:10px 12px;display:flex;align-items:center;gap:8px;font-size:13px}
+  .cmd .lbl{color:#8a6410}
+  .cmd input{background:transparent;border:none;color:var(--amber);font:inherit;outline:none;flex:1;caret-color:var(--amber)}
+  .cur{display:inline-block;width:9px;height:15px;background:var(--amber);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .foot{text-align:center;font-size:10px;color:#8a6410;margin-top:16px;letter-spacing:.2em}
+</style>
+</head>
+<body>
+<a class="back" href="./index.html">← candidates</a>
+<div class="wrap">
+  <pre class="banner">  ███████╗██╗███╗   ██╗     ██████╗██╗████████╗██╗   ██╗
+  ██╔════╝██║████╗  ██║    ██╔════╝██║╚══██╔══╝╚██╗ ██╔╝
+  ███████╗██║██╔██╗ ██║    ██║     ██║   ██║    ╚████╔╝
+  ╚════██║██║██║╚██╗██║    ██║     ██║   ██║     ╚██╔╝
+  ███████║██║██║ ╚████║    ╚██████╗██║   ██║      ██║
+  ╚══════╝╚═╝╚═╝  ╚═══╝     ╚═════╝╚═╝   ╚═╝      ╚═╝</pre>
+  <div class="strap">· · ·  B U L L E T I N   B O A R D   S Y S T E M  ·  EST. 1994  · · ·</div>
+
+  <div class="cols">
+    <div class="panel">
+      <div class="bar"><span>▓ MESSAGE BASE : /general</span><span>44 posts</span></div>
+      <div class="body">
+        <div class="row"><span class="key">[A]</span><span class="no">post_001</span><span class="ti">the cicada that would not decrypt</span><span class="rmeta">07.14 · 214☰</span></div>
+        <div class="row"><span class="key">[B]</span><span class="no">post_002</span><span class="ti">on silence &amp; the empty terminal</span><span class="rmeta">07.09 · 98☰</span></div>
+        <div class="row"><span class="key">[C]</span><span class="no">post_003</span><span class="ti">matrix rain in 40 lines of canvas</span><span class="rmeta">07.02 · 331☰</span></div>
+        <div class="row"><span class="key">[D]</span><span class="no">post_004</span><span class="ti">phreaking the phosphor: crt love</span><span class="rmeta">06.28 · 77☰</span></div>
+        <div class="row"><span class="key">[E]</span><span class="no">post_005</span><span class="ti">decrypt me: a puzzle in 3 parts</span><span class="rmeta">06.20 · 512☰</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="panel">
+        <div class="bar"><span>▓ MAIN MENU</span></div>
+        <div class="body menu">
+          <a><span>[L] latest</span><span>»</span></a>
+          <a><span>[R] archive</span><span>»</span></a>
+          <a><span>[T] terminal</span><span>»</span></a>
+          <a><span>[G] games</span><span>»</span></a>
+          <a><span>[U] users</span><span>»</span></a>
+          <a><span>[Q] logoff</span><span>»</span></a>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="bar"><span>▓ SYSINFO</span></div>
+        <div class="body">
+          <div class="stat"><span>UPTIME</span><b>42:11:07</b></div>
+          <div class="stat"><span>USERS</span><b>1337</b></div>
+          <div class="stat"><span>NODE</span><b>#03</b></div>
+          <div class="stat"><span>BAUD</span><b>2400</b></div>
+          <div class="stat"><span>SYSOP</span><b>collapsingz</b></div>
+          <pre class="art">   ,_   _,
+    '.\_/.'
+     (o o)
+    __\_/__
+   the cicada
+     hums</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cmd">
+    <span class="lbl">command [A-E,L,R,T,G,U,Q] ?</span>
+    <input id="c" autofocus autocomplete="off" spellcheck="false" placeholder="_" />
+    <span class="cur"></span>
+  </div>
+  <div class="foot">SIN CITY BBS // press CTRL to blink · this is a design demo</div>
+</div>
+</body>
+</html>

@@ -6,9 +6,9 @@ async function hdr() { const { data: { session } } = await supabase.auth.getSess
 const stages = (m: number) => [1, 2, 3].filter(i => m & (1 << (i - 1))).join(',') || '—';
 export default function VerificationPanel() {
   const [rows, setRows] = useState<Row[]>([]);
-  const load = async () => { const r = await fetch('/api/admin/verification', { headers: await hdr() }); const b = await r.json().catch(() => ({ rows: [] })); setRows(b.rows || []); };
+  const load = async () => { const r = await fetch('/api/verification?action=admin-list', { headers: await hdr() }); const b = await r.json().catch(() => ({ rows: [] })); setRows(b.rows || []); };
   useEffect(() => { load(); }, []);
-  const act = async (target: string, action: 'verify' | 'restore') => { const reason = window.prompt(`Reason for ${action}?`) || ''; await fetch('/api/admin/verification', { method: 'POST', headers: await hdr(), body: JSON.stringify({ action, target, reason }) }); await load(); };
+  const act = async (target: string, op: 'verify' | 'restore') => { const reason = window.prompt(`Reason for ${op}?`) || ''; await fetch('/api/verification', { method: 'POST', headers: await hdr(), body: JSON.stringify({ action: op === 'verify' ? 'admin-verify' : 'admin-restore', target, reason }) }); await load(); };
   return (
     <div className="font-mono text-green-400 text-xs overflow-x-auto">
       <table className="w-full border border-green-800">

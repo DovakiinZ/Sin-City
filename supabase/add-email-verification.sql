@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS public.verification_events (
   user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   event_type text NOT NULL CHECK (event_type IN (
     'VerificationOtpSent','VerificationReminderSent','VerificationDeadlineExpired',
-    'AccountRestricted','EmailVerified','AccountRestored','EmailChanged','ProbeCleanup'
+    'AccountRestricted','EmailVerified','AccountRestored','EmailChanged','ProbeCleanup','DeadlineExtended'
   )),
   metadata jsonb DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
@@ -53,10 +53,8 @@ CREATE TABLE IF NOT EXISTS public.verification_rate_limits (
 ALTER TABLE public.verification_rate_limits ENABLE ROW LEVEL SECURITY;
 -- No policies: only the service role (which bypasses RLS) may access this table.
 
-CREATE OR REPLACE FUNCTION public.is_admin(uid uuid)
-RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
-  SELECT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = uid AND p.role = 'admin');
-$$;
+-- NOTE: public.is_admin(uuid) already exists in this project (role IN ('admin','ceo'));
+-- we reuse it rather than redefine it (CREATE OR REPLACE cannot rename its input parameter).
 
 CREATE OR REPLACE FUNCTION public.account_can_write()
 RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
