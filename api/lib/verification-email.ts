@@ -10,7 +10,7 @@ async function send(to: string, subject: string, html: string): Promise<string |
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html }),
     });
-    if (!res.ok) { const e = await res.json().catch(() => ({})); return `Resend error: ${e.message || res.status}`; }
+    if (!res.ok) { const e = await res.json().catch(() => ({}) as Record<string, unknown>); return `Resend error: ${(e as Record<string, unknown>).message || res.status}`; }
     return null;
   } catch (e: any) { return `Email send failed: ${e.message || 'unknown'}`; }
 }
