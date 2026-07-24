@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS public.verification_events (
   user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   event_type text NOT NULL CHECK (event_type IN (
     'VerificationOtpSent','VerificationReminderSent','VerificationDeadlineExpired',
-    'AccountRestricted','EmailVerified','AccountRestored','EmailChanged','ProbeCleanup'
+    'AccountRestricted','EmailVerified','AccountRestored','EmailChanged','ProbeCleanup','DeadlineExtended'
   )),
   metadata jsonb DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
