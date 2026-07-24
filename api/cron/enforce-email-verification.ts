@@ -30,15 +30,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const stage = dueReminderStage(row, nowIso);
     if (stage === 0 || !row.email) continue;
     const code = generateOtp();
-    await sb.from('user_verification').update({
-      reminders_sent: row.reminders_sent | stageBit(stage as 1 | 2 | 3),
-      last_reminder_sent_at: nowIso,
-      otp_hash: hashOtp(code), otp_expires_at: new Date(Date.now() + OTP_TTL_MS).toISOString(),
-      otp_attempts: 0, otp_channel: 'email',
-    }).eq('user_id', row.user_id);
     const hours = Math.max(0, remainingMs(nowIso, row.verification_deadline) / 3600_000);
     const err = await sendReminderEmail(row.email, code, stage, hours);
-    if (!err) { await logEvent(row.user_id, 'VerificationReminderSent', { stage, channel: 'email' }); reminded++; }
+    if (!err) {
+      await sb.from('user_verification').update({
+        reminders_sent: row.reminders_sent | stageBit(stage as 1 | 2 | 3),
+        last_reminder_sent_at: nowIso,
+        otp_hash: hashOtp(code), otp_expires_at: new Date(Date.now() + OTP_TTL_MS).toISOString(),
+        otp_attempts: 0, otp_channel: 'email',
+      }).eq('user_id', row.user_id);
+      await logEvent(row.user_id, 'VerificationReminderSent', { stage, channel: 'email' });
+      reminded++;
+    }
   }
   return res.status(200).json({ reminded, restricted });
 }
