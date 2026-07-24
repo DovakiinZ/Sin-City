@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 type Status = 'active' | 'verification_overdue' | 'suspended';
-interface State { status: Status; deadline: string | null; verifiedAt: string | null; verifiedChannel: string | null; loading: boolean; }
+interface State { status: Status; deadline: string | null; verifiedAt: string | null; verifiedChannel: string | null; email: string | null; loading: boolean; }
 
 async function authHeader() {
   const { data: { session } } = await supabase.auth.getSession();
@@ -11,18 +11,19 @@ async function authHeader() {
 }
 
 export function useVerification() {
-  const [s, setS] = useState<State>({ status: 'active', deadline: null, verifiedAt: null, verifiedChannel: null, loading: true });
+  const [s, setS] = useState<State>({ status: 'active', deadline: null, verifiedAt: null, verifiedChannel: null, email: null, loading: true });
 
   const refresh = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setS(v => ({ ...v, loading: false })); return; }
     const { data } = await supabase.from('user_verification')
-      .select('account_status, verification_deadline, verified_at, verified_channel').eq('user_id', user.id).maybeSingle();
+      .select('account_status, verification_deadline, verified_at, verified_channel, email').eq('user_id', user.id).maybeSingle();
     setS({
       status: (data?.account_status as Status) ?? 'active',
       deadline: data?.verification_deadline ?? null,
       verifiedAt: data?.verified_at ?? null,
       verifiedChannel: data?.verified_channel ?? null,
+      email: data?.email ?? user.email ?? null,
       loading: false,
     });
   }, []);

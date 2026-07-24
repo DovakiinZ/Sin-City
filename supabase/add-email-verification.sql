@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.user_verification (
   user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email text,
   phone text,
-  verification_deadline timestamptz NOT NULL,
+  verification_deadline timestamptz,  -- NULL until the user first logs in (see deadline-on-login.sql)
   verified_at timestamptz,
   verified_channel text CHECK (verified_channel IN ('email','phone')),
   account_status text NOT NULL DEFAULT 'active'

@@ -266,6 +266,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { data: candidates } = await sb.from('user_verification')
         .select('*').is('verified_at', null).eq('account_status', 'active');
       for (const row of candidates || []) {
+        // Skip inactive users: no deadline is set until they actually log in.
+        if (!row.verification_deadline) continue;
         const stage = dueReminderStage(row, nowIso);
         if (stage === 0 || !row.email) continue;
         const code = generateOtp();

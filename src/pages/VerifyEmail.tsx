@@ -10,11 +10,21 @@ export default function VerifyEmail() {
   const [code, setCode] = useState(''); const [phone, setPhone] = useState('');
   const [phoneSent, setPhoneSent] = useState(false);
   const [msg, setMsg] = useState<string | null>(null); const [cooldown, setCooldown] = useState(0);
+  const [showChange, setShowChange] = useState(false); const [newEmail, setNewEmail] = useState('');
   useEffect(() => { if (cooldown <= 0) return; const t = setInterval(() => setCooldown(c => c - 1), 1000); return () => clearInterval(t); }, [cooldown]);
   useEffect(() => { if (v.verifiedAt) nav('/'); }, [v.verifiedAt, nav]);
 
   const resendEmail = async () => { await v.sendEmailOtp(); setCooldown(60); setMsg('If eligible, a code was sent.'); };
   const submitEmail = async () => { setMsg(null); const ok = await v.verifyEmailOtp(code); setMsg(ok ? 'Verified!' : 'Invalid or expired code.'); };
+  const submitChangeEmail = async () => {
+    const e = newEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) { setMsg('Enter a valid email address.'); return; }
+    setMsg('Updating your email…');
+    await v.changeEmail(e);          // updates the account email + resets verification
+    await v.sendEmailOtp();           // send a fresh code to the new address
+    setShowChange(false); setNewEmail(''); setCooldown(60);
+    setMsg(`Email updated to ${e}. We sent a new code there — enter it above.`);
+  };
   const sendPhone = async () => { setMsg(null); try { await v.startPhone(phone); setPhoneSent(true); setCooldown(60); setMsg('Code sent by SMS.'); } catch { setMsg('Could not send SMS.'); } };
   const submitPhone = async () => { setMsg(null); try { const ok = await v.verifyPhoneOtp(phone, code); setMsg(ok ? 'Verified!' : 'Invalid code.'); } catch { setMsg('Invalid code.'); } };
 
@@ -28,11 +38,35 @@ export default function VerifyEmail() {
         </div>
         {tab === 'email' ? (
           <div className="space-y-3">
-            <p className="text-xs ascii-dim">Enter the 6-digit code sent to your email.</p>
+            <p className="text-xs ascii-dim">
+              Enter the 6-digit code sent to{v.email ? <> <span className="text-green-300">{v.email}</span></> : ' your email'}.
+            </p>
             <input value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" className="w-full bg-black border border-green-700 px-2 py-1 tracking-[8px] text-center" placeholder="000000" />
             <div className="flex gap-2">
               <button className="border border-green-700 px-3 py-1" onClick={submitEmail}>Verify</button>
               <button className="border border-green-700 px-3 py-1 disabled:opacity-50" disabled={cooldown > 0} onClick={resendEmail}>{cooldown > 0 ? `Resend (${cooldown}s)` : 'Send / resend code'}</button>
+            </div>
+
+            {/* Wrong / not-your email? Let the user switch to a real address they control. */}
+            <div className="border-t border-green-900 pt-3 mt-1">
+              {!showChange ? (
+                <p className="text-[11px] ascii-dim">
+                  This isn't your email?{' '}
+                  <button className="underline text-green-300" onClick={() => { setShowChange(true); setMsg(null); }}>
+                    Change it to your real email
+                  </button>
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[11px] ascii-dim">Enter an email address that belongs to you. We'll send the code there.</p>
+                  <input value={newEmail} onChange={e => setNewEmail(e.target.value)} type="email" inputMode="email"
+                    className="w-full bg-black border border-green-700 px-2 py-1" placeholder="you@example.com" />
+                  <div className="flex gap-2">
+                    <button className="border border-green-700 px-3 py-1" onClick={submitChangeEmail}>Update &amp; send code</button>
+                    <button className="border border-green-700 px-3 py-1 opacity-70" onClick={() => { setShowChange(false); setNewEmail(''); }}>Cancel</button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
