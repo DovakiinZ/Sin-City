@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIN CITY // 04 noir</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{--red:#ff2a3d;--ink:#f5f5f2;--bg:#0a0a0b;--mut:#7d7d82;--line:#242427}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'JetBrains Mono',monospace;min-height:100vh;overflow-x:hidden}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:80;
+    background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.22) 3px,transparent 4px);mix-blend-mode:multiply;opacity:.7}
+  a{color:inherit;text-decoration:none}
+  .back{position:fixed;top:14px;left:16px;z-index:90;font-size:11px;color:var(--mut);border:1px solid var(--line);padding:4px 9px;background:#000}
+  .back:hover{color:var(--red);border-color:var(--red)}
+  .osw{font-family:'Oswald',sans-serif}
+  .wrap{max-width:1080px;margin:0 auto;padding:clamp(18px,4vw,40px)}
+  /* topbar */
+  .topbar{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--ink);padding-bottom:12px;font-size:11px;letter-spacing:.2em;color:var(--mut)}
+  .topbar .brand{font-family:'Oswald',sans-serif;font-weight:700;font-size:16px;letter-spacing:.32em;color:var(--ink)}
+  .topbar .red{color:var(--red)}
+  /* hero */
+  .hero{display:grid;grid-template-columns:1.2fr .8fr;gap:20px;align-items:center;padding:38px 0 30px;border-bottom:1px solid var(--line)}
+  @media(max-width:760px){.hero{grid-template-columns:1fr}}
+  .kicker{font-size:12px;letter-spacing:.4em;color:var(--red);margin-bottom:14px}
+  h1{font-family:'Oswald',sans-serif;font-weight:700;font-size:clamp(52px,11vw,132px);line-height:.86;letter-spacing:-.01em;text-transform:uppercase}
+  h1 .red{color:var(--red)}
+  h1 .out{color:transparent;-webkit-text-stroke:2px var(--ink)}
+  .lede{margin-top:20px;font-size:13px;color:var(--mut);max-width:44ch;line-height:1.7}
+  .lede .cur{display:inline-block;width:8px;height:14px;background:var(--red);vertical-align:-1px;animation:blink 1s steps(1) infinite;margin-left:2px}
+  @keyframes blink{50%{opacity:0}}
+  .cicada{font-size:clamp(9px,1.7vw,13px);line-height:1.05;white-space:pre;color:var(--red);
+    text-shadow:0 0 22px rgba(255,42,61,.5);justify-self:center}
+  /* bento */
+  .sect{font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:.34em;color:var(--mut);margin:30px 0 14px;display:flex;align-items:center;gap:12px}
+  .sect::after{content:"";flex:1;height:1px;background:var(--line)}
+  .bento{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:150px;gap:12px}
+  @media(max-width:760px){.bento{grid-template-columns:repeat(2,1fr)}}
+  .cell{border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;transition:.18s;background:#0d0d0f}
+  .cell:hover{border-color:var(--ink);transform:translateY(-3px)}
+  .cell .no{font-size:11px;color:var(--mut);letter-spacing:.2em}
+  .cell h3{font-family:'Oswald',sans-serif;font-weight:600;font-size:20px;line-height:1.05;text-transform:uppercase}
+  .cell:hover h3{color:var(--red)}
+  .cell .dt{font-size:10px;color:var(--mut);letter-spacing:.16em}
+  .big{grid-column:span 2;grid-row:span 2}
+  .big h3{font-size:34px}
+  .wide{grid-column:span 2}
+  .cell.feat{border-color:var(--red)}
+  .cell.feat::before{content:"FEATURED";position:absolute;top:10px;right:-30px;transform:rotate(45deg);background:var(--red);color:#000;font-size:9px;font-weight:700;padding:3px 34px;letter-spacing:.2em}
+  .foot{margin-top:34px;border-top:2px solid var(--ink);padding-top:14px;font-size:11px;color:var(--mut);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;letter-spacing:.14em}
+</style>
+</head>
+<body>
+<a class="back" href="./index.html">← candidates</a>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">SIN<span class="red">·</span>CITY</div>
+    <div>FEED / ARCHIVE / TERMINAL / ABOUT</div>
+    <div>NODE #03 <span class="red">●</span> LIVE</div>
+  </div>
+
+  <section class="hero">
+    <div>
+      <div class="kicker">AN ASCII BLOG THAT BITES BACK</div>
+      <h1>THE&nbsp;CITY<br/><span class="out">NEVER</span><br/><span class="red">SLEEPS.</span></h1>
+      <p class="lede">dispatches from the wire — cryptography, terminal culture, and the cicada that hums in the dark between posts.<span class="cur"></span></p>
+    </div>
+    <pre class="cicada">        __
+     .-'  '-.
+    /  .--.  \
+   |  / o o \  |
+   |  \  ^  /  |
+    \  '--'  /
+   .-'\____/'-.
+  /   /|  |\   \
+ |   / |  | \   |
+  \_/  |  |  \_/
+       |__|
+      c i c a d a</pre>
+  </section>
+
+  <div class="sect">LATEST DISPATCHES</div>
+  <div class="bento">
+    <div class="cell big feat">
+      <div class="no">01</div>
+      <div>
+        <h3>The Cicada That Would Not Decrypt</h3>
+      </div>
+      <div class="dt">2026.07.14 · COLLAPSINGZ · 7 MIN</div>
+    </div>
+    <div class="cell wide">
+      <div class="no">02</div>
+      <h3>On Silence &amp; The Empty Terminal</h3>
+      <div class="dt">2026.07.09 · DOVAKIIN</div>
+    </div>
+    <div class="cell">
+      <div class="no">03</div>
+      <h3>Matrix Rain, 40 Lines</h3>
+      <div class="dt">2026.07.02</div>
+    </div>
+    <div class="cell">
+      <div class="no">04</div>
+      <h3>Phosphor Love</h3>
+      <div class="dt">2026.06.28</div>
+    </div>
+    <div class="cell wide">
+      <div class="no">05</div>
+      <h3>Decrypt Me: A Puzzle In 3 Parts</h3>
+      <div class="dt">2026.06.20 · COLLAPSINGZ</div>
+    </div>
+    <div class="cell wide">
+      <div class="no">06</div>
+      <h3>Notes From A Dial-Up Ghost</h3>
+      <div class="dt">2026.06.11 · DOVAKIIN</div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>SIN CITY // ⓒ 2026 — ALL WIRES CROSSED</span>
+    <span>UPTIME 42:11:07 · VISITORS 1337</span>
+  </div>
+</div>
+</body>
+</html>

@@ -132,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!mapped) throw new Error("Sign up succeeded but user data is missing.");
           setUser(mapped);
           try {
-            await fetch('/api/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` }, body: JSON.stringify({ channel: 'email' }) });
+            await fetch('/api/verification', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` }, body: JSON.stringify({ action: 'send-otp', channel: 'email' }) });
           } catch { /* non-critical; banner + cron recover */ }
         } else {
           throw new Error("Sign up successful. Please check your email to confirm.");

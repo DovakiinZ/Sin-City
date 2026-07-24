@@ -31,18 +31,18 @@ export function useVerification() {
   const post = async (path: string, body?: unknown) =>
     (await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeader()) }, body: body ? JSON.stringify(body) : undefined })).json().catch(() => ({}));
 
-  const sendEmailOtp = useCallback(() => post('/api/send-otp', { channel: 'email' }), []);
-  const verifyEmailOtp = useCallback(async (code: string) => { const r = await post('/api/verify-otp', { code }); await refresh(); return !!r.verified; }, [refresh]);
+  const sendEmailOtp = useCallback(() => post('/api/verification', { action: 'send-otp', channel: 'email' }), []);
+  const verifyEmailOtp = useCallback(async (code: string) => { const r = await post('/api/verification', { action: 'verify-otp', code }); await refresh(); return !!r.verified; }, [refresh]);
 
   // Phone: Supabase native. Attach + send SMS, then verify, then confirm app-state.
   const startPhone = useCallback(async (phone: string) => { const { error } = await supabase.auth.updateUser({ phone }); if (error) throw error; }, []);
   const verifyPhoneOtp = useCallback(async (phone: string, code: string) => {
     const { error } = await supabase.auth.verifyOtp({ phone, token: code, type: 'phone_change' });
     if (error) throw error;
-    const r = await post('/api/confirm-phone'); await refresh(); return !!r.verified;
+    const r = await post('/api/verification', { action: 'confirm-phone' }); await refresh(); return !!r.verified;
   }, [refresh]);
 
-  const changeEmail = useCallback(async (new_email: string) => { await post('/api/change-email', { new_email }); await refresh(); }, [refresh]);
+  const changeEmail = useCallback(async (new_email: string) => { await post('/api/verification', { action: 'change-email', new_email }); await refresh(); }, [refresh]);
 
   const remaining = s.deadline ? Date.parse(s.deadline) - Date.now() : 0;
   return { ...s, remainingMs: remaining, restricted: s.status !== 'active', sendEmailOtp, verifyEmailOtp, startPhone, verifyPhoneOtp, changeEmail, refresh };

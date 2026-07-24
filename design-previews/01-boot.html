@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIN CITY // 01 boot sequence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{--green:#00ff41;--bg:#040604;--dim:#0e3a19;--text:#57d97a}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;min-height:100vh;overflow-x:hidden;
+    background-image:radial-gradient(120% 80% at 50% 0%, rgba(0,255,65,.10), transparent 55%);}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:80;
+    background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.30) 3px,transparent 4px);mix-blend-mode:multiply}
+  a{color:inherit;text-decoration:none}
+  .back{position:fixed;top:14px;left:16px;z-index:90;font-size:11px;color:#3f8f56;border:1px solid var(--dim);padding:4px 9px;background:#000}
+  .back:hover{color:var(--green);border-color:var(--green)}
+
+  /* BOOT overlay */
+  #boot{position:fixed;inset:0;z-index:70;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:24px;transition:opacity .6s}
+  #boot.done{opacity:0;pointer-events:none}
+  .console{width:min(720px,100%);font-size:13px;line-height:1.7}
+  .console .ln{white-space:pre-wrap}
+  .ok{color:var(--green)}
+  .cicada{color:var(--green);text-shadow:0 0 12px rgba(0,255,65,.5);font-size:12px;line-height:1.05;white-space:pre;margin:14px 0;opacity:0;transition:opacity .5s}
+  .cicada.show{opacity:1}
+  .enter{margin-top:10px;color:#9effb4;opacity:0;transition:opacity .4s}
+  .enter.show{opacity:1}
+  .cur{display:inline-block;width:9px;height:15px;background:var(--green);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  /* SITE */
+  .site{max-width:900px;margin:0 auto;padding:70px 22px 60px}
+  header.h{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--dim);padding-bottom:16px;gap:14px;flex-wrap:wrap}
+  .logo{font-weight:800;font-size:clamp(26px,5vw,40px);color:var(--green);text-shadow:0 0 16px rgba(0,255,65,.45);letter-spacing:.04em}
+  .cbanner{font-size:8px;line-height:1;white-space:pre;color:var(--green);opacity:.85;text-shadow:0 0 8px rgba(0,255,65,.4)}
+  nav{display:flex;gap:16px;font-size:12px;color:#4fbf72;flex-wrap:wrap}
+  nav a:hover{color:var(--green)}
+  .sub{font-size:12px;color:#3f8f56;letter-spacing:.24em;margin:16px 0 30px}
+  .post{border:1px solid var(--dim);padding:18px 18px 16px;margin-bottom:14px;background:linear-gradient(180deg,rgba(0,255,65,.03),transparent);transition:.16s}
+  .post:hover{border-color:var(--green);box-shadow:0 0 0 1px rgba(0,255,65,.2)}
+  .pmeta{font-size:11px;color:#3f8f56;display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+  .ptitle{font-size:19px;font-weight:700;color:#c9ffd6;margin-bottom:6px}
+  .post:hover .ptitle{color:var(--green)}
+  .pexc{font-size:13px;color:#4fbf72;line-height:1.5}
+  .tags{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+  .tags span{font-size:10px;border:1px solid var(--dim);padding:1px 7px;color:#3f8f56}
+  footer.f{margin-top:34px;border-top:1px solid var(--dim);padding-top:14px;font-size:11px;color:#3f8f56;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+<a class="back" href="./index.html">← candidates</a>
+
+<div id="boot">
+  <div class="console">
+    <div id="log"></div>
+    <div class="cicada" id="cicada">         ,_      _,
+          '.\    /.'
+           |.\  /.|      ((
+           :  \/  :     //
+     ______|.'  '.|____//______
+       welcome to  S I N  C I T Y
+</div>
+    <div class="enter" id="enter">> access granted. press any key to enter <span class="cur"></span></div>
+  </div>
+</div>
+
+<div class="site">
+  <header class="h">
+    <div>
+      <div class="logo">SIN CITY</div>
+    </div>
+    <pre class="cbanner">   ,_   _,
+    '.\ /.'
+     |.V.|
+     :   :
+    _|' '|_</pre>
+    <nav>
+      <a>~/feed</a><a>~/archive</a><a>~/terminal</a><a>~/about</a>
+    </nav>
+  </header>
+  <div class="sub">// ascii blog &amp; playground · matrix-green · node #03</div>
+
+  <article class="post">
+    <div class="pmeta"><span>2026.07.14</span><span>~/collapsingz</span><span>7 min read</span></div>
+    <div class="ptitle">the cicada that would not decrypt</div>
+    <div class="pexc">seventeen years underground and it emerges only to sing a single prime. i have been staring at the same hex dump for three nights. the answer, i think, is patience...</div>
+    <div class="tags"><span>#crypto</span><span>#cicada</span><span>#3301</span></div>
+  </article>
+
+  <article class="post">
+    <div class="pmeta"><span>2026.07.09</span><span>~/dovakiin</span><span>4 min read</span></div>
+    <div class="ptitle">on silence, and the shape of an empty terminal</div>
+    <div class="pexc">a blinking cursor is a held breath. before the first keystroke the machine offers you infinite futures. we call it a prompt because it is asking you a question...</div>
+    <div class="tags"><span>#essay</span><span>#terminal</span></div>
+  </article>
+
+  <article class="post">
+    <div class="pmeta"><span>2026.07.02</span><span>~/collapsingz</span><span>11 min read</span></div>
+    <div class="ptitle">building a matrix rain in 40 lines of canvas</div>
+    <div class="pexc">the konami code should always do something. here is the something i chose: falling katakana, variable speed, green phosphor bleed. code and a live demo inside...</div>
+    <div class="tags"><span>#code</span><span>#canvas</span><span>#easter-egg</span></div>
+  </article>
+
+  <footer class="f">
+    <span>SIN CITY // powered by caffeine &amp; nostalgia</span>
+    <span>uptime 42:11:07 · visitors 1337</span>
+  </footer>
+</div>
+
+<script>
+  const lines = [
+    "> booting sin.city v3.301 ......................",
+    "> loading kernel ............................ [OK]",
+    "> mounting /dev/dreams ...................... [OK]",
+    "> checking phosphor tube .................... [OK]",
+    "> establishing uplink @ 2400 baud .......... [OK]",
+    "> decrypting cicada.key ..................... [OK]",
+    "> spawning ascii daemon ..................... [OK]",
+  ];
+  const log = document.getElementById('log');
+  const cicada = document.getElementById('cicada');
+  const enter = document.getElementById('enter');
+  const boot = document.getElementById('boot');
+  let i = 0;
+  function typeLine(){
+    if(i >= lines.length){ cicada.classList.add('show'); setTimeout(()=>enter.classList.add('show'),450); armDismiss(); return; }
+    const el = document.createElement('div');
+    el.className = 'ln';
+    log.appendChild(el);
+    const text = lines[i]; let c = 0;
+    const raw = text.replace('[OK]','');
+    const t = setInterval(()=>{
+      el.textContent = raw.slice(0,c);
+      if(c >= raw.length){ clearInterval(t); el.innerHTML = raw + '<span class="ok">[OK]</span>'.replace('[OK]', text.includes('[OK]')?'[OK]':''); if(!text.includes('[OK]')) el.textContent=raw; i++; setTimeout(typeLine, 120); }
+      c += 3;
+    }, 8);
+  }
+  function armDismiss(){
+    const dismiss = ()=>{ boot.classList.add('done'); window.removeEventListener('keydown',dismiss); window.removeEventListener('click',dismiss); };
+    window.addEventListener('keydown', dismiss);
+    window.addEventListener('click', dismiss);
+    setTimeout(()=>{ if(!boot.classList.contains('done')) boot.classList.add('done'); }, 6000);
+  }
+  typeLine();
+</script>
+</body>
+</html>

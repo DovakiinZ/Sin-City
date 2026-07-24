@@ -21,7 +21,7 @@ jobs:
       - name: Trigger enforcement endpoint
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          ENDPOINT: https://cicada.city/api/cron/enforce-email-verification
+          ENDPOINT: https://cicada.city/api/verification?action=cron
         run: |
           code=$(curl -sS -o /tmp/resp.json -w '%{http_code}' \
             -H "Authorization: Bearer ${CRON_SECRET}" "${ENDPOINT}")

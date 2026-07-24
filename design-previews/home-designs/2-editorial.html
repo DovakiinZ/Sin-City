@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIN CITY // 02 cryptic editorial</title>
+<link rel="stylesheet" href="./base.css" />
+<style>
+  body{background-image:radial-gradient(70% 50% at 50% 30%, rgba(0,255,65,.06), transparent 70%)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 clamp(16px,4vw,40px) 80px}
+  /* header */
+  header{display:flex;align-items:center;justify-content:space-between;padding:26px 0 18px}
+  .logo{font-weight:800;font-size:26px;color:var(--green);letter-spacing:.14em;text-shadow:0 0 14px var(--glow)}
+  .hicons{display:flex;align-items:center;gap:16px;color:var(--muted);font-size:14px}
+  .hicons span{cursor:pointer}.hicons span:hover{color:var(--green)}
+  /* epigraph hero */
+  .hero{text-align:center;padding:40px 0 30px;border-top:1px solid var(--dim);border-bottom:1px solid var(--dim);position:relative;overflow:hidden}
+  .hero .greek{font-size:clamp(11px,2vw,14px);letter-spacing:.34em;color:var(--muted);line-height:2}
+  .hero .moth{font-size:34px;color:var(--green);opacity:.5;margin:14px 0 6px;text-shadow:0 0 20px var(--glow)}
+  .hero .sub{font-size:12px;color:var(--muted);letter-spacing:.28em}
+  .layout{display:grid;grid-template-columns:1fr 240px;gap:44px;margin-top:40px}
+  @media(max-width:820px){.layout{grid-template-columns:1fr;gap:30px}}
+  /* feed */
+  .barline{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px;
+    letter-spacing:.2em;margin-bottom:26px}
+  .barline .new{border:1px solid var(--green);color:var(--green);padding:5px 14px;letter-spacing:.1em}
+  .barline .new:hover{background:var(--green);color:#000;cursor:pointer}
+  .post{padding:26px 0;border-bottom:1px solid var(--dim)}
+  .post .meta{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--muted);margin-bottom:14px}
+  .post .meta .who{color:var(--hi)}
+  .post h2{font-size:20px;color:var(--hi);font-weight:600;line-height:1.4;margin-bottom:14px}
+  .post h2.rtl{direction:rtl;text-align:right}
+  .post .imgph{height:260px;border:1px solid var(--dim);display:grid;place-items:center;color:var(--muted);
+    background:repeating-linear-gradient(45deg,#020402 0 12px,#050805 12px 24px);margin-bottom:16px}
+  .post .imgph .play{width:52px;height:52px;border:1px solid var(--green);border-radius:50%;display:grid;place-items:center;color:var(--green);box-shadow:0 0 16px var(--glow)}
+  .post .act{display:flex;gap:26px;color:var(--muted);font-size:13px}
+  .post .act span{cursor:pointer}.post .act span:hover{color:var(--green)}
+  /* aside */
+  aside .block{margin-bottom:34px}
+  aside .lbl{font-size:11px;letter-spacing:.3em;color:var(--muted);border-bottom:1px solid var(--dim);padding-bottom:8px;margin-bottom:14px}
+  .search{width:100%;background:transparent;border:none;border-bottom:1px solid var(--dim);color:var(--green);
+    font:inherit;padding:6px 0;outline:none}
+  .nav a{display:block;padding:6px 0;color:var(--text);font-size:14px}
+  .nav a:hover{color:var(--green);padding-left:8px;transition:.15s}
+  .music{font-size:13px}
+  .music .np{color:var(--hi)}
+  .music .bar{height:4px;background:var(--dim);margin:10px 0;position:relative}
+  .music .bar i{position:absolute;inset:0 70% 0 0;background:var(--green)}
+  .music .ctrl{display:flex;gap:14px;color:var(--muted);font-size:16px}
+  .music .ctrl span{cursor:pointer}.music .ctrl span:hover{color:var(--green)}
+  .sys{font-size:12px}.sys div{display:flex;justify-content:space-between;padding:4px 0;color:var(--muted)}
+  .sys b{color:var(--text);font-weight:400}
+</style>
+</head>
+<body>
+<a class="back" href="./index.html">← candidates</a>
+<div class="wrap">
+  <header>
+    <div class="logo">SIN CITY</div>
+    <div class="hicons"><span>⁝</span><span>✉</span><span class="av sm"></span></div>
+  </header>
+
+  <section class="hero">
+    <div class="greek">ἆρα · ἀληθῶς · ἐβίων; · ἡ · ἀμφιβολία · σχεδόν · με · κατέχει</div>
+    <div class="moth">☾</div>
+    <div class="sub">ASCII BLOG &amp; PLAYGROUND · NODE #03</div>
+  </section>
+
+  <div class="layout">
+    <main>
+      <div class="barline">
+        <span>LATEST · RECENT ▾</span>
+        <span class="new">+ NEW POST</span>
+      </div>
+
+      <article class="post">
+        <div class="meta"><span class="av sm"></span><span class="who">@v4xd</span><span class="badge">ADMIN</span><span>· 2 days ago · 10:26 PM</span></div>
+        <h2 class="rtl">منورة نايمة</h2>
+        <div class="imgph"><div class="play">▶</div></div>
+        <div class="act"><span>♥ 12</span><span>save</span><span>comment · 3</span></div>
+      </article>
+
+      <article class="post">
+        <div class="meta"><span class="av sm"></span><span class="who">@v4xd</span><span class="badge">ADMIN</span><span>· 3 days ago · 09:44 PM</span></div>
+        <h2>decrypting the cicada — night three, and the answer is still patience.</h2>
+        <div class="act"><span>♥ 31</span><span>save</span><span>comment · 7</span></div>
+      </article>
+    </main>
+
+    <aside>
+      <div class="block">
+        <input class="search" placeholder="search posts…" />
+      </div>
+      <div class="block music">
+        <div class="lbl">HEAR THIS · 1/11</div>
+        <div class="np">ويشكا ؟</div>
+        <div class="bar"><i></i></div>
+        <div class="ctrl"><span>⏮</span><span>▶</span><span>⏭</span><span>■</span></div>
+      </div>
+      <div class="block nav">
+        <div class="lbl">NAVIGATE</div>
+        <a>Home</a><a>Create Post</a><a>ASCII Tools</a><a>Leaderboard</a><a>Posts</a><a>Admin Console</a><a>Profile</a><a>Logout</a>
+      </div>
+      <div class="block sys">
+        <div class="lbl">SYSTEM</div>
+        <div><span>status</span><b>ONLINE</b></div>
+        <div><span>mode</span><b>ASCII</b></div>
+        <div><span>theme</span><b>TERMINAL</b></div>
+        <div><span>user</span><b>v4xd</b></div>
+      </div>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

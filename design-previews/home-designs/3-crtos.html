@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIN CITY // 03 crt os</title>
+<link rel="stylesheet" href="./base.css" />
+<style>
+  body{background-image:radial-gradient(100% 60% at 50% 0%, rgba(0,255,65,.05), transparent 55%);font-size:13px}
+  /* menubar */
+  .menubar{position:sticky;top:0;z-index:120;display:flex;align-items:center;gap:2px;padding:5px 10px;
+    background:#021008;border-bottom:1px solid var(--dim);font-size:12px;flex-wrap:wrap}
+  .menubar .os{font-weight:800;color:var(--green);text-shadow:0 0 10px var(--glow);margin-right:12px}
+  .menubar a{padding:3px 9px;color:var(--text)}.menubar a:hover{background:var(--green);color:#000}
+  .menubar .sp{flex:1}
+  .menubar .clock{color:var(--muted)}
+  .desktop{padding:18px clamp(12px,2.5vw,26px);display:grid;grid-template-columns:290px 1fr;gap:16px;align-items:start;max-width:1200px;margin:0 auto}
+  @media(max-width:820px){.desktop{grid-template-columns:1fr}}
+  .win{border:1px solid var(--dim);background:linear-gradient(180deg,rgba(0,255,65,.03),rgba(0,0,0,.25));
+    box-shadow:0 0 0 1px rgba(0,0,0,.5),0 14px 46px -26px var(--glow);margin-bottom:16px}
+  .tb{display:flex;align-items:center;gap:8px;padding:5px 9px;background:rgba(0,255,65,.07);border-bottom:1px solid var(--dim)}
+  .tb .t{font-weight:600;color:var(--hi);letter-spacing:.08em;font-size:12px}
+  .tb .dots{margin-left:auto;display:flex;gap:6px}
+  .dot{width:11px;height:11px;border:1px solid var(--dim);display:grid;place-items:center;font-size:9px;color:var(--muted)}
+  .dot:hover{border-color:var(--green);color:var(--green)}
+  .wb{padding:12px 14px}
+  .row{display:flex;justify-content:space-between;padding:5px 2px;font-size:12px;border-bottom:1px dotted var(--dim)}
+  .row:last-child{border:none}.row b{color:var(--hi);font-weight:500}
+  .bar{height:7px;border:1px solid var(--dim);width:120px;position:relative;overflow:hidden}
+  .bar i{position:absolute;inset:0 auto 0 0;background:var(--green);box-shadow:0 0 8px var(--glow)}
+  .nav a{display:block;padding:5px 4px;font-size:13px}.nav a:hover{background:rgba(0,255,65,.06);color:var(--green)}
+  .music .ctrl{display:flex;gap:6px;margin-top:8px}
+  .music .ctrl span{border:1px solid var(--dim);padding:3px 9px;cursor:pointer}.music .ctrl span:hover{border-color:var(--green);color:var(--green)}
+  /* feed window */
+  .toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--dim)}
+  .toolbar input{background:transparent;border:1px solid var(--dim);color:var(--green);font:inherit;padding:4px 8px;outline:none;flex:1}
+  .toolbar .new{border:1px solid var(--green);color:var(--green);padding:4px 12px;cursor:pointer}
+  .post{border-bottom:1px solid var(--dim);padding:12px 14px}
+  .post .h{display:flex;align-items:center;gap:10px;font-size:12px;margin-bottom:10px}
+  .post .h .who{color:var(--hi);font-weight:600}.post .h .t{color:var(--muted);margin-left:auto}
+  .post .txt{font-size:14px;margin-bottom:10px}.post .rtl{direction:rtl;text-align:right}
+  .imgph{height:210px;border:1px solid var(--dim);display:grid;place-items:center;
+    background:repeating-linear-gradient(45deg,#020402 0 10px,#050805 10px 20px)}
+  .imgph .play{width:46px;height:46px;border:1px solid var(--green);border-radius:50%;display:grid;place-items:center;color:var(--green);box-shadow:0 0 14px var(--glow)}
+  .act{display:flex;gap:18px;margin-top:10px;color:var(--muted);font-size:12px}
+  .act span:hover{color:var(--green);cursor:pointer}
+  .taskbar{position:fixed;bottom:0;left:0;right:0;z-index:120;display:flex;align-items:center;gap:8px;padding:6px 12px;
+    background:#021008;border-top:1px solid var(--dim);font-size:11px;color:var(--muted)}
+  .chip{border:1px solid var(--dim);padding:3px 10px}.chip.on{border-color:var(--green);color:var(--green)}
+  .taskbar .sp{flex:1}
+  .desktop{padding-bottom:56px}
+</style>
+</head>
+<body>
+<a class="back" href="./index.html">← candidates</a>
+<div class="menubar">
+  <span class="os">◈ sin.os</span>
+  <a>File</a><a>View</a><a>Feed</a><a>Cicada</a><a>Help</a>
+  <span class="sp"></span>
+  <span class="clock" id="clk">--:--:--</span>
+</div>
+
+<div class="desktop">
+  <!-- left stack of windows -->
+  <div>
+    <div class="win">
+      <div class="tb"><span class="t">▤ profile</span><span class="dots"><span class="dot">_</span><span class="dot">▢</span><span class="dot">✕</span></span></div>
+      <div class="wb" style="display:flex;align-items:center;gap:12px">
+        <span class="av"></span>
+        <div><div style="color:var(--hi)">@v4xd <span class="badge">ADMIN</span></div><div style="color:var(--muted);font-size:11px">seeker · node #03</div></div>
+      </div>
+    </div>
+    <div class="win music">
+      <div class="tb"><span class="t">▤ hear this · 1/11</span><span class="dots"><span class="dot">_</span><span class="dot">▢</span><span class="dot">✕</span></span></div>
+      <div class="wb">
+        <div style="color:var(--hi)">ويشكا ؟</div>
+        <div style="color:var(--muted);font-size:11px">YouTube Music · LIVE</div>
+        <div class="ctrl"><span>⏮</span><span>▶</span><span>⏭</span><span>■</span></div>
+      </div>
+    </div>
+    <div class="win nav">
+      <div class="tb"><span class="t">▤ navigation</span><span class="dots"><span class="dot">_</span><span class="dot">▢</span><span class="dot">✕</span></span></div>
+      <div class="wb">
+        <a>→ Home</a><a>→ Create Post</a><a>→ ASCII Tools</a><a>→ Leaderboard</a><a>→ Posts</a><a>→ Admin Console</a><a>→ Profile</a><a>→ Logout</a>
+      </div>
+    </div>
+    <div class="win">
+      <div class="tb"><span class="t">▤ sysmon</span><span class="dots"><span class="dot">_</span><span class="dot">▢</span><span class="dot">✕</span></span></div>
+      <div class="wb">
+        <div class="row"><span>CPU</span><span class="bar"><i style="right:97%"></i></span><b>3%</b></div>
+        <div class="row"><span>MEM</span><span class="bar"><i style="right:58%"></i></span><b>42%</b></div>
+        <div class="row"><span>STATUS</span><b>● ONLINE</b></div>
+        <div class="row"><span>THEME</span><b>TERMINAL</b></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- feed window -->
+  <div class="win">
+    <div class="tb"><span class="t">▤ feed.exe — ~/feed</span><span class="dots"><span class="dot">_</span><span class="dot">▢</span><span class="dot">✕</span></span></div>
+    <div class="toolbar">
+      <input placeholder="grep posts… (press /)" />
+      <span>Recent ▾</span>
+      <span class="new">+ Post</span>
+    </div>
+    <div class="post">
+      <div class="h"><span class="av sm"></span><span class="who">@v4xd</span><span class="badge">ADMIN</span><span class="t">2 days ago · 10:26 PM</span></div>
+      <div class="txt rtl">منورة نايمة</div>
+      <div class="imgph"><div class="play">▶</div></div>
+      <div class="act"><span>♥ 12</span><span>⌘ save</span><span>✎ 3</span></div>
+    </div>
+    <div class="post">
+      <div class="h"><span class="av sm"></span><span class="who">@v4xd</span><span class="badge">ADMIN</span><span class="t">3 days ago · 09:44 PM</span></div>
+      <div class="txt">decrypting the cicada, night three. the answer is patience.</div>
+      <div class="act"><span>♥ 31</span><span>⌘ save</span><span>✎ 7</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="taskbar">
+  <span class="chip on">▤ feed.exe</span><span class="chip">▤ sysmon</span><span class="chip">▤ hear this</span>
+  <span class="sp"></span><span>sin.os v3.301 · green phosphor</span>
+</div>
+<script>
+  function tick(){const d=new Date();document.getElementById('clk').textContent=d.toTimeString().slice(0,8);}
+  setInterval(tick,1000);tick();
+</script>
+</body>
+</html>

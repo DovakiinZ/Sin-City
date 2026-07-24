@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeDeadline, remainingMs, isVerified, isRestricted, shouldRestrict,
   dueReminderStage, canResendUser, otpAttemptsExceeded, generateOtp, GRACE_MS,
-} from '../verification-state';
+} from '../lib/verification-state';
 
 const base = {
   created_at: '2026-07-25T00:00:00Z',
