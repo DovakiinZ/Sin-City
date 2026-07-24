@@ -12,6 +12,7 @@ import UserManagement from "@/components/admin/UserManagement";
 import GuestManagement from "@/components/admin/GuestManagement";
 import SettingsManagement from "@/components/admin/SettingsManagement";
 import AnalyticsDashboard from "@/components/admin/AnalyticsDashboard";
+import VerificationPanel from "@/components/admin/VerificationPanel";
 
 const POSTS_PER_PAGE = 20;
 
@@ -238,6 +239,7 @@ export default function AdminDashboard() {
                         <TabsTrigger value="users" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
                             <Users className="w-4 h-4 mr-2" /> Users
                         </TabsTrigger>
+                        <TabsTrigger value="verification" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">Verification</TabsTrigger>
                         <TabsTrigger value="guests" className="data-[state=active]:bg-ascii-highlight data-[state=active]:text-black ascii-text">
                             <UserX className="w-4 h-4 mr-2" /> Guests
                         </TabsTrigger>
@@ -372,6 +374,8 @@ export default function AdminDashboard() {
                     <TabsContent value="users" className="mt-4">
                         <UserManagement />
                     </TabsContent>
+
+                    <TabsContent value="verification" className="mt-4"><VerificationPanel /></TabsContent>
 
                     <TabsContent value="guests" className="mt-4">
                         <GuestManagement initialGuestId={initialGuestId} />

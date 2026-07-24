@@ -46,6 +46,9 @@ import useGuestFingerprint from "./hooks/useGuestFingerprint";
 import useAnalytics from "./hooks/useAnalytics";
 import EasterEggs from "./components/effects/EasterEggs";
 import { useSpotifyPresence } from "./hooks/useSpotifyPresence";
+import VerifyEmailBanner from "@/components/VerifyEmailBanner";
+import RestrictionGuard from "@/components/RestrictionGuard";
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 
 const queryClient = new QueryClient();
 
@@ -115,36 +118,40 @@ const AppContent = () => {
     <>
       <ScanlineEffect />
       {showTerminal && <TerminalCommand onClose={() => setShowTerminal(false)} />}
+      <VerifyEmailBanner />
       <PageTransition>
         <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="text-primary animate-pulse">Loading...</div></div>}>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/manage" element={<ManagePosts />} />
-            <Route path="/posts" element={<Posts />} />
-            <Route path="/post/:slug" element={<PostDetail />} />
-            <Route path="/thread/:threadId" element={<ThreadView />} />
-            <Route path="/search" element={<SearchResults />} />
-            <Route path="/user/:username" element={<UserProfile />} />
-            <Route path="/u/:username" element={<UserProfile />} />
-            <Route path="/bookmarks" element={<Bookmarks />} />
-            <Route path="/drafts" element={<Drafts />} />
-            <Route path="/create" element={<CreatePost />} />
-            <Route path="/admin/mfa" element={<AdminMFAEnrollment />} />
-            <Route path="/crowd" element={<AdminDashboard />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/ascii" element={<AsciiTools />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/profile/edit" element={<ProfileEdit />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <RestrictionGuard>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/manage" element={<ManagePosts />} />
+              <Route path="/posts" element={<Posts />} />
+              <Route path="/post/:slug" element={<PostDetail />} />
+              <Route path="/thread/:threadId" element={<ThreadView />} />
+              <Route path="/search" element={<SearchResults />} />
+              <Route path="/user/:username" element={<UserProfile />} />
+              <Route path="/u/:username" element={<UserProfile />} />
+              <Route path="/bookmarks" element={<Bookmarks />} />
+              <Route path="/drafts" element={<Drafts />} />
+              <Route path="/create" element={<CreatePost />} />
+              <Route path="/admin/mfa" element={<AdminMFAEnrollment />} />
+              <Route path="/crowd" element={<AdminDashboard />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/ascii" element={<AsciiTools />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/edit" element={<ProfileEdit />} />
+              <Route path="/chat" element={<ChatPage />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="/verify" element={<VerifyEmail />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </RestrictionGuard>
         </Suspense>
       </PageTransition>
 
