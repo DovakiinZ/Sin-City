@@ -50,6 +50,8 @@ CREATE TABLE IF NOT EXISTS public.verification_rate_limits (
   window_start timestamptz NOT NULL DEFAULT now(),
   count int NOT NULL DEFAULT 0
 );
+ALTER TABLE public.verification_rate_limits ENABLE ROW LEVEL SECURITY;
+-- No policies: only the service role (which bypasses RLS) may access this table.
 
 CREATE OR REPLACE FUNCTION public.is_admin(uid uuid)
 RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
@@ -106,6 +108,7 @@ WHERE NOT EXISTS (SELECT 1 FROM public.user_verification v WHERE v.user_id = u.i
 ON CONFLICT (user_id) DO NOTHING;
 
 ALTER TABLE public.user_verification ENABLE ROW LEVEL SECURITY;
+-- Read-only for clients; ALL writes go through the service role / SECURITY DEFINER functions (no client INSERT/UPDATE/DELETE policy by design).
 DROP POLICY IF EXISTS "own verification readable" ON public.user_verification;
 CREATE POLICY "own verification readable" ON public.user_verification
   FOR SELECT USING (auth.uid() = user_id OR public.is_admin(auth.uid()));

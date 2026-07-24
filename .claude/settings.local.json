@@ -6,7 +6,10 @@
       "Bash(git fetch:*)",
       "Bash(git:*)",
       "Bash(npx create-expo-app@latest:*)",
-      "Bash(wmic logicaldisk:*)"
+      "Bash(wmic logicaldisk:*)",
+      "Bash(curl *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\yaman\\\\Desktop\\\\Sin-City\" -Recurse -Force)",
+      "Bash(Select-Object FullName)"
     ]
   }
 }
