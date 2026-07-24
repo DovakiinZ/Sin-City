@@ -26,3 +26,8 @@ dist-ssr
 .preview.pid
 .vercel
 .env*
+
+# CLI scratch / local secrets (never commit)
+.superpowers/
+supabase/.temp/
+.env.local
