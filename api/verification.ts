@@ -1,10 +1,10 @@
 // api/verification.ts — single Vercel function; dispatches on ?action= or body.action
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { getServiceClient, getVerification, updateVerification, logEvent, hashOtp } from '../lib/verification-db';
-import { canResendUser, generateOtp, OTP_TTL_MS, otpAttemptsExceeded, dueReminderStage, stageBit, remainingMs, GRACE_MS } from '../lib/verification-state';
-import { sendOtpEmail, sendReminderEmail } from '../lib/verification-email';
-import { getClientIP, hashIP } from './lib/ip-utils';
+import { getServiceClient, getVerification, updateVerification, logEvent, hashOtp } from '../lib/verification-db.js';
+import { canResendUser, generateOtp, OTP_TTL_MS, otpAttemptsExceeded, dueReminderStage, stageBit, remainingMs, GRACE_MS } from '../lib/verification-state.js';
+import { sendOtpEmail, sendReminderEmail } from '../lib/verification-email.js';
+import { getClientIP, hashIP } from './lib/ip-utils.js';
 
 const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const anon = process.env.VITE_SUPABASE_ANON_KEY || '';
