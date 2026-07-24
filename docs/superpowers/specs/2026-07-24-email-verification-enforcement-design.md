@@ -197,6 +197,73 @@ DB-level behaviors (RLS block on restricted, trigger restore) documented as manu
 integration checks since no DB test harness exists; the decision logic they depend on
 is unit-tested above.
 
+## Amendments (approved 2026-07-24, post-design)
+
+### A. Restriction scope (exact allow / deny)
+**Overdue or suspended users MAY:** sign in; view existing content; open the
+verify-email page; resend the verification link; **change their email address**; edit
+a **limited set of non-sensitive profile fields** (display name, bio, avatar); log
+out; contact support.
+**They MUST NOT:** create/edit posts; create comments/replies; send direct messages;
+like/follow/react or any social interaction; upload files/media; create requests or
+other sensitive business actions.
+Enforced at **DB (RLS) + API**, not only frontend. The `account_can_write()` helper
+gates all deny-list tables. Email-change and the whitelisted profile fields are
+explicitly exempted from the gate.
+
+### B. Reminder schedule (replaces the single-reminder model)
+Send reminders at three triggers: **(1)** 2 days after signup; **(2)** < 48h
+remaining; **(3)** < 6h remaining. **Never more than one reminder per rolling 24h.**
+Data-model change: replace `verification_reminder_sent_at` with:
+- `reminders_sent` `int` bitmask (bit0=stage1, bit1=stage2, bit2=stage3), default 0.
+- `last_reminder_sent_at` `timestamptz null` — enforces the 24h floor.
+Each stage fires once (bit guard) **and** only if `now - last_reminder_sent_at >= 24h`.
+Fully idempotent; emits `VerificationReminderSent` with `{stage}` metadata.
+
+### C. Tokens (hardening)
+Verification tokens are **single-use** (cleared/marked consumed on first success),
+**hashed at rest** (SHA-256; raw token only in the emailed URL), and **expire**
+(`token_expires_at`, default 24h). Verifying or re-sending replaces any prior token.
+
+### D. Email change
+Changing email **invalidates all existing tokens** (null `token_hash`/`token_expires_at`),
+sets `email_verified_at = NULL`, updates `email`, and re-enters the unverified flow.
+**Deadline policy:** the original `verification_deadline` is **retained** (changing
+email does not buy a fresh 5-day window) unless the account was already restored/
+verified, in which case a new deadline of `now + 5d` is issued. Emits an audit event.
+
+### E. Endpoint hygiene / anti-enumeration
+`send-email-verification` and `verify-email` **never reveal whether an email/account
+exists**. Resend always returns a generic "if eligible, a link was sent" response;
+verify returns generic success/failure without distinguishing "no such user" from
+"bad token". Timing kept uniform where practical.
+
+### F. Rate limiting (user + IP)
+Resend/verify are rate-limited on **both** dimensions:
+- Per user: cooldown 60s; ≤ 5 sends / 24h (existing `last_sent_at`/`send_count`).
+- Per IP: sliding window (e.g. ≤ 10 verification-email requests / hour / IP), stored
+  in a small `verification_rate_limits` table keyed by `ip_hash` (reuses
+  `api/lib/ip-utils.ts`). Exceeding either returns the same generic throttled response.
+
+### G. Admin: manual verify / restore (fully audited)
+Service-role/admin RPC `admin_verify_user(target uuid, reason text)` and
+`admin_restore_user(target uuid, reason text)`: set `email_verified_at`/`account_status
+= active`, clear suspension fields, and write `EmailVerified` / `AccountRestored`
+audit rows tagged `{by: <admin_id>, reason, manual: true}`. Guarded by an
+`is_admin(auth.uid())` check.
+
+### H. Admin view
+Admin dashboard panel listing, per user: verification status, `verification_deadline`,
+remaining time, reminder history (stages + timestamps from `reminders_sent` /
+`verification_events`), and suspension reason/`suspended_at`. Read-only + the two
+manual actions from (G).
+
+### I. Probe user lifecycle
+Keep the throwaway probe user during implementation for flow validation. After the
+verification-flow tests pass, an implementation step deletes it via the admin API and
+records the deletion in `verification_events` (`event_type` metadata `{probe_cleanup:
+true}`).
+
 ## Out of scope (YAGNI)
 
 - Self-service recovery for the terminal `suspended` state (admin restores).
