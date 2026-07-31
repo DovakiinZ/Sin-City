@@ -70,7 +70,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         email: user.email,
       });
       const err = await sendOtpEmail(user.email, code);
-      if (!err) await logEvent(user.id, 'VerificationOtpSent', { channel: 'email', ip_hash: ipHash });
+      if (!err) {
+        await logEvent(user.id, 'VerificationOtpSent', { channel: 'email', ip_hash: ipHash });
+      } else {
+        // Never surface the reason to the client (anti-enumeration), but a failed send
+        // must not be silent — record it in logs + the events table so it's diagnosable.
+        console.error('[send-otp] email send failed:', err);
+        await logEvent(user.id, 'VerificationOtpSendFailed', { channel: 'email', error: err });
+      }
       return generic();
     } catch (e) {
       console.error('[send-otp]', e);
