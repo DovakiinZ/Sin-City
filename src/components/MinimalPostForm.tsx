@@ -48,6 +48,12 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
     const [pollQuestion, setPollQuestion] = useState("");
     const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
 
+    // Hyperlink state
+    const [showLinkInput, setShowLinkInput] = useState(false);
+    const [linkText, setLinkText] = useState("");
+    const [linkUrl, setLinkUrl] = useState("");
+    const selectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
+
     // Spotify state
     const [spotifySearchQuery, setSpotifySearchQuery] = useState("");
     const [spotifySearchResults, setSpotifySearchResults] = useState<any[]>([]);
@@ -78,6 +84,45 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
 
     // Get first music URL for preview
     const musicPreviewUrl = detectedUrls.find(u => u.type === 'spotify' || u.type === 'youtube')?.url;
+
+    const openLinkInput = () => {
+        const ta = textareaRef.current;
+        const start = ta?.selectionStart ?? content.length;
+        const end = ta?.selectionEnd ?? start;
+        selectionRef.current = { start, end };
+        setLinkText(content.slice(start, end));
+        setLinkUrl("");
+        setShowLinkInput(true);
+    };
+
+    const insertLink = () => {
+        const raw = linkUrl.trim();
+        if (!raw) return;
+        const url = /^(https?:\/\/|mailto:|\/)/i.test(raw) ? raw : `https://${raw}`;
+        const label = linkText.trim() || url;
+        const escape = (s: string) => s
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        const anchor = `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer" class="text-green-400 underline hover:text-green-300 break-all">${escape(label)}</a>`;
+
+        const { start, end } = selectionRef.current;
+        setContent(content.slice(0, start) + anchor + content.slice(end));
+
+        setShowLinkInput(false);
+        setLinkText("");
+        setLinkUrl("");
+
+        requestAnimationFrame(() => {
+            const ta = textareaRef.current;
+            if (ta) {
+                const pos = start + anchor.length;
+                ta.focus();
+                ta.setSelectionRange(pos, pos);
+            }
+        });
+    };
 
     const addMusic = (url: string) => {
         if (!url.trim()) return;
@@ -234,6 +279,9 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
         setSelectedGif(null);
         setIsRegisteredOnly(false);
         setShowMusicInput(false);
+        setShowLinkInput(false);
+        setLinkText("");
+        setLinkUrl("");
         setShowPollInput(false);
         setPollQuestion("");
         setPollOptions(["", ""]);
@@ -260,6 +308,12 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
                         onChange={(e) => setContent(e.target.value)}
                         onFocus={() => setIsFocused(true)}
                         onBlur={() => setIsFocused(false)}
+                        onKeyDown={(e) => {
+                            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                                e.preventDefault();
+                                openLinkInput();
+                            }
+                        }}
                         dir="auto"
                         style={{
                             textAlign: contentIsArabic ? 'right' : 'left',
@@ -328,6 +382,61 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
                                         </button>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Hyperlink Input */}
+                    {showLinkInput && (
+                        <div className="px-4 pb-3 relative z-50">
+                            <div className="border border-green-900/30 bg-black/30 rounded-lg p-3 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-green-400 font-medium flex items-center gap-1.5">
+                                        <Link2 className="w-3.5 h-3.5" /> Add Link
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowLinkInput(false); setLinkText(""); setLinkUrl(""); }}
+                                        className="text-gray-500 hover:text-red-400"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                <input
+                                    type="text"
+                                    dir="auto"
+                                    placeholder="Text to display..."
+                                    value={linkText}
+                                    onChange={(e) => setLinkText(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') { e.preventDefault(); insertLink(); }
+                                        if (e.key === 'Escape') setShowLinkInput(false);
+                                    }}
+                                    className="w-full bg-gray-900/50 border border-green-900/30 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-green-500/50"
+                                    autoFocus
+                                />
+                                <input
+                                    type="url"
+                                    dir="ltr"
+                                    placeholder="https://example.com"
+                                    value={linkUrl}
+                                    onChange={(e) => setLinkUrl(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') { e.preventDefault(); insertLink(); }
+                                        if (e.key === 'Escape') setShowLinkInput(false);
+                                    }}
+                                    className="w-full bg-gray-900/50 border border-green-900/30 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-green-500/50"
+                                />
+                                <div className="flex justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={insertLink}
+                                        disabled={!linkUrl.trim()}
+                                        className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-black text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        Insert
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -498,6 +607,14 @@ export default function MinimalPostForm({ onAdd, onClose }: MinimalPostFormProps
                                             {uploadingMedia ? <Loader2 className="w-5 h-5 animate-spin" /> : <Image className="w-5 h-5" />}
                                         </button>
                                     )}
+                                    <button
+                                        type="button"
+                                        onClick={() => { openLinkInput(); setShowFab(false); }}
+                                        className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-900/30 rounded-lg transition-colors"
+                                        title="Add Link"
+                                    >
+                                        <Link2 className="w-5 h-5" />
+                                    </button>
                                     <button
                                         type="button"
                                         onClick={() => { setShowMusicInput(true); setShowFab(false); }}
