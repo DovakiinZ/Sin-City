@@ -513,7 +513,12 @@ GRANT EXECUTE ON FUNCTION public.soft_delete_session(UUID) TO authenticated;
 -- ============================================================================
 -- 8. ADMIN: full session list with deleted-message counts
 -- ============================================================================
-CREATE OR REPLACE FUNCTION public.admin_get_all_sessions()
+
+-- This function gains columns (avatars + deleted_message_count), and Postgres
+-- refuses to change an existing function's return type via CREATE OR REPLACE.
+DROP FUNCTION IF EXISTS public.admin_get_all_sessions();
+
+CREATE FUNCTION public.admin_get_all_sessions()
 RETURNS TABLE (
   session_id UUID,
   participant_1_id UUID,
