@@ -21,6 +21,8 @@ export interface ChatMessage {
     voiceUrl?: string;
     voiceDuration?: number;
     isAnonymous?: boolean;
+    /** Soft-deleted. Only ever true for admins - RLS hides these from participants. */
+    isDeleted?: boolean;
 }
 
 interface ChatViewProps {
@@ -259,6 +261,7 @@ export default function ChatView({
                                 voiceUrl={msg.voiceUrl}
                                 voiceDuration={msg.voiceDuration}
                                 isAnonymous={msg.isAnonymous}
+                                isDeleted={msg.isDeleted}
                                 isAdmin={isAdmin}
                                 onAvatarClick={onProfileClick}
                                 onDelete={onDeleteMessage}

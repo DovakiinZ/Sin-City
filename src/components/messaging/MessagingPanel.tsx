@@ -698,7 +698,8 @@ function SessionView({ sessionId, onBack, isMobile }: SessionViewProps) {
                     <div className="bg-gray-900 border border-red-500/50 rounded-xl p-5 max-w-sm mx-4" onClick={e => e.stopPropagation()}>
                         <h3 className="text-red-400 font-mono text-lg mb-2">Delete Chat</h3>
                         <p className="text-gray-400 text-sm font-mono mb-4">
-                            This will permanently delete this chat and all messages for BOTH users. This cannot be undone.
+                            This removes the chat and all its messages for BOTH users. Deleted messages
+                            stay on record for site admins.
                         </p>
                         <div className="flex gap-2 justify-end">
                             <button onClick={() => setShowDeleteConfirm(false)} className="px-3 py-1.5 text-gray-400 hover:text-gray-200 font-mono text-sm">Cancel</button>

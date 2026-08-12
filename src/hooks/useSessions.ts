@@ -6,7 +6,7 @@ export interface Session {
     id: string;
     participant_1: string;
     participant_2: string;
-    status: 'active' | 'archived' | 'blocked';
+    status: 'active' | 'archived' | 'blocked' | 'deleted';
     started_at: string;
     last_activity_at: string;
     archived_at: string | null;
@@ -47,7 +47,7 @@ export function useSessions() {
                 .from("message_sessions")
                 .select("*")
                 .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-                .neq("status", "blocked")
+                .not("status", "in", "(blocked,deleted)")
                 .order("last_activity_at", { ascending: false });
 
             if (error) throw error;
@@ -162,24 +162,14 @@ export function useSessions() {
         }
     };
 
-    // Admin-only: Permanently delete session and all messages
+    // Soft-delete: hides the chat from both participants but keeps every
+    // message on record so admins can still review it.
     const deleteSession = async (sessionId: string): Promise<boolean> => {
         try {
-            // First delete all messages in the session
-            const { error: msgError } = await supabase
-                .from("session_messages")
-                .delete()
-                .eq("session_id", sessionId);
+            const { error } = await supabase
+                .rpc("soft_delete_session", { p_session_id: sessionId });
 
-            if (msgError) throw msgError;
-
-            // Then delete the session itself
-            const { error: sessError } = await supabase
-                .from("message_sessions")
-                .delete()
-                .eq("id", sessionId);
-
-            if (sessError) throw sessError;
+            if (error) throw error;
             loadSessions();
             return true;
         } catch (error) {

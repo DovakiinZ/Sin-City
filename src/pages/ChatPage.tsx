@@ -19,19 +19,42 @@ export default function ChatPage() {
     const { setActiveSession } = useUnreadCount();
 
     const [showNewChatModal, setShowNewChatModal] = useState(false);
+    const [chatError, setChatError] = useState<string | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [adminAllChats, setAdminAllChats] = useState(false);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(
         searchParams.get('session') || null
     );
 
-    const { conversations, loading: sessionsLoading, markAsRead, refresh: refreshSessions } = useConversations();
+    // Admins get inline moderation: deleted messages stay visible, labelled.
+    useEffect(() => {
+        if (!user) {
+            setIsAdmin(false);
+            return;
+        }
+
+        let cancelled = false;
+        supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single()
+            .then(({ data }) => {
+                if (!cancelled) setIsAdmin(data?.role === 'admin');
+            });
+
+        return () => { cancelled = true; };
+    }, [user]);
+
+    const { conversations, loading: sessionsLoading, markAsRead, refresh: refreshSessions } =
+        useConversations(isAdmin && adminAllChats);
 
     // Map conversations to SessionData for ChatLayout
     const sessions: SessionData[] = useMemo(() => {
         return conversations.map(conv => ({
             id: conv.id,
             otherUserId: conv.other_user?.id || '',
-            otherUserName: conv.other_user?.username || 'Unknown',
+            otherUserName: conv.admin_label || conv.other_user?.username || 'Unknown',
             otherUserAvatar: conv.other_user?.avatar_url || undefined,
             lastMessage: conv.last_message?.content || null,
             lastMessageType: conv.last_message?.voice_url ? 'voice' : 
@@ -55,7 +78,7 @@ export default function ChatPage() {
         uploadVoice,
         deleteMessage,
         loadMore
-    } = useChatMessages(activeSessionId);
+    } = useChatMessages(activeSessionId, isAdmin);
 
     // Update URL when session changes
     useEffect(() => {
@@ -85,14 +108,16 @@ export default function ChatPage() {
         });
     };
 
+    // Soft delete - the chat disappears for both participants but every message
+    // is preserved (flagged as deleted) for admin review.
     const handleDeleteChat = async () => {
         if (!activeSessionId || !user) return;
 
         try {
-            await supabase
-                .from("message_sessions")
-                .delete()
-                .eq("id", activeSessionId);
+            const { error } = await supabase
+                .rpc("soft_delete_session", { p_session_id: activeSessionId });
+
+            if (error) throw error;
 
             refreshSessions();
             setActiveSessionId(null);
@@ -106,6 +131,8 @@ export default function ChatPage() {
         if (sessionId) {
             refreshSessions();
             setActiveSessionId(sessionId);
+        } else {
+            setChatError(`You can't message @${username} yet — a follow request between you has to be approved first.`);
         }
         setShowNewChatModal(false);
     };
@@ -131,6 +158,36 @@ export default function ChatPage() {
             <div className="md:block hidden">
                 <AsciiHeader />
             </div>
+
+            {/* Admin moderation bar */}
+            {isAdmin && (
+                <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-red-950/30 border-b border-red-900/40 font-mono text-xs">
+                    <span className="text-red-400">
+                        🛡 Admin view — deleted messages stay visible and are labelled
+                    </span>
+                    <button
+                        onClick={() => { setAdminAllChats(v => !v); setActiveSessionId(null); }}
+                        className={`px-2 py-1 rounded border transition-colors ${adminAllChats
+                            ? "bg-red-600 border-red-500 text-black font-bold"
+                            : "border-red-900/60 text-red-400 hover:border-red-500"}`}
+                    >
+                        {adminAllChats ? "Viewing: all chats" : "Viewing: my chats"}
+                    </button>
+                </div>
+            )}
+
+            {/* Follow-gate error */}
+            {chatError && (
+                <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-yellow-950/30 border-b border-yellow-900/40 font-mono text-xs text-yellow-400">
+                    <span>{chatError}</span>
+                    <button
+                        onClick={() => setChatError(null)}
+                        className="text-yellow-600 hover:text-yellow-300"
+                    >
+                        dismiss
+                    </button>
+                </div>
+            )}
 
             {/* Chat area - full height */}
             <div className="flex-1" style={{ height: 'calc(100vh - 60px)' }}>

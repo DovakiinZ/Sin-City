@@ -17,6 +17,8 @@ export interface ChatBubbleProps {
     voiceUrl?: string;
     voiceDuration?: number;
     isAnonymous?: boolean;
+    /** Soft-deleted. Only admins receive these rows. */
+    isDeleted?: boolean;
     isAdmin?: boolean;
     onLongPress?: () => void;
     onAvatarClick?: () => void;
@@ -40,6 +42,7 @@ export default function ChatBubble({
     voiceUrl,
     voiceDuration,
     isAnonymous,
+    isDeleted,
     isAdmin,
     onLongPress,
     onAvatarClick,
@@ -135,14 +138,30 @@ export default function ChatBubble({
                 <div className={cn(
                     "relative rounded-[10px] px-[12px] py-[10px] font-mono",
                     "border transition-all",
-                    isSent
-                        ? "bg-[#0f2a1f] border-[#00ff88]"
-                        : "bg-[#111111] border-[#1f1f1f]"
+                    isDeleted
+                        ? "bg-[#1a0f0f] border-red-800/60 border-dashed"
+                        : isSent
+                            ? "bg-[#0f2a1f] border-[#00ff88]"
+                            : "bg-[#111111] border-[#1f1f1f]"
                 )}>
+                    {/* Deleted marker - admin-only view */}
+                    {isDeleted && (
+                        <div className="flex items-center gap-1 mb-1.5 text-red-400 font-bold tracking-wider" style={{ fontSize: '10px' }}>
+                            <Trash2 className="w-3 h-3" />
+                            DELETED
+                            <span className="text-red-700 font-normal normal-case tracking-normal">
+                                · visible to admins only
+                            </span>
+                        </div>
+                    )}
+
                     {/* Sender name (for received messages) */}
                     {!isSent && (
-                        <div className="text-[#00ff88] mb-1 font-medium" style={{ fontSize: '11px' }}>
-                            {isAnonymous ? senderName : senderName}
+                        <div className={cn(
+                            "mb-1 font-medium",
+                            isDeleted ? "text-red-400/70" : "text-[#00ff88]"
+                        )} style={{ fontSize: '11px' }}>
+                            {senderName}
                         </div>
                     )}
 
@@ -189,7 +208,11 @@ export default function ChatBubble({
                     {!!displayContent && displayContent.trim() !== "" && (
                         <div
                             dir={contentIsArabic ? "rtl" : "ltr"}
-                            className={`whitespace-pre-wrap break-words leading-relaxed text-[#ffffff] ${contentIsArabic ? 'arabic-text text-right' : 'text-left'}`}
+                            className={cn(
+                                "whitespace-pre-wrap break-words leading-relaxed",
+                                isDeleted ? "text-gray-400 line-through decoration-red-700/60" : "text-[#ffffff]",
+                                contentIsArabic ? 'arabic-text text-right' : 'text-left'
+                            )}
                             style={{
                                 fontSize: '15px',
                                 unicodeBidi: contentIsArabic ? 'plaintext' : undefined
@@ -227,7 +250,7 @@ export default function ChatBubble({
                             </span>
                         )}
                         {/* Delete button for admins or message sender */}
-                        {onDelete && (isSent || isAdmin) && (
+                        {onDelete && !isDeleted && (isSent || isAdmin) && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); onDelete(id); }}
                                 className="ml-1 p-1 text-gray-600 hover:text-red-500 transition-colors opacity-50 hover:opacity-100"

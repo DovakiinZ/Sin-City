@@ -527,12 +527,14 @@ Built with: React + TypeScript + Vite`,
                 const { count: followersCount } = await supabase
                     .from('follows')
                     .select('*', { count: 'exact', head: true })
-                    .eq('following_id', user.id);
+                    .eq('following_id', user.id)
+                    .eq('status', 'accepted');
 
                 const { count: followingCount } = await supabase
                     .from('follows')
                     .select('*', { count: 'exact', head: true })
-                    .eq('follower_id', user.id);
+                    .eq('follower_id', user.id)
+                    .eq('status', 'accepted');
 
                 return `📊 Your Stats:
   Posts: ${postsCount || 0}

@@ -6,7 +6,7 @@ export interface Conversation {
     id: string;
     participant_1: string;
     participant_2: string;
-    status: 'active' | 'archived' | 'blocked';
+    status: 'active' | 'archived' | 'blocked' | 'deleted';
     last_activity_at: string;
     created_at: string;
     other_user?: {
@@ -18,11 +18,24 @@ export interface Conversation {
         content: string | null;
         sender_id: string;
         created_at: string;
+        media_type?: 'image' | 'video' | null;
+        gif_url?: string | null;
+        voice_url?: string | null;
     };
     unread_count?: number;
+    /** Admin-mode only: label for a chat the viewer is not a participant in. */
+    admin_label?: string;
 }
 
-export function useConversations() {
+const buildAdminLabel = (a?: string | null, b?: string | null) =>
+    `${a || 'Unknown'} ↔ ${b || 'Unknown'}`;
+
+/**
+ * @param adminAll Admin moderation mode - loads every conversation on the site,
+ *                 including ones the admin is not a participant in and ones the
+ *                 participants have deleted. RLS only permits this for admins.
+ */
+export function useConversations(adminAll = false) {
     const { user } = useAuth();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(true);
@@ -41,25 +54,37 @@ export function useConversations() {
 
         try {
             // Single query with joins for sessions + last message
-            const { data: sessionData, error } = await supabase
+            let query = supabase
                 .from("message_sessions")
                 .select(`
                     *,
                     participant_1_profile:profiles!message_sessions_participant_1_fkey(id, username, avatar_url),
                     participant_2_profile:profiles!message_sessions_participant_2_fkey(id, username, avatar_url)
-                `)
-                .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-                .neq("status", "blocked")
+                `);
+
+            if (!adminAll) {
+                query = query
+                    .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
+                    .not("status", "in", "(blocked,deleted)");
+            }
+
+            const { data: sessionData, error } = await query
                 .order("last_activity_at", { ascending: false });
 
             if (error) {
                 console.error("Session query error:", error);
                 // Fallback to simple query without joins
-                const { data: fallbackData } = await supabase
+                let fallbackQuery = supabase
                     .from("message_sessions")
-                    .select("*")
-                    .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-                    .neq("status", "blocked")
+                    .select("*");
+
+                if (!adminAll) {
+                    fallbackQuery = fallbackQuery
+                        .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
+                        .not("status", "in", "(blocked,deleted)");
+                }
+
+                const { data: fallbackData } = await fallbackQuery
                     .order("last_activity_at", { ascending: false });
 
                 if (fallbackData && fallbackData.length > 0) {
@@ -77,12 +102,18 @@ export function useConversations() {
                     const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
                     const enriched = fallbackData.map(session => {
+                        const isParticipant = session.participant_1 === user.id
+                            || session.participant_2 === user.id;
                         const otherUserId = session.participant_1 === user.id
                             ? session.participant_2
                             : session.participant_1;
                         return {
                             ...session,
                             other_user: profileMap.get(otherUserId),
+                            admin_label: isParticipant ? undefined : buildAdminLabel(
+                                profileMap.get(session.participant_1)?.username,
+                                profileMap.get(session.participant_2)?.username
+                            ),
                             unread_count: 0 // Skip unread for fallback
                         } as Conversation;
                     });
@@ -104,6 +135,7 @@ export function useConversations() {
             // Map sessions with joined data
             const enriched = await Promise.all(sessionData.map(async (session) => {
                 const isParticipant1 = session.participant_1 === user.id;
+                const isParticipant = isParticipant1 || session.participant_2 === user.id;
                 const otherUserProfile = isParticipant1
                     ? session.participant_2_profile
                     : session.participant_1_profile;
@@ -134,6 +166,10 @@ export function useConversations() {
                         username: otherUserProfile.username,
                         avatar_url: otherUserProfile.avatar_url
                     } : undefined,
+                    admin_label: isParticipant ? undefined : buildAdminLabel(
+                        session.participant_1_profile?.username,
+                        session.participant_2_profile?.username
+                    ),
                     unread_count: unreadCount || 0,
                     last_message: lastMsg ? {
                         content: lastMsg.content,
@@ -152,7 +188,7 @@ export function useConversations() {
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [user, adminAll]);
 
     // Stable markAsRead function
     const markAsRead = useCallback(async (sessionId: string) => {

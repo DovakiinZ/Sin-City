@@ -15,7 +15,7 @@ interface CachedUser {
 // Simple in-memory cache for user profiles
 const userCache = new Map<string, CachedUser>();
 
-export function useChatMessages(sessionId: string | null) {
+export function useChatMessages(sessionId: string | null, isAdmin = false) {
     const { user } = useAuth();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [loading, setLoading] = useState(true);
@@ -92,7 +92,9 @@ export function useChatMessages(sessionId: string | null) {
             gifUrl: raw.gif_url || undefined,
             voiceUrl: raw.voice_url || undefined,
             voiceDuration: raw.voice_duration_seconds || undefined,
-            isAnonymous: raw.use_masked_identity
+            isAnonymous: raw.use_masked_identity,
+            // Only admins ever receive soft-deleted rows (enforced by RLS).
+            isDeleted: raw.is_deleted === true
         };
     }, [getCachedUser]);
 
@@ -285,6 +287,24 @@ export function useChatMessages(sessionId: string | null) {
                     }
                 }
             )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "session_messages",
+                    filter: `session_id=eq.${sessionId}`,
+                },
+                (payload) => {
+                    // Soft deletes arrive as UPDATEs. Drop the message for
+                    // participants; keep it flagged for admins.
+                    if (!payload.new?.is_deleted) return;
+
+                    setMessages(prev => isAdmin
+                        ? prev.map(m => m.id === payload.new.id ? { ...m, isDeleted: true } : m)
+                        : prev.filter(m => m.id !== payload.new.id));
+                }
+            )
             .subscribe();
 
         return () => {
@@ -292,7 +312,7 @@ export function useChatMessages(sessionId: string | null) {
                 supabase.removeChannel(channelRef.current);
             }
         };
-    }, [sessionId, user, loadMessages, transformMessage, isAnonymousMode]);
+    }, [sessionId, user, loadMessages, transformMessage, isAnonymousMode, isAdmin]);
 
     // Debounced typing indicator
     const setTyping = useCallback((typing: boolean) => {
@@ -310,26 +330,31 @@ export function useChatMessages(sessionId: string | null) {
         }
     }, []);
 
-    // Delete message (admin or sender)
+    // Delete message (admin or sender). This is a SOFT delete: participants
+    // stop seeing it, admins keep seeing it flagged as deleted.
     const deleteMessage = useCallback(async (messageId: string): Promise<boolean> => {
         if (!user) return false;
 
         try {
             const { error } = await supabase
-                .from("session_messages")
-                .delete()
-                .eq("id", messageId);
+                .rpc("soft_delete_message", { p_message_id: messageId });
 
             if (error) throw error;
 
-            // Remove from local state
-            setMessages(prev => prev.filter(msg => msg.id !== messageId));
+            if (isAdmin) {
+                // Admins keep the row visible, now marked deleted.
+                setMessages(prev => prev.map(msg =>
+                    msg.id === messageId ? { ...msg, isDeleted: true } : msg
+                ));
+            } else {
+                setMessages(prev => prev.filter(msg => msg.id !== messageId));
+            }
             return true;
         } catch (error) {
             console.error("Error deleting message:", error);
             return false;
         }
-    }, [user]);
+    }, [user, isAdmin]);
 
     return {
         messages,

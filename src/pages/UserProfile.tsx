@@ -1,13 +1,15 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useProfile, getUserStats } from "@/hooks/useProfile";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import BackButton from "@/components/BackButton";
 import PostCard from "@/components/PostCard";
 import { listPostsFromDb } from "@/data/posts";
 import { supabase } from "@/lib/supabase";
-import { UserPlus, UserMinus, Twitter, Instagram, X, Check, Edit2, LogOut, MessageCircle } from "lucide-react";
+import { UserPlus, UserMinus, Twitter, Instagram, X, Check, Edit2, LogOut, MessageCircle, Clock, Lock } from "lucide-react";
 import { useSessions } from "@/hooks/useSessions";
+import { useFollow } from "@/hooks/useFollow";
+import FollowRequests from "@/components/social/FollowRequests";
 import MessagingPanel from "@/components/messaging/MessagingPanel";
 import { Crown } from "lucide-react";
 import NowPlayingStatus from "@/components/effects/NowPlayingStatus";
@@ -37,11 +39,6 @@ interface UserPost {
     author_role?: string;
 }
 
-const isValidUUID = (uuid: string) => {
-    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return regex.test(uuid);
-};
-
 export default function UserProfile() {
     const { username } = useParams<{ username: string }>();
     const navigate = useNavigate();
@@ -59,11 +56,18 @@ export default function UserProfile() {
     // Is this the current user's own profile?
     const isOwnProfile = user?.id && profile?.id && user.id === profile.id;
 
-    // Follow system state
-    const [isFollowing, setIsFollowing] = useState(false);
+    // Follow system state (approval-based: follow -> request -> approved)
+    const {
+        outgoing: followStatus,
+        canDM,
+        busy: followLoading,
+        requestFollow,
+        unfollow,
+        refresh: refreshFollow,
+    } = useFollow(profile?.id);
     const [followerCount, setFollowerCount] = useState(0);
     const [followingCount, setFollowingCount] = useState(0);
-    const [followLoading, setFollowLoading] = useState(false);
+    const [dmError, setDmError] = useState<string | null>(null);
 
     // Modal state for followers/following list
     const [showFollowersModal, setShowFollowersModal] = useState(false);
@@ -153,39 +157,28 @@ export default function UserProfile() {
         lookupUser();
     }, [username, navigate]);
 
-    // Check follow status and get counts
+    // Follower/following counts - approved follows only, pending requests don't count
+    const loadFollowCounts = useCallback(async () => {
+        if (!profile?.id) return;
+
+        const { count: followers } = await supabase
+            .from('follows')
+            .select('*', { count: 'exact', head: true })
+            .eq('following_id', profile.id)
+            .eq('status', 'accepted');
+        setFollowerCount(followers || 0);
+
+        const { count: following } = await supabase
+            .from('follows')
+            .select('*', { count: 'exact', head: true })
+            .eq('follower_id', profile.id)
+            .eq('status', 'accepted');
+        setFollowingCount(following || 0);
+    }, [profile?.id]);
+
     useEffect(() => {
-        const checkFollowStatus = async () => {
-            if (!profile?.id) return;
-
-            const { count: followers } = await supabase
-                .from('follows')
-                .select('*', { count: 'exact', head: true })
-                .eq('following_id', profile.id);
-            setFollowerCount(followers || 0);
-
-            const { count: following } = await supabase
-                .from('follows')
-                .select('*', { count: 'exact', head: true })
-                .eq('follower_id', profile.id);
-            setFollowingCount(following || 0);
-
-            if (user?.id && user.id !== profile.id) {
-                if (!isValidUUID(user.id) || !isValidUUID(profile.id)) return;
-
-                const { data } = await supabase
-                    .from('follows')
-                    .select('follower_id')
-                    .eq('follower_id', user.id)
-                    .eq('following_id', profile.id)
-                    .maybeSingle();
-
-                setIsFollowing(!!data);
-            }
-        };
-
-        checkFollowStatus();
-    }, [profile?.id, user?.id]);
+        loadFollowCounts();
+    }, [loadFollowCounts]);
 
     const mapDbPostToUserPost = (p: any): UserPost => {
         const createdDate = p.created_at ? new Date(p.created_at) : null;
@@ -261,7 +254,8 @@ export default function UserProfile() {
             const { data: followData } = await supabase
                 .from('follows')
                 .select('follower_id')
-                .eq('following_id', profile.id);
+                .eq('following_id', profile.id)
+                .eq('status', 'accepted');
 
             if (followData && followData.length > 0) {
                 const followerIds = followData.map(f => f.follower_id);
@@ -288,7 +282,8 @@ export default function UserProfile() {
             const { data: followData } = await supabase
                 .from('follows')
                 .select('following_id')
-                .eq('follower_id', profile.id);
+                .eq('follower_id', profile.id)
+                .eq('status', 'accepted');
 
             if (followData && followData.length > 0) {
                 const followingIds = followData.map(f => f.following_id);
@@ -307,63 +302,16 @@ export default function UserProfile() {
         }
     };
 
+    // Sends a *request* - it stays pending until the target approves it.
     const handleFollow = async () => {
-        if (!user?.id || !profile?.id) return;
-        setFollowLoading(true);
-
-        try {
-            const { error } = await supabase
-                .from('follows')
-                .insert({ follower_id: user.id, following_id: profile.id });
-
-            if (!error) {
-                setIsFollowing(true);
-                setFollowerCount(prev => prev + 1);
-
-                // Send notification
-                const { data: followerProfile } = await supabase
-                    .from('profiles')
-                    .select('username')
-                    .eq('id', user.id)
-                    .single();
-
-                await supabase.from("notifications").insert([{
-                    user_id: profile.id,
-                    type: "follow",
-                    content: {
-                        follower: followerProfile?.username || "Someone",
-                        followerId: user.id,
-                        followerUsername: followerProfile?.username
-                    },
-                    read: false,
-                }]);
-            }
-        } catch (err) {
-            console.error('Follow error:', err);
-        } finally {
-            setFollowLoading(false);
-        }
+        await requestFollow();
     };
 
+    // Cancels a pending request, or unfollows after approval.
     const handleUnfollow = async () => {
-        if (!user?.id || !profile?.id) return;
-        setFollowLoading(true);
-
-        try {
-            const { error } = await supabase
-                .from('follows')
-                .delete()
-                .eq('follower_id', user.id)
-                .eq('following_id', profile.id);
-
-            if (!error) {
-                setIsFollowing(false);
-                setFollowerCount(prev => prev - 1);
-            }
-        } catch (err) {
-            console.error('Unfollow error:', err);
-        } finally {
-            setFollowLoading(false);
+        const wasAccepted = followStatus === 'accepted';
+        if (await unfollow() && wasAccepted) {
+            setFollowerCount(prev => Math.max(0, prev - 1));
         }
     };
 
@@ -376,17 +324,22 @@ export default function UserProfile() {
         }
     }
 
-    // Start DM session
+    // Start DM session - only possible once a follow request between the two
+    // users has been approved (enforced server-side too).
     const handleStartDM = async () => {
         if (!profile?.id) return;
         setStartingDM(true);
+        setDmError(null);
         try {
             const sessionId = await startSession(profile.id);
             if (sessionId) {
                 setPendingSessionId(sessionId);
+            } else {
+                setDmError("Couldn't open this chat. A follow request between you has to be approved first.");
             }
         } catch (err) {
             console.error('Error starting session:', err);
+            setDmError("Couldn't open this chat. A follow request between you has to be approved first.");
         } finally {
             setStartingDM(false);
         }
@@ -595,11 +548,11 @@ export default function UserProfile() {
                         </div>
                     )}
 
-                    {/* Action Buttons: Follow/Unfollow + Message for others */}
+                    {/* Action Buttons: Follow request / Message for others */}
                     {user && !isOwnProfile && (
                         <div className="mt-4 pt-4 border-t border-green-800/40 space-y-2">
                             <div className="flex gap-2">
-                                {isFollowing ? (
+                                {followStatus === 'accepted' ? (
                                     <button
                                         onClick={handleUnfollow}
                                         disabled={followLoading}
@@ -609,6 +562,18 @@ export default function UserProfile() {
                                         <UserMinus className="w-4 h-4 hidden group-hover:block" />
                                         <span className="group-hover:hidden">{followLoading ? "..." : "Following"}</span>
                                         <span className="hidden group-hover:inline">{followLoading ? "..." : "Unfollow"}</span>
+                                    </button>
+                                ) : followStatus === 'pending' ? (
+                                    <button
+                                        onClick={handleUnfollow}
+                                        disabled={followLoading}
+                                        className="flex-1 py-2 px-4 bg-black/40 border border-yellow-700/50 text-yellow-400 rounded-lg hover:bg-red-900/20 hover:border-red-700/50 hover:text-red-400 disabled:opacity-50 flex items-center justify-center gap-2 group"
+                                        title="Waiting for approval - click to cancel"
+                                    >
+                                        <Clock className="w-4 h-4 group-hover:hidden" />
+                                        <X className="w-4 h-4 hidden group-hover:block" />
+                                        <span className="group-hover:hidden">{followLoading ? "..." : "Requested"}</span>
+                                        <span className="hidden group-hover:inline">{followLoading ? "..." : "Cancel"}</span>
                                     </button>
                                 ) : (
                                     <button
@@ -620,18 +585,41 @@ export default function UserProfile() {
                                         {followLoading ? "..." : "Follow"}
                                     </button>
                                 )}
-                                {/* Message Button */}
+                                {/* Message Button - locked until a follow request is approved */}
                                 <button
                                     onClick={handleStartDM}
-                                    disabled={startingDM}
-                                    className="py-2 px-4 bg-gray-800 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-700 hover:border-green-500/50 disabled:opacity-50 flex items-center justify-center gap-2"
-                                    title="Send Message"
+                                    disabled={startingDM || !canDM}
+                                    className="py-2 px-4 bg-gray-800 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-700 hover:border-green-500/50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    title={canDM
+                                        ? "Send Message"
+                                        : "You can message each other once a follow request between you is approved"}
                                 >
-                                    <MessageCircle className="w-4 h-4" />
+                                    {canDM ? <MessageCircle className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                                     {startingDM ? "..." : "Message"}
                                 </button>
                             </div>
+
+                            {!canDM && (
+                                <p className="text-xs text-gray-500">
+                                    {followStatus === 'pending'
+                                        ? `Waiting for @${profile.username} to approve your follow request. DMs unlock after that.`
+                                        : `Follow @${profile.username} and wait for approval to unlock DMs.`}
+                                </p>
+                            )}
+                            {dmError && (
+                                <p className="text-xs text-red-400">{dmError}</p>
+                            )}
                         </div>
+                    )}
+
+                    {/* Incoming follow requests - own profile only */}
+                    {isOwnProfile && (
+                        <FollowRequests
+                            onResponded={(approved) => {
+                                if (approved) setFollowerCount(prev => prev + 1);
+                                refreshFollow();
+                            }}
+                        />
                     )}
                 </div>
 
