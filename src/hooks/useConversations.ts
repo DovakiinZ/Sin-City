@@ -28,14 +28,16 @@ export interface Conversation {
 }
 
 const buildAdminLabel = (a?: string | null, b?: string | null) =>
-    `${a || 'Unknown'} ↔ ${b || 'Unknown'}`;
+    `${a || 'deleted user'} ↔ ${b || 'deleted user'}`;
 
 /**
  * @param adminAll Admin moderation mode - loads every conversation on the site,
  *                 including ones the admin is not a participant in and ones the
- *                 participants have deleted. RLS only permits this for admins.
+ *                 participants have archived. RLS only permits this for admins.
+ * @param includeArchived Include the viewer's archived chats. Archived chats are
+ *                 never destroyed, they are just kept out of the default list.
  */
-export function useConversations(adminAll = false) {
+export function useConversations(adminAll = false, includeArchived = false) {
     const { user } = useAuth();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(true);
@@ -65,7 +67,11 @@ export function useConversations(adminAll = false) {
             if (!adminAll) {
                 query = query
                     .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-                    .not("status", "in", "(blocked,deleted)");
+                    .not("status", "eq", "blocked");
+                if (!includeArchived) {
+                    // Archived chats are hidden here, never deleted.
+                    query = query.not("status", "in", "(archived,deleted)");
+                }
             }
 
             const { data: sessionData, error } = await query
@@ -81,7 +87,10 @@ export function useConversations(adminAll = false) {
                 if (!adminAll) {
                     fallbackQuery = fallbackQuery
                         .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-                        .not("status", "in", "(blocked,deleted)");
+                        .not("status", "eq", "blocked");
+                    if (!includeArchived) {
+                        fallbackQuery = fallbackQuery.not("status", "in", "(archived,deleted)");
+                    }
                 }
 
                 const { data: fallbackData } = await fallbackQuery
@@ -111,8 +120,8 @@ export function useConversations(adminAll = false) {
                             ...session,
                             other_user: profileMap.get(otherUserId),
                             admin_label: isParticipant ? undefined : buildAdminLabel(
-                                profileMap.get(session.participant_1)?.username,
-                                profileMap.get(session.participant_2)?.username
+                                profileMap.get(session.participant_1)?.username || session.participant_1_username,
+                                profileMap.get(session.participant_2)?.username || session.participant_2_username
                             ),
                             unread_count: 0 // Skip unread for fallback
                         } as Conversation;
@@ -154,6 +163,12 @@ export function useConversations(adminAll = false) {
                     .limit(1)
                     .single();
 
+                // A deleted account leaves participant_* NULL and no profile,
+                // so fall back to the username snapshot on the session.
+                const otherSnapshot = isParticipant1
+                    ? session.participant_2_username
+                    : session.participant_1_username;
+
                 return {
                     id: session.id,
                     participant_1: session.participant_1,
@@ -165,10 +180,14 @@ export function useConversations(adminAll = false) {
                         id: otherUserProfile.id,
                         username: otherUserProfile.username,
                         avatar_url: otherUserProfile.avatar_url
+                    } : otherSnapshot ? {
+                        id: '',
+                        username: otherSnapshot,
+                        avatar_url: null
                     } : undefined,
                     admin_label: isParticipant ? undefined : buildAdminLabel(
-                        session.participant_1_profile?.username,
-                        session.participant_2_profile?.username
+                        session.participant_1_profile?.username || session.participant_1_username,
+                        session.participant_2_profile?.username || session.participant_2_username
                     ),
                     unread_count: unreadCount || 0,
                     last_message: lastMsg ? {
@@ -188,7 +207,7 @@ export function useConversations(adminAll = false) {
         } finally {
             setLoading(false);
         }
-    }, [user, adminAll]);
+    }, [user, adminAll, includeArchived]);
 
     // Stable markAsRead function
     const markAsRead = useCallback(async (sessionId: string) => {

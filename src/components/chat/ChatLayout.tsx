@@ -28,8 +28,14 @@ interface ChatLayoutProps {
     // Actions
     onSelectSession: (sessionId: string) => void;
     onSendMessage: (content: string, media?: { url: string; type: 'image' | 'video' | 'gif' | 'voice'; duration?: number }) => void;
-    onDeleteMessage?: (messageId: string) => void;
-    onDeleteChat?: () => void;
+    onArchiveMessage?: (messageId: string) => void;
+    onRestoreMessage?: (messageId: string) => void;
+    onArchiveChat?: () => void;
+    /** The open chat is archived - the action becomes "restore". */
+    activeSessionArchived?: boolean;
+    /** Archived chats are being listed instead of the active ones. */
+    showArchived?: boolean;
+    onToggleArchived?: () => void;
     onNewChat?: () => void;
     isAdmin?: boolean;
 
@@ -52,8 +58,12 @@ export default function ChatLayout({
     onLoadMoreMessages,
     onSelectSession,
     onSendMessage,
-    onDeleteMessage,
-    onDeleteChat,
+    onArchiveMessage,
+    onRestoreMessage,
+    onArchiveChat,
+    activeSessionArchived,
+    showArchived,
+    onToggleArchived,
     onNewChat,
     isAdmin,
     uploadMedia,
@@ -104,10 +114,12 @@ export default function ChatLayout({
                         isMobile={true}
                         onBack={handleBack}
                         onSendMessage={onSendMessage}
-                        onDeleteMessage={onDeleteMessage}
+                        onArchiveMessage={onArchiveMessage}
+                        onRestoreMessage={onRestoreMessage}
                         onLoadMore={onLoadMoreMessages}
                         hasMore={hasMoreMessages}
-                        onDeleteChat={onDeleteChat}
+                        onArchiveChat={onArchiveChat}
+                        isArchived={activeSessionArchived}
                         onProfileClick={handleProfileClick}
                         uploadMedia={uploadMedia}
                         uploadVoice={uploadVoice}
@@ -123,6 +135,8 @@ export default function ChatLayout({
                     loading={sessionsLoading}
                     onSelectSession={onSelectSession}
                     onNewChat={onNewChat}
+                    showArchived={showArchived}
+                    onToggleArchived={onToggleArchived}
                     isMobile={true}
                 />
             </div>
@@ -140,6 +154,8 @@ export default function ChatLayout({
                     activeSessionId={activeSessionId || undefined}
                     onSelectSession={onSelectSession}
                     onNewChat={onNewChat}
+                    showArchived={showArchived}
+                    onToggleArchived={onToggleArchived}
                     isMobile={false}
                 />
             </div>
@@ -159,10 +175,12 @@ export default function ChatLayout({
                         isMobile={false}
                         onBack={handleBack}
                         onSendMessage={onSendMessage}
-                        onDeleteMessage={onDeleteMessage}
+                        onArchiveMessage={onArchiveMessage}
+                        onRestoreMessage={onRestoreMessage}
                         onLoadMore={onLoadMoreMessages}
                         hasMore={hasMoreMessages}
-                        onDeleteChat={onDeleteChat}
+                        onArchiveChat={onArchiveChat}
+                        isArchived={activeSessionArchived}
                         onProfileClick={handleProfileClick}
                         uploadMedia={uploadMedia}
                         uploadVoice={uploadVoice}

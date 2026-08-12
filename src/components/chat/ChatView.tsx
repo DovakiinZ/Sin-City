@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowLeft, MoreVertical, Trash2 } from "lucide-react";
+import { ArrowLeft, MoreVertical, Archive, ArchiveRestore } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ChatBubble, { ChatBubbleProps } from "./ChatBubble";
 import ChatInput from "./ChatInput";
@@ -21,7 +21,7 @@ export interface ChatMessage {
     voiceUrl?: string;
     voiceDuration?: number;
     isAnonymous?: boolean;
-    /** Soft-deleted. Only ever true for admins - RLS hides these from participants. */
+    /** Archived. Only ever true for admins - RLS hides these from participants. */
     isDeleted?: boolean;
 }
 
@@ -37,10 +37,14 @@ interface ChatViewProps {
     isMobile?: boolean;
     onBack: () => void;
     onSendMessage: (content: string, media?: { url: string; type: 'image' | 'video' | 'gif' | 'voice'; duration?: number }) => void;
-    onDeleteMessage?: (messageId: string) => void;
+    onArchiveMessage?: (messageId: string) => void;
+    /** Admin-only: restore an archived message. */
+    onRestoreMessage?: (messageId: string) => void;
     onLoadMore?: () => void;
     hasMore?: boolean;
-    onDeleteChat?: () => void;
+    onArchiveChat?: () => void;
+    /** This chat is archived - the menu action restores it instead. */
+    isArchived?: boolean;
     onProfileClick?: () => void;
     uploadMedia?: (file: File) => Promise<{ url: string; type: 'image' | 'video' } | null>;
     uploadVoice?: (blob: Blob) => Promise<string | null>;
@@ -58,10 +62,12 @@ export default function ChatView({
     isMobile = false,
     onBack,
     onSendMessage,
-    onDeleteMessage,
+    onArchiveMessage,
+    onRestoreMessage,
     onLoadMore,
     hasMore,
-    onDeleteChat,
+    onArchiveChat,
+    isArchived,
     onProfileClick,
     uploadMedia,
     uploadVoice
@@ -200,13 +206,17 @@ export default function ChatView({
                         <>
                             <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
                             <div className="absolute right-0 top-full mt-1 w-40 bg-gray-900 border border-green-900/30 rounded-lg shadow-xl z-50 overflow-hidden">
-                                {onDeleteChat && (
+                                {onArchiveChat && (
                                     <button
-                                        onClick={() => { onDeleteChat(); setShowMenu(false); }}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                                        onClick={() => { onArchiveChat(); setShowMenu(false); }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-yellow-400 hover:bg-yellow-500/10 transition-colors"
+                                        title={isArchived
+                                            ? "Move this chat back to your active list"
+                                            : "Hide this chat from your list. Nothing is deleted - the history is kept."}
                                     >
-                                        <Trash2 className="w-4 h-4" />
-                                        Delete Chat
+                                        {isArchived
+                                            ? <><ArchiveRestore className="w-4 h-4" /> Restore Chat</>
+                                            : <><Archive className="w-4 h-4" /> Archive Chat</>}
                                     </button>
                                 )}
                             </div>
@@ -264,7 +274,8 @@ export default function ChatView({
                                 isDeleted={msg.isDeleted}
                                 isAdmin={isAdmin}
                                 onAvatarClick={onProfileClick}
-                                onDelete={onDeleteMessage}
+                                onArchive={onArchiveMessage}
+                                onRestore={onRestoreMessage}
                             />
                         ))}
                         <div ref={messagesEndRef} />

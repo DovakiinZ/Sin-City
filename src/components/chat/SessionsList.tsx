@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, MessageCircle } from "lucide-react";
+import { Search, Plus, MessageCircle, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SessionItem, { SessionData } from "./SessionItem";
 
@@ -9,6 +9,9 @@ interface SessionsListProps {
     activeSessionId?: string;
     onSelectSession: (sessionId: string) => void;
     onNewChat?: () => void;
+    /** Listing archived chats instead of active ones. */
+    showArchived?: boolean;
+    onToggleArchived?: () => void;
     isMobile?: boolean;
 }
 
@@ -18,6 +21,8 @@ export default function SessionsList({
     activeSessionId,
     onSelectSession,
     onNewChat,
+    showArchived,
+    onToggleArchived,
     isMobile
 }: SessionsListProps) {
     const [searchQuery, setSearchQuery] = useState("");
@@ -36,8 +41,22 @@ export default function SessionsList({
                 <div className="flex items-center justify-between mb-3">
                     <h2 className="font-mono text-lg text-green-400 flex items-center gap-2">
                         <MessageCircle className="w-5 h-5" />
-                        Messages
+                        {showArchived ? "Archived" : "Messages"}
                     </h2>
+                    {onToggleArchived && (
+                        <button
+                            onClick={onToggleArchived}
+                            className={cn(
+                                "p-2 rounded-lg transition-colors",
+                                showArchived
+                                    ? "text-yellow-400 bg-yellow-900/30"
+                                    : "text-gray-500 hover:text-yellow-400 hover:bg-yellow-900/20"
+                            )}
+                            title={showArchived ? "Back to active chats" : "Show archived chats"}
+                        >
+                            <Archive className="w-5 h-5" />
+                        </button>
+                    )}
                     {onNewChat && (
                         <button
                             onClick={onNewChat}
@@ -71,8 +90,14 @@ export default function SessionsList({
                         {sessions.length === 0 ? (
                             <>
                                 <MessageCircle className="w-12 h-12 text-gray-700 mb-3" />
-                                <p className="text-gray-500 text-sm">No conversations yet</p>
-                                <p className="text-gray-600 text-xs mt-1">Start a new chat to get going</p>
+                                <p className="text-gray-500 text-sm">
+                                    {showArchived ? "No archived chats" : "No conversations yet"}
+                                </p>
+                                <p className="text-gray-600 text-xs mt-1">
+                                    {showArchived
+                                        ? "Archived chats stay here in full - nothing is ever deleted"
+                                        : "Start a new chat to get going"}
+                                </p>
                             </>
                         ) : (
                             <>

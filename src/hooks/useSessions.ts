@@ -47,7 +47,7 @@ export function useSessions() {
                 .from("message_sessions")
                 .select("*")
                 .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-                .not("status", "in", "(blocked,deleted)")
+                .not("status", "eq", "blocked")
                 .order("last_activity_at", { ascending: false });
 
             if (error) throw error;
@@ -67,12 +67,19 @@ export function useSessions() {
                         ? session.participant_2
                         : session.participant_1;
 
-                    // Get other user profile
-                    const { data: profile } = await supabase
-                        .from("profiles")
-                        .select("id, username, avatar_url")
-                        .eq("id", otherUserId)
-                        .single();
+                    // Get other user profile. A deleted account leaves the
+                    // participant id NULL, so fall back to the snapshot name.
+                    const otherSnapshot = session.participant_1 === user.id
+                        ? session.participant_2_username
+                        : session.participant_1_username;
+
+                    const { data: profile } = otherUserId
+                        ? await supabase
+                            .from("profiles")
+                            .select("id, username, avatar_url")
+                            .eq("id", otherUserId)
+                            .single()
+                        : { data: null };
 
                     // Get last message
                     const { data: lastMsg } = await supabase
@@ -93,16 +100,20 @@ export function useSessions() {
 
                     return {
                         ...session,
-                        other_user: profile || undefined,
+                        other_user: profile || (otherSnapshot
+                            ? { id: '', username: otherSnapshot, avatar_url: null }
+                            : undefined),
                         last_message: lastMsg || undefined,
                         unread_count: unreadCount || 0,
                     };
                 })
             );
 
-            // Separate active and archived
+            // Separate active and archived. 'deleted' is a legacy status from
+            // before DMs became archive-only - treat it as archived.
             const active = enrichedSessions.filter(s => s.status === 'active');
-            const archived = enrichedSessions.filter(s => s.status === 'archived');
+            const archived = enrichedSessions.filter(s =>
+                s.status === 'archived' || s.status === 'deleted');
 
             setActiveSessions(active);
             setArchivedSessions(archived);
@@ -130,18 +141,32 @@ export function useSessions() {
         }
     };
 
+    // Archiving is the only way a chat ever leaves the active list. Every
+    // message stays readable for both participants and for admins.
     const archiveSession = async (sessionId: string): Promise<boolean> => {
         try {
             const { error } = await supabase
-                .from("message_sessions")
-                .update({ status: 'archived', archived_at: new Date().toISOString() })
-                .eq("id", sessionId);
+                .rpc("archive_session", { p_session_id: sessionId });
 
             if (error) throw error;
             loadSessions();
             return true;
         } catch (error) {
             console.error("Error archiving session:", error);
+            return false;
+        }
+    };
+
+    const unarchiveSession = async (sessionId: string): Promise<boolean> => {
+        try {
+            const { error } = await supabase
+                .rpc("unarchive_session", { p_session_id: sessionId });
+
+            if (error) throw error;
+            loadSessions();
+            return true;
+        } catch (error) {
+            console.error("Error restoring session:", error);
             return false;
         }
     };
@@ -162,21 +187,11 @@ export function useSessions() {
         }
     };
 
-    // Soft-delete: hides the chat from both participants but keeps every
-    // message on record so admins can still review it.
-    const deleteSession = async (sessionId: string): Promise<boolean> => {
-        try {
-            const { error } = await supabase
-                .rpc("soft_delete_session", { p_session_id: sessionId });
-
-            if (error) throw error;
-            loadSessions();
-            return true;
-        } catch (error) {
-            console.error("Error deleting session:", error);
-            return false;
-        }
-    };
+    /**
+     * @deprecated DMs are never deleted. Kept as an alias so older callers
+     * archive instead of destroying anything.
+     */
+    const deleteSession = archiveSession;
 
     useEffect(() => {
         loadSessions();
@@ -210,6 +225,7 @@ export function useSessions() {
         totalUnread,
         startSession,
         archiveSession,
+        unarchiveSession,
         blockSession,
         deleteSession,
         refresh: loadSessions,

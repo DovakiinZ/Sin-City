@@ -22,11 +22,12 @@ export default function ChatPage() {
     const [chatError, setChatError] = useState<string | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [adminAllChats, setAdminAllChats] = useState(false);
+    const [showArchived, setShowArchived] = useState(false);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(
         searchParams.get('session') || null
     );
 
-    // Admins get inline moderation: deleted messages stay visible, labelled.
+    // Admins get inline moderation: archived messages stay visible, labelled.
     useEffect(() => {
         if (!user) {
             setIsAdmin(false);
@@ -47,7 +48,7 @@ export default function ChatPage() {
     }, [user]);
 
     const { conversations, loading: sessionsLoading, markAsRead, refresh: refreshSessions } =
-        useConversations(isAdmin && adminAllChats);
+        useConversations(isAdmin && adminAllChats, showArchived);
 
     // Map conversations to SessionData for ChatLayout
     const sessions: SessionData[] = useMemo(() => {
@@ -63,7 +64,8 @@ export default function ChatPage() {
                              conv.last_message?.gif_url ? 'gif' : 'text',
             lastMessageTime: conv.last_message?.created_at || conv.last_activity_at,
             unreadCount: conv.unread_count || 0,
-            isAnonymous: false
+            isAnonymous: false,
+            isArchived: conv.status === 'archived' || conv.status === 'deleted'
         }));
     }, [conversations]);
 
@@ -76,9 +78,14 @@ export default function ChatPage() {
         sendMessage,
         uploadMedia,
         uploadVoice,
-        deleteMessage,
+        archiveMessage,
+        restoreMessage,
         loadMore
     } = useChatMessages(activeSessionId, isAdmin);
+
+    const activeConversation = conversations.find(c => c.id === activeSessionId);
+    const activeIsArchived = activeConversation?.status === 'archived'
+        || activeConversation?.status === 'deleted';
 
     // Update URL when session changes
     useEffect(() => {
@@ -108,21 +115,23 @@ export default function ChatPage() {
         });
     };
 
-    // Soft delete - the chat disappears for both participants but every message
-    // is preserved (flagged as deleted) for admin review.
-    const handleDeleteChat = async () => {
+    // Chats are archived, never deleted: the chat leaves your list, every
+    // message stays on record for the other participant and for admins.
+    const handleArchiveChat = async () => {
         if (!activeSessionId || !user) return;
 
         try {
-            const { error } = await supabase
-                .rpc("soft_delete_session", { p_session_id: activeSessionId });
+            const { error } = await supabase.rpc(
+                activeIsArchived ? "unarchive_session" : "archive_session",
+                { p_session_id: activeSessionId }
+            );
 
             if (error) throw error;
 
             refreshSessions();
-            setActiveSessionId(null);
+            if (!activeIsArchived && !showArchived) setActiveSessionId(null);
         } catch (error) {
-            console.error("Error deleting chat:", error);
+            console.error("Error archiving chat:", error);
         }
     };
 
@@ -163,7 +172,7 @@ export default function ChatPage() {
             {isAdmin && (
                 <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-red-950/30 border-b border-red-900/40 font-mono text-xs">
                     <span className="text-red-400">
-                        🛡 Admin view — deleted messages stay visible and are labelled
+                        🛡 Admin view — nothing in a DM is ever deleted; archived messages stay visible and labelled
                     </span>
                     <button
                         onClick={() => { setAdminAllChats(v => !v); setActiveSessionId(null); }}
@@ -206,8 +215,12 @@ export default function ChatPage() {
                     onLoadMoreMessages={loadMore}
                     onSelectSession={(id) => setActiveSessionId(id || null)}
                     onSendMessage={handleSendMessage}
-                    onDeleteMessage={deleteMessage}
-                    onDeleteChat={handleDeleteChat}
+                    onArchiveMessage={archiveMessage}
+                    onRestoreMessage={restoreMessage}
+                    onArchiveChat={handleArchiveChat}
+                    activeSessionArchived={activeIsArchived}
+                    showArchived={showArchived}
+                    onToggleArchived={() => { setShowArchived(v => !v); setActiveSessionId(null); }}
                     onNewChat={() => setShowNewChatModal(true)}
                     uploadMedia={uploadMedia}
                     uploadVoice={uploadVoice}
