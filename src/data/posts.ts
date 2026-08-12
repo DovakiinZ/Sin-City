@@ -107,6 +107,7 @@ export interface ListPostsOptions {
   includeDrafts?: boolean;  // If true, include draft posts (default: false)
   includeDeleted?: boolean; // If true, include soft-deleted posts (admin only, default: false)
   includeThreadReplies?: boolean; // If true, include thread reply posts (default: false)
+  includeHidden?: boolean;  // If true, include hidden posts (admin only, default: false)
 }
 
 /**
@@ -149,9 +150,11 @@ export async function listPostsFromDb(options?: ListPostsOptions): Promise<ListP
       id,slug,title,type,content,text_align,attachments,gif_url,author_name,author_email,author_avatar,user_id,guest_id,view_count,created_at,draft,hidden,is_pinned,is_registered_only,is_deleted,thread_id,thread_position,music_metadata,
       guests:guest_id (anonymous_id)
     `)
-    .not("hidden", "is", true)
     .order("created_at", { ascending: false });
 
+  if (!options?.includeHidden) {
+    query = query.not("hidden", "is", true);
+  }
   if (!options?.includeDeleted) {
     query = query.not("is_deleted", "is", true);
   }

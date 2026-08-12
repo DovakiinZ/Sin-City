@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { UserPlus, UserMinus, Twitter, Instagram, X, Check, Edit2, LogOut, MessageCircle, Clock, Lock } from "lucide-react";
 import { useSessions } from "@/hooks/useSessions";
 import { useFollow } from "@/hooks/useFollow";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import FollowRequests from "@/components/social/FollowRequests";
 import MessagingPanel from "@/components/messaging/MessagingPanel";
 import { Crown } from "lucide-react";
@@ -37,6 +38,10 @@ interface UserPost {
     viewCount?: number;
     attachments?: { url: string; type: 'image' | 'video' | 'music' }[];
     author_role?: string;
+    is_deleted?: boolean;
+    is_registered_only?: boolean;
+    hidden?: boolean;
+    draft?: boolean;
 }
 
 export default function UserProfile() {
@@ -56,6 +61,10 @@ export default function UserProfile() {
     // Is this the current user's own profile?
     const isOwnProfile = user?.id && profile?.id && user.id === profile.id;
 
+    // Admins get an unrestricted view of every profile: hidden/draft/deleted
+    // posts, thread replies, and DMs without waiting on a follow approval.
+    const { isAdmin } = useIsAdmin();
+
     // Follow system state (approval-based: follow -> request -> approved)
     const {
         outgoing: followStatus,
@@ -65,6 +74,9 @@ export default function UserProfile() {
         unfollow,
         refresh: refreshFollow,
     } = useFollow(profile?.id);
+    // Admins bypass the follow gate (also enforced server-side in
+    // get_or_create_session / the DM RLS policies).
+    const dmUnlocked = canDM || isAdmin;
     const [followerCount, setFollowerCount] = useState(0);
     const [followingCount, setFollowingCount] = useState(0);
     const [dmError, setDmError] = useState<string | null>(null);
@@ -204,8 +216,17 @@ export default function UserProfile() {
                 type: (String(a.type).toLowerCase() === 'music' ? 'music' : (String(a.type).toLowerCase().startsWith('video') ? 'video' : 'image')) as 'image' | 'video' | 'music'
             })).filter((a: any) => a.url) || undefined,
             author_role: (profile as any)?.role,
+            is_deleted: p.is_deleted === true,
+            is_registered_only: p.is_registered_only === true,
+            hidden: p.hidden === true,
+            draft: p.draft === true,
         };
     };
+
+    // Admins see everything on a profile - nothing is filtered out for them.
+    const adminPostFilters = isAdmin
+        ? { includeDrafts: true, includeDeleted: true, includeHidden: true, includeThreadReplies: true }
+        : {};
 
     // Load user data + first page of posts (paginated by user_id)
     useEffect(() => {
@@ -214,14 +235,15 @@ export default function UserProfile() {
                 const userStats = await getUserStats(profile.id);
                 setStats(userStats);
 
-                const result = await listPostsFromDb({ limit: POSTS_PAGE_SIZE, userId: profile.id });
+                const result = await listPostsFromDb({ limit: POSTS_PAGE_SIZE, userId: profile.id, ...adminPostFilters });
                 setUserPosts(result.posts.map(mapDbPostToUserPost));
                 setPostsCursor(result.nextCursor);
                 setPostsHasMore(result.hasMore);
             }
         };
         loadUserData();
-    }, [profile]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profile, isAdmin]);
 
     const loadMorePosts = async () => {
         if (!profile?.id || loadingMorePosts || !postsHasMore) return;
@@ -231,6 +253,7 @@ export default function UserProfile() {
                 limit: POSTS_PAGE_SIZE,
                 userId: profile.id,
                 cursor: postsCursor || undefined,
+                ...adminPostFilters,
             });
             const newPosts = result.posts.map(mapDbPostToUserPost);
             setUserPosts(prev => {
@@ -335,7 +358,9 @@ export default function UserProfile() {
             if (sessionId) {
                 setPendingSessionId(sessionId);
             } else {
-                setDmError("Couldn't open this chat. A follow request between you has to be approved first.");
+                setDmError(isAdmin
+                    ? "Couldn't open this chat. Run supabase/admin-unrestricted-access.sql so admins bypass the follow gate."
+                    : "Couldn't open this chat. A follow request between you has to be approved first.");
             }
         } catch (err) {
             console.error('Error starting session:', err);
@@ -588,18 +613,23 @@ export default function UserProfile() {
                                 {/* Message Button - locked until a follow request is approved */}
                                 <button
                                     onClick={handleStartDM}
-                                    disabled={startingDM || !canDM}
+                                    disabled={startingDM || !dmUnlocked}
                                     className="py-2 px-4 bg-gray-800 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-700 hover:border-green-500/50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                    title={canDM
+                                    title={dmUnlocked
                                         ? "Send Message"
                                         : "You can message each other once a follow request between you is approved"}
                                 >
-                                    {canDM ? <MessageCircle className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                                    {dmUnlocked ? <MessageCircle className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                                     {startingDM ? "..." : "Message"}
                                 </button>
                             </div>
 
-                            {!canDM && (
+                            {!canDM && isAdmin && (
+                                <p className="text-xs text-red-400/80">
+                                    Admin view: nothing on this profile is hidden from you, and DMs are open without a follow approval.
+                                </p>
+                            )}
+                            {!canDM && !isAdmin && (
                                 <p className="text-xs text-gray-500">
                                     {followStatus === 'pending'
                                         ? `Waiting for @${profile.username} to approve your follow request. DMs unlock after that.`
@@ -627,6 +657,11 @@ export default function UserProfile() {
                 <div>
                     <h3 className="text-sm font-medium text-gray-500 mb-4">
                         {isOwnProfile ? "Your Posts" : "Posts"}
+                        {isAdmin && !isOwnProfile && (
+                            <span className="ml-2 text-[10px] uppercase tracking-wider text-red-400/80">
+                                admin view · includes hidden, drafts, deleted & thread replies
+                            </span>
+                        )}
                     </h3>
 
                     {userPosts.length === 0 ? (
@@ -641,6 +676,8 @@ export default function UserProfile() {
                                     post={post}
                                     fullContent={true}
                                     showComments={false}
+                                    isAdmin={isAdmin}
+                                    isHidden={post.hidden}
                                 />
                             ))}
                             {postsHasMore && (

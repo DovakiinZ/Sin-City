@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { notifyNewDirectMessage } from "@/lib/dmNotifications";
 
 export interface SessionMessage {
     id: string;
@@ -111,6 +112,23 @@ export function useSessionMessages(sessionId: string | null) {
                 });
 
             if (error) throw error;
+
+            // Let the recipient's bell say who messaged them.
+            if (otherUser?.id) {
+                const mediaKind = options?.voiceUrl ? 'voice'
+                    : options?.gifUrl ? 'gif'
+                        : options?.mediaType || null;
+
+                notifyNewDirectMessage({
+                    senderId: user.id,
+                    recipientId: otherUser.id,
+                    sessionId,
+                    content,
+                    mediaKind,
+                    senderLabel: options?.useMask ? myMaskedAlias : null,
+                });
+            }
+
             return true;
         } catch (error) {
             console.error("Error sending message:", error);
