@@ -1,36 +1,12 @@
 -- ============================================================================
--- Follow-request + mention notifications. Idempotent; safe to re-run.
+-- Post-mention notifications. Idempotent; safe to re-run.
+-- NOTE: follow-request notifications are already created client-side
+-- (useFollow.ts) and comment-mention notifications are already created
+-- client-side (useComments.ts); those triggers are intentionally omitted here
+-- to avoid double bell entries.
 -- ============================================================================
 
--- 1. FOLLOW REQUEST ---------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.notify_on_follow_request()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_username TEXT;
-BEGIN
-  IF NEW.status <> 'pending' THEN
-    RETURN NEW;  -- grandfathered/auto-accepted follows are not requests
-  END IF;
-  SELECT username INTO v_username FROM public.profiles WHERE id = NEW.follower_id;
-  INSERT INTO public.notifications (user_id, type, content, read)
-  VALUES (
-    NEW.following_id,
-    'follow_request',
-    jsonb_build_object(
-      'requester', COALESCE(v_username, 'Someone'),
-      'requesterId', NEW.follower_id,
-      'requesterUsername', v_username
-    ),
-    false
-  );
-  RETURN NEW;
-END; $$;
-
-DROP TRIGGER IF EXISTS on_follow_request_notify ON public.follows;
-CREATE TRIGGER on_follow_request_notify
-  AFTER INSERT ON public.follows
-  FOR EACH ROW EXECUTE FUNCTION public.notify_on_follow_request();
-
--- 2. MENTIONS ---------------------------------------------------------------
+-- 1. MENTION HELPER ---------------------------------------------------------
 -- Best-effort @handle parser: extracts @username tokens from free text and
 -- inserts one 'mention' notification per existing, distinct, non-self user.
 CREATE OR REPLACE FUNCTION public.create_mention_notifications(
@@ -62,22 +38,7 @@ BEGIN
   END LOOP;
 END; $$;
 
--- Comment mentions
-CREATE OR REPLACE FUNCTION public.notify_on_comment_mention()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  PERFORM public.create_mention_notifications(
-    NEW.content, NEW.user_id, NEW.author_name,
-    jsonb_build_object('source', 'comment', 'postId', NEW.post_id, 'postSlug', NEW.post_id, 'commentId', NEW.id)
-  );
-  RETURN NEW;
-END; $$;
-
-DROP TRIGGER IF EXISTS on_comment_mention ON public.comments;
-CREATE TRIGGER on_comment_mention
-  AFTER INSERT ON public.comments
-  FOR EACH ROW EXECUTE FUNCTION public.notify_on_comment_mention();
-
+-- 2. POST MENTIONS ----------------------------------------------------------
 -- Post mentions (author's own text; post has no author_name, look it up)
 CREATE OR REPLACE FUNCTION public.notify_on_post_mention()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -97,4 +58,4 @@ CREATE TRIGGER on_post_mention
   AFTER INSERT ON public.posts
   FOR EACH ROW EXECUTE FUNCTION public.notify_on_post_mention();
 
-DO $$ BEGIN RAISE NOTICE '✅ follow-request + mention notifications installed'; END $$;
+DO $$ BEGIN RAISE NOTICE '✅ post-mention notifications installed'; END $$;

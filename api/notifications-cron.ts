@@ -85,8 +85,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (settings && settings.email_enabled === false) { await markSent(entry.id); skipped++; continue; }
 
         const { data: unread } = await sb.from('notifications')
-          .select('type, content, created_at')
-          .eq('user_id', entry.user_id).eq('read', false)
+          .select('id, type, content, created_at')
+          .eq('user_id', entry.user_id).eq('read', false).is('emailed_at', null)
           .order('created_at', { ascending: false }).limit(MAX_UNREAD);
 
         if (!unread || unread.length === 0) { await markSent(entry.id); skipped++; continue; }
@@ -109,6 +109,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           failed++;
           continue; // leave pending for retry (unless cancelled above)
         }
+        const emailedIds = (unread as Array<{ id: string }>).map((u) => u.id);
+        await sb.from('notifications').update({ emailed_at: nowIso }).in('id', emailedIds);
         await markSent(entry.id);
         sent++;
       }

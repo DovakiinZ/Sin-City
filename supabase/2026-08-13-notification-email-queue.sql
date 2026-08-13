@@ -3,6 +3,13 @@
 -- Replaces the half-built dm_email_queue path. Idempotent; safe to re-run.
 -- ============================================================================
 
+-- 0. EMAILED MARKER --------------------------------------------------------
+-- Track which notifications have already been included in a sent email, so a
+-- user who never marks them read is not re-emailed the same items every digest.
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS emailed_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_notifications_unemailed
+  ON public.notifications(user_id) WHERE read = false AND emailed_at IS NULL;
+
 -- 1. SETTINGS ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.notification_email_settings (
   user_id           UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
