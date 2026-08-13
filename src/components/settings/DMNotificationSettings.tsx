@@ -23,7 +23,7 @@ export default function NotificationSettings() {
         const fetchSettings = async () => {
             try {
                 const { data, error } = await supabase
-                    .from('dm_notification_settings')
+                    .from('notification_email_settings')
                     .select('email_enabled, delay_minutes')
                     .eq('user_id', user.id)
                     .single();
@@ -52,7 +52,7 @@ export default function NotificationSettings() {
         setSaving(true);
         try {
             const { error } = await supabase
-                .from('dm_notification_settings')
+                .from('notification_email_settings')
                 .upsert({
                     user_id: user.id,
                     email_enabled: settings.email_enabled,
@@ -89,10 +89,10 @@ export default function NotificationSettings() {
         <div className="p-6 bg-black/50 border border-green-800/40 rounded-lg space-y-6">
             <div>
                 <h3 className="text-xl font-bold text-green-400 mb-2 font-mono">
-                    DM Email Notifications
+                    Activity Email Notifications
                 </h3>
                 <p className="text-sm text-gray-400 font-mono">
-                    Get notified by email when you receive new messages while offline
+                    Get a summary email for messages, likes, comments, follows and mentions you haven't seen yet
                 </p>
             </div>
 
@@ -167,9 +167,9 @@ export default function NotificationSettings() {
             </div>
 
             <div className="text-xs text-gray-500 font-mono space-y-1 pt-4 border-t border-green-900/30">
-                <p>• Emails are only sent when you're offline</p>
-                <p>• Opening the conversation cancels pending emails</p>
-                <p>• Max one email per conversation per unread period</p>
+                <p>• One summary email per delay window, only for unread activity</p>
+                <p>• Reading it in the app before the delay skips the email</p>
+                <p>• Turn this off any time here or via the unsubscribe link in the email</p>
             </div>
         </div>
     );

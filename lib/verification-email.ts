@@ -2,7 +2,7 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'Sin City <onboarding@resend.dev>';
 
-async function send(to: string, subject: string, html: string): Promise<string | null> {
+export async function send(to: string, subject: string, html: string): Promise<string | null> {
   if (!RESEND_API_KEY) return 'RESEND_API_KEY not configured';
   try {
     const res = await fetch('https://api.resend.com/emails', {
