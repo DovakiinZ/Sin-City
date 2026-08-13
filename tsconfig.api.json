@@ -16,9 +16,11 @@
   },
   "include": [
     "api/verification.ts",
+    "api/notifications-cron.ts",
     "api/lib/ip-utils.ts",
     "lib/verification-db.ts",
     "lib/verification-email.ts",
-    "lib/verification-state.ts"
+    "lib/verification-state.ts",
+    "lib/notification-email.ts"
   ]
 }
