@@ -47,6 +47,7 @@ BEGIN
     SELECT DISTINCT lower(m[1])
     FROM regexp_matches(p_text, '@([A-Za-z0-9_]{2,30})', 'g') AS m
   LOOP
+    v_target := NULL;  -- reset: SELECT INTO leaves the prior value when no row matches
     SELECT id INTO v_target FROM public.profiles WHERE lower(username) = v_handle;
     IF v_target IS NULL OR v_target = p_actor_id THEN
       CONTINUE;
