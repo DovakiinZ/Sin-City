@@ -1,7 +1,6 @@
 // api/notifications-cron.ts — sends coalesced activity emails; handles unsubscribe.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getServiceClient } from '../lib/verification-db.js';
-import { send } from '../lib/verification-email.js';
 import { renderActivityEmail, type EmailNotification } from '../lib/notification-email.js';
 
 const APP_URL = process.env.APP_URL || 'https://cicada.city';
@@ -11,6 +10,27 @@ const STALE_HOURS = 6; // give up on an entry that keeps failing to send
 
 function unsubscribeUrl(token: string): string {
   return `${APP_URL}/api/notifications-cron?action=unsubscribe&token=${encodeURIComponent(token)}`;
+}
+
+async function sendWithUnsub(to: string, subject: string, html: string, unsub: string): Promise<string | null> {
+  const key = process.env.RESEND_API_KEY || '';
+  if (!key) return 'RESEND_API_KEY not configured';
+  const from = process.env.FROM_EMAIL || 'Sin City <onboarding@resend.dev>';
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from, to: [to], subject, html,
+        headers: {
+          'List-Unsubscribe': `<${unsub}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
+      }),
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({} as Record<string, unknown>)); return `Resend error: ${(e as Record<string, unknown>).message || r.status}`; }
+    return null;
+  } catch (e: any) { return `Email send failed: ${e.message || 'unknown'}`; }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -81,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           appUrl: APP_URL, unsubscribeUrl: unsubscribeUrl(token),
         });
 
-        const err = await send(email, subject, html);
+        const err = await sendWithUnsub(email, subject, html, unsubscribeUrl(token));
         if (err) {
           console.error('[notifications-cron] send failed:', err);
           const ageHours = (nowMs - Date.parse(entry.created_at)) / 3600_000;
