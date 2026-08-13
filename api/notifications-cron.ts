@@ -76,6 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!email) { await markSent(entry.id); skipped++; continue; }
 
         const token = settings?.unsubscribe_token || '';
+        if (!token) { await markSent(entry.id); skipped++; continue; }
         const { subject, html } = renderActivityEmail(unread as EmailNotification[], {
           appUrl: APP_URL, unsubscribeUrl: unsubscribeUrl(token),
         });
