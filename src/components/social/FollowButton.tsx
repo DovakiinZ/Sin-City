@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { UserPlus, UserMinus, Check } from "lucide-react";
+import { UserPlus, UserMinus, Check, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useFollow } from "@/hooks/useFollow";
 
 interface FollowButtonProps {
     targetUserId: string;
@@ -13,38 +12,9 @@ interface FollowButtonProps {
 export default function FollowButton({ targetUserId, targetUsername }: FollowButtonProps) {
     const { user } = useAuth();
     const { toast } = useToast();
-    const [isFollowing, setIsFollowing] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const { outgoing, busy, requestFollow, unfollow } = useFollow(targetUserId);
 
-    useEffect(() => {
-        checkFollowStatus();
-    }, [user, targetUserId]);
-
-    const checkFollowStatus = async () => {
-        if (!user || user.id === targetUserId) return;
-
-        try {
-            const { data, error } = await supabase
-                .from("follows")
-                .select("*")
-                .eq("follower_id", user.id)
-                .eq("following_id", targetUserId)
-                .maybeSingle();
-
-            if (error) {
-                console.error("Error checking follow status:", error);
-                setIsFollowing(false);
-                return;
-            }
-
-            setIsFollowing(!!data);
-        } catch (error) {
-            console.error("Error checking follow status:", error);
-            setIsFollowing(false);
-        }
-    };
-
-    const handleFollow = async () => {
+    const handleClick = async () => {
         if (!user) {
             toast({
                 title: "Login required",
@@ -54,59 +24,34 @@ export default function FollowButton({ targetUserId, targetUsername }: FollowBut
             return;
         }
 
-        setLoading(true);
-        try {
-            if (isFollowing) {
-                // Unfollow
-                const { error } = await supabase
-                    .from("follows")
-                    .delete()
-                    .eq("follower_id", user.id)
-                    .eq("following_id", targetUserId);
+        if (outgoing === "accepted") {
+            if (await unfollow()) {
+                toast({ title: "Unfollowed", description: `You unfollowed ${targetUsername}` });
+            }
+            return;
+        }
 
-                if (error) throw error;
-                setIsFollowing(false);
-
+        if (outgoing === "pending") {
+            if (await unfollow()) {
                 toast({
-                    title: "Unfollowed",
-                    description: `You unfollowed ${targetUsername}`,
-                });
-            } else {
-                // Follow
-                const { error } = await supabase
-                    .from("follows")
-                    .insert({
-                        follower_id: user.id,
-                        following_id: targetUserId,
-                    });
-
-                if (error) throw error;
-                setIsFollowing(true);
-
-                // Create notification
-                await supabase.from("notifications").insert({
-                    user_id: targetUserId,
-                    type: "follow",
-                    content: {
-                        follower: user.username || "Someone",
-                        followerUsername: user.username,
-                    },
-                });
-
-                toast({
-                    title: "Following",
-                    description: `You are now following ${targetUsername}`,
+                    title: "Request cancelled",
+                    description: `Your follow request to ${targetUsername} was withdrawn`,
                 });
             }
-        } catch (error) {
-            console.error("Error toggling follow:", error);
+            return;
+        }
+
+        if (await requestFollow()) {
+            toast({
+                title: "Request sent",
+                description: `${targetUsername} has to approve before you can message them`,
+            });
+        } else {
             toast({
                 title: "Error",
-                description: "Failed to update follow status",
+                description: "Failed to send follow request",
                 variant: "destructive",
             });
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -117,16 +62,24 @@ export default function FollowButton({ targetUserId, targetUsername }: FollowBut
 
     return (
         <Button
-            onClick={handleFollow}
-            disabled={loading}
-            variant={isFollowing ? "outline" : "default"}
+            onClick={handleClick}
+            disabled={busy}
+            variant={outgoing === "none" ? "default" : "outline"}
             size="sm"
-            className={isFollowing ? "ascii-box" : "ascii-box bg-ascii-highlight text-black hover:bg-ascii-highlight/90"}
+            title={outgoing === "pending" ? "Waiting for approval - click to cancel" : undefined}
+            className={outgoing === "none"
+                ? "ascii-box bg-ascii-highlight text-black hover:bg-ascii-highlight/90"
+                : "ascii-box"}
         >
-            {isFollowing ? (
+            {outgoing === "accepted" ? (
                 <>
                     <Check className="w-4 h-4 mr-2" />
-                    Followed
+                    Following
+                </>
+            ) : outgoing === "pending" ? (
+                <>
+                    <Clock className="w-4 h-4 mr-2" />
+                    Requested
                 </>
             ) : (
                 <>

@@ -10,8 +10,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
 export default function NotificationBell() {
+    const { user } = useAuth();
     const { notifications, unreadCount: generalUnreadCount, markAsRead: markGeneralAsRead, markAllAsRead } = useNotifications();
     const { totalUnread: dmUnreadCount } = useUnreadCount();
     const { conversations, markAsRead: markDmAsRead } = useConversations();
@@ -25,9 +27,21 @@ export default function NotificationBell() {
 
     const getNotificationText = (notification: any) => {
         const { type, content } = notification;
-        const name = content.likerUsername || content.followerUsername || content.author || content.senderUsername || "Someone";
+        const name = content.likerUsername || content.followerUsername || content.approverUsername
+            || content.author || content.senderUsername || "Someone";
 
         switch (type) {
+            case "follow_request":
+                return (
+                    <div className="flex flex-col">
+                        <span>@{name} wants to follow you</span>
+                        <span className="text-gray-400 mt-1 italic">
+                            Approve it on your profile to let them message you
+                        </span>
+                    </div>
+                );
+            case "follow_approved":
+                return `@${name} approved your follow request — you can message them now`;
             case "comment":
                 return `@${name} commented on your post "${content.postTitle}"`;
             case "reaction":
@@ -40,15 +54,22 @@ export default function NotificationBell() {
                 return `@${name} mentioned you in a post`;
             case "reply":
                 return `@${name} replied to your comment`;
+            // 'message' / 'dm' are the legacy DM notification types (DB trigger).
             case "dm_message":
+            case "message":
+            case "dm":
                 return (
                     <div className="flex flex-col">
-                        <span>@{name} sent you a message</span>
-                        <span className="text-gray-400 mt-1 italic">"{content.preview}"</span>
+                        <span>💬 @{name} sent you a message</span>
+                        {content.preview && (
+                            <span className="text-gray-400 mt-1 italic">"{content.preview}"</span>
+                        )}
                     </div>
                 );
             default:
-                return "New notification";
+                return name !== "Someone"
+                    ? `@${name} sent you a new notification`
+                    : "New notification";
         }
     };
 
@@ -56,14 +77,24 @@ export default function NotificationBell() {
         markGeneralAsRead(notification.id);
 
         // Navigate based on notification type
-        if (notification.type === 'dm_message' && notification.content.conversationId) {
+        const isDm = notification.type === 'dm_message'
+            || notification.type === 'message'
+            || notification.type === 'dm';
+
+        if (isDm && notification.content.conversationId) {
             navigate(`/chat?session=${notification.content.conversationId}`);
+        } else if (notification.type === 'follow_request') {
+            // Requests are approved from your own profile.
+            navigate(`/user/${user?.username || ''}`);
+        } else if (notification.type === 'follow_approved') {
+            navigate(`/user/${notification.content.approverUsername || ''}`);
         } else if (notification.content.postSlug) {
             navigate(`/post/${notification.content.postSlug}`);
         } else {
             const username = notification.content.username ||
                 notification.content.likerUsername ||
                 notification.content.followerUsername ||
+                notification.content.senderUsername ||
                 (notification.type === 'mention' ? notification.content.author : null);
 
             if (username) {

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, ArrowLeft, Send, Image, Mic, Play, Pause, Plus, Camera, Film, Smile, Trash2 } from "lucide-react";
+import { MessageCircle, X, ArrowLeft, Send, Image, Mic, Play, Pause, Plus, Camera, Film, Smile, Archive } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSessions, Session } from "@/hooks/useSessions";
 import { useSessionMessages, SessionMessage } from "@/hooks/useSessionMessages";
@@ -635,7 +635,7 @@ interface SessionViewProps {
 function SessionView({ sessionId, onBack, isMobile }: SessionViewProps) {
     const { user } = useAuth();
     const { messages, loading, otherUser, myMaskedAlias, uploading, sendMessage, uploadMedia, uploadVoice } = useSessionMessages(sessionId);
-    const { deleteSession } = useSessions();
+    const { archiveSession } = useSessions();
     const [inputText, setInputText] = useState("");
     const [useMask, setUseMask] = useState(false);
     const [sending, setSending] = useState(false);
@@ -657,8 +657,8 @@ function SessionView({ sessionId, onBack, isMobile }: SessionViewProps) {
         }
     }, [user?.id]);
 
-    const handleDeleteChat = async () => {
-        const success = await deleteSession(sessionId);
+    const handleArchiveChat = async () => {
+        const success = await archiveSession(sessionId);
         if (success) onBack();
         setShowDeleteConfirm(false);
     };
@@ -695,14 +695,15 @@ function SessionView({ sessionId, onBack, isMobile }: SessionViewProps) {
             {/* Delete Confirmation Modal */}
             {showDeleteConfirm && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" onClick={() => setShowDeleteConfirm(false)}>
-                    <div className="bg-gray-900 border border-red-500/50 rounded-xl p-5 max-w-sm mx-4" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-red-400 font-mono text-lg mb-2">Delete Chat</h3>
+                    <div className="bg-gray-900 border border-yellow-500/50 rounded-xl p-5 max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-yellow-400 font-mono text-lg mb-2">Archive Chat</h3>
                         <p className="text-gray-400 text-sm font-mono mb-4">
-                            This will permanently delete this chat and all messages for BOTH users. This cannot be undone.
+                            This moves the chat out of the active list. Nothing is deleted - every
+                            message is kept, and admins keep full access to the history.
                         </p>
                         <div className="flex gap-2 justify-end">
                             <button onClick={() => setShowDeleteConfirm(false)} className="px-3 py-1.5 text-gray-400 hover:text-gray-200 font-mono text-sm">Cancel</button>
-                            <button onClick={handleDeleteChat} className="px-3 py-1.5 bg-red-600 text-white font-mono text-sm rounded hover:bg-red-500">Delete</button>
+                            <button onClick={handleArchiveChat} className="px-3 py-1.5 bg-yellow-600 text-black font-mono text-sm rounded hover:bg-yellow-500">Archive</button>
                         </div>
                     </div>
                 </div>
@@ -718,10 +719,10 @@ function SessionView({ sessionId, onBack, isMobile }: SessionViewProps) {
                 {isAdmin && (
                     <button
                         onClick={() => setShowDeleteConfirm(true)}
-                        className="p-2 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                        title="Delete chat (Admin)"
+                        className="p-2 text-yellow-400/60 hover:text-yellow-400 hover:bg-yellow-500/10 rounded transition-colors"
+                        title="Archive chat (Admin) - nothing is deleted"
                     >
-                        <Trash2 className="w-4 h-4" />
+                        <Archive className="w-4 h-4" />
                     </button>
                 )}
             </div>

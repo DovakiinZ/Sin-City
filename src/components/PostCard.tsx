@@ -8,7 +8,7 @@ import { useIdentity, useContentAuthor } from "@/hooks/useIdentity";
 import { useReactions, toggleReaction } from "@/hooks/useReactions";
 import { useToast } from "@/hooks/use-toast";
 import { createComment } from "@/hooks/useComments";
-import { decodeHtml, stripHtml } from "@/lib/markdown";
+import { decodeHtml, stripHtml, previewWithLinks } from "@/lib/markdown";
 import MediaCarousel from "@/components/media/PostMediaCarousel";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import CommentList from "@/components/comments/CommentList";
@@ -355,13 +355,8 @@ export default function PostCard({
             return post.content;
         }
         
-        // Before stripping HTML, convert line-breaking tags to newlines for the preview
-        const contentWithNewlines = post.content
-            .replace(/<(br|p|div)[^>]*>/gi, '\n')
-            .replace(/<\/(p|div)>/gi, '\n');
-            
-        const preview = stripHtml(contentWithNewlines).slice(0, 280);
-        return preview;
+        // Keeps <a> links clickable in the feed; strips every other tag
+        return previewWithLinks(post.content, 280);
     };
 
     const contentPreview = getContent();
@@ -469,7 +464,11 @@ export default function PostCard({
 
             {/* Title + Content - Clickable area (only for preview mode) */}
             <div
-                onClick={!fullContent ? () => navigate(`/post/${post.slug}`) : undefined}
+                onClick={!fullContent ? (e) => {
+                    // Let links in the excerpt open normally instead of the post
+                    if ((e.target as HTMLElement).closest('a')) return;
+                    navigate(`/post/${post.slug}`);
+                } : undefined}
                 className={!fullContent ? "cursor-pointer" : ""}
             >
                 {/* Title - Compact, clean hierarchy */}

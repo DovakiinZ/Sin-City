@@ -70,6 +70,58 @@ export function estimateReadTime(md: string, wpm = 200): number {
 /**
  * Strip HTML tags from a string for plain text display
  */
+/**
+ * Build a feed excerpt that keeps <a> links intact while stripping every other tag.
+ *
+ * Anchors may be stored raw (the /create editor saves content verbatim) or
+ * entity-escaped (the inline feed composer runs content through
+ * parseInlineMarkdown first), so both forms are normalized before splitting.
+ * The character budget counts visible text only, never markup.
+ */
+export function previewWithLinks(html: string, limit = 280): string {
+  const withNewlines = html
+    .replace(/<(br|p|div)[^>]*>/gi, '\n')
+    .replace(/<\/(p|div)>/gi, '\n');
+
+  // Un-escape anchors that were escaped on save so they can be preserved below
+  const normalized = withNewlines.replace(/&lt;a\b[\s\S]*?&lt;\/a&gt;/gi, (match) =>
+    match
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+  );
+
+  const parts = normalized.split(/(<a\b[^>]*>[\s\S]*?<\/a>)/gi);
+
+  let used = 0;
+  let out = '';
+  for (const part of parts) {
+    if (!part || used >= limit) continue;
+
+    const anchor = /^<a\b/i.test(part)
+      ? part.match(/^(<a\b[^>]*>)([\s\S]*?)<\/a>$/i)
+      : null;
+
+    if (anchor) {
+      const label = stripHtml(anchor[2]).slice(0, limit - used);
+      if (!label) continue;
+      out += `${anchor[1]}${label}</a>`;
+      used += label.length;
+    } else {
+      // stripHtml trims, which would glue text onto an adjacent link — keep the
+      // whitespace that separated this segment from its neighbours
+      const lead = /^\s/.test(part) && out && !/\s$/.test(out) ? ' ' : '';
+      const trail = /\s$/.test(part) ? ' ' : '';
+      const stripped = stripHtml(part);
+      const piece = (stripped ? lead + stripped + trail : lead || trail).slice(0, limit - used);
+      out += piece;
+      used += piece.length;
+    }
+  }
+
+  return out;
+}
+
 export function stripHtml(html: string): string {
   return html
     .replace(/<[^>]*>/g, '') // Remove HTML tags

@@ -49,15 +49,18 @@ export default function CommentForm({ postId, postAuthorId, onSuccess }: Comment
         const loadNetwork = async () => {
             if (!user) return;
 
+            // Approved follows only - pending requests aren't part of the network
             const { data: following } = await supabase
                 .from('follows')
                 .select('following_id')
-                .eq('follower_id', user.id);
+                .eq('follower_id', user.id)
+                .eq('status', 'accepted');
 
             const { data: followers } = await supabase
                 .from('follows')
                 .select('follower_id')
-                .eq('following_id', user.id);
+                .eq('following_id', user.id)
+                .eq('status', 'accepted');
 
             const ids = new Set<string>();
             following?.forEach(f => ids.add(f.following_id));

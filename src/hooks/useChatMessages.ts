@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { generateAnonymousIdentity } from "@/lib/generateChatAlias";
 import { ChatMessage } from "@/components/chat/ChatView";
+import { notifyNewDirectMessage } from "@/lib/dmNotifications";
 
 const PAGE_SIZE = 20;
 const TYPING_DEBOUNCE_MS = 500;
@@ -15,7 +16,7 @@ interface CachedUser {
 // Simple in-memory cache for user profiles
 const userCache = new Map<string, CachedUser>();
 
-export function useChatMessages(sessionId: string | null) {
+export function useChatMessages(sessionId: string | null, isAdmin = false) {
     const { user } = useAuth();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [loading, setLoading] = useState(true);
@@ -72,9 +73,11 @@ export function useChatMessages(sessionId: string | null) {
             senderName = raw.masked_alias || generateAnonymousIdentity(raw.sender_id, sessionId).alias;
             avatarSeed = generateAnonymousIdentity(raw.sender_id, sessionId).avatarSeed;
         } else {
-            // Normal mode - fetch real user info
-            const cached = await getCachedUser(raw.sender_id);
-            senderName = cached.username || 'Unknown';
+            // Normal mode - fetch real user info. If the account is gone the
+            // profile lookup comes back empty, so fall back to the username
+            // snapshot stored on the message itself.
+            const cached = raw.sender_id ? await getCachedUser(raw.sender_id) : { username: null, avatar_url: null };
+            senderName = cached.username || raw.sender_username || 'deleted user';
             senderAvatar = cached.avatar_url || undefined;
         }
 
@@ -92,7 +95,9 @@ export function useChatMessages(sessionId: string | null) {
             gifUrl: raw.gif_url || undefined,
             voiceUrl: raw.voice_url || undefined,
             voiceDuration: raw.voice_duration_seconds || undefined,
-            isAnonymous: raw.use_masked_identity
+            isAnonymous: raw.use_masked_identity,
+            // Only admins ever receive soft-deleted rows (enforced by RLS).
+            isDeleted: raw.is_deleted === true
         };
     }, [getCachedUser]);
 
@@ -113,21 +118,27 @@ export function useChatMessages(sessionId: string | null) {
             // Get session info first
             const { data: session } = await supabase
                 .from("message_sessions")
-                .select("participant_1, participant_2, status")
+                .select("participant_1, participant_2, status, participant_1_username, participant_2_username")
                 .eq("id", sessionId)
                 .single();
 
             if (session) {
                 const isParticipant1 = session.participant_1 === user.id;
                 const otherUserId = isParticipant1 ? session.participant_2 : session.participant_1;
+                const otherSnapshot = isParticipant1
+                    ? session.participant_2_username
+                    : session.participant_1_username;
 
                 setIsAnonymousMode(false);
 
-                // Get other user info
-                const cached = await getCachedUser(otherUserId);
+                // Get other user info. A deleted account has no profile left, so
+                // the session's username snapshot keeps the chat readable.
+                const cached = otherUserId
+                    ? await getCachedUser(otherUserId)
+                    : { username: null, avatar_url: null };
                 setOtherUser({
                     id: otherUserId,
-                    name: cached.username || 'Unknown',
+                    name: cached.username || otherSnapshot || 'deleted user',
                     avatar: cached.avatar_url || undefined
                 });
             }
@@ -198,12 +209,31 @@ export function useChatMessages(sessionId: string | null) {
                 });
 
             if (error) throw error;
+
+            // Let the recipient's bell say who messaged them.
+            if (otherUser?.id) {
+                const mediaKind = options?.voiceUrl ? 'voice'
+                    : options?.gifUrl ? 'gif'
+                        : options?.mediaType || null;
+
+                notifyNewDirectMessage({
+                    senderId: user.id,
+                    recipientId: otherUser.id,
+                    sessionId,
+                    content,
+                    mediaKind,
+                    senderLabel: options?.useMask
+                        ? generateAnonymousIdentity(user.id, sessionId).alias
+                        : null,
+                });
+            }
+
             return true;
         } catch (error) {
             console.error("Error sending message:", error);
             return false;
         }
-    }, [user, sessionId]);
+    }, [user, sessionId, otherUser?.id]);
 
     // Upload media
     const uploadMedia = useCallback(async (file: File): Promise<{ url: string; type: 'image' | 'video' } | null> => {
@@ -285,6 +315,24 @@ export function useChatMessages(sessionId: string | null) {
                     }
                 }
             )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "session_messages",
+                    filter: `session_id=eq.${sessionId}`,
+                },
+                (payload) => {
+                    // Soft deletes arrive as UPDATEs. Drop the message for
+                    // participants; keep it flagged for admins.
+                    if (!payload.new?.is_deleted) return;
+
+                    setMessages(prev => isAdmin
+                        ? prev.map(m => m.id === payload.new.id ? { ...m, isDeleted: true } : m)
+                        : prev.filter(m => m.id !== payload.new.id));
+                }
+            )
             .subscribe();
 
         return () => {
@@ -292,7 +340,7 @@ export function useChatMessages(sessionId: string | null) {
                 supabase.removeChannel(channelRef.current);
             }
         };
-    }, [sessionId, user, loadMessages, transformMessage, isAnonymousMode]);
+    }, [sessionId, user, loadMessages, transformMessage, isAnonymousMode, isAdmin]);
 
     // Debounced typing indicator
     const setTyping = useCallback((typing: boolean) => {
@@ -310,26 +358,51 @@ export function useChatMessages(sessionId: string | null) {
         }
     }, []);
 
-    // Delete message (admin or sender)
-    const deleteMessage = useCallback(async (messageId: string): Promise<boolean> => {
+    // Archive a message (admin or sender). Nothing is deleted: participants
+    // stop seeing it, admins keep seeing it flagged as archived.
+    const archiveMessage = useCallback(async (messageId: string): Promise<boolean> => {
         if (!user) return false;
 
         try {
             const { error } = await supabase
-                .from("session_messages")
-                .delete()
-                .eq("id", messageId);
+                .rpc("archive_message", { p_message_id: messageId });
 
             if (error) throw error;
 
-            // Remove from local state
-            setMessages(prev => prev.filter(msg => msg.id !== messageId));
+            if (isAdmin) {
+                // Admins keep the row visible, now marked archived.
+                setMessages(prev => prev.map(msg =>
+                    msg.id === messageId ? { ...msg, isDeleted: true } : msg
+                ));
+            } else {
+                setMessages(prev => prev.filter(msg => msg.id !== messageId));
+            }
             return true;
         } catch (error) {
-            console.error("Error deleting message:", error);
+            console.error("Error archiving message:", error);
             return false;
         }
-    }, [user]);
+    }, [user, isAdmin]);
+
+    // Admin-only: put an archived message back in front of the participants.
+    const restoreMessage = useCallback(async (messageId: string): Promise<boolean> => {
+        if (!user || !isAdmin) return false;
+
+        try {
+            const { error } = await supabase
+                .rpc("unarchive_message", { p_message_id: messageId });
+
+            if (error) throw error;
+
+            setMessages(prev => prev.map(msg =>
+                msg.id === messageId ? { ...msg, isDeleted: false } : msg
+            ));
+            return true;
+        } catch (error) {
+            console.error("Error restoring message:", error);
+            return false;
+        }
+    }, [user, isAdmin]);
 
     return {
         messages,
@@ -341,7 +414,8 @@ export function useChatMessages(sessionId: string | null) {
         sendMessage,
         uploadMedia,
         uploadVoice,
-        deleteMessage,
+        archiveMessage,
+        restoreMessage,
         loadMore: () => loadMessages(true),
         refresh: () => loadMessages(false),
         setTyping

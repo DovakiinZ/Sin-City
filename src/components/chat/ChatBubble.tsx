@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Check, CheckCheck, ChevronDown, ChevronUp, Play, Pause, X, Trash2 } from "lucide-react";
+import { Check, CheckCheck, ChevronDown, ChevronUp, Play, Pause, X, Archive, ArchiveRestore } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ChatBubbleProps {
@@ -17,10 +17,14 @@ export interface ChatBubbleProps {
     voiceUrl?: string;
     voiceDuration?: number;
     isAnonymous?: boolean;
+    /** Archived. Only admins receive these rows. */
+    isDeleted?: boolean;
     isAdmin?: boolean;
     onLongPress?: () => void;
     onAvatarClick?: () => void;
-    onDelete?: (messageId: string) => void;
+    onArchive?: (messageId: string) => void;
+    /** Admin-only: bring an archived message back for the participants. */
+    onRestore?: (messageId: string) => void;
 }
 
 const MAX_COLLAPSED_LENGTH = 300;
@@ -40,10 +44,12 @@ export default function ChatBubble({
     voiceUrl,
     voiceDuration,
     isAnonymous,
+    isDeleted,
     isAdmin,
     onLongPress,
     onAvatarClick,
-    onDelete
+    onArchive,
+    onRestore
 }: ChatBubbleProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -135,14 +141,30 @@ export default function ChatBubble({
                 <div className={cn(
                     "relative rounded-[10px] px-[12px] py-[10px] font-mono",
                     "border transition-all",
-                    isSent
-                        ? "bg-[#0f2a1f] border-[#00ff88]"
-                        : "bg-[#111111] border-[#1f1f1f]"
+                    isDeleted
+                        ? "bg-[#1a1a0f] border-yellow-700/60 border-dashed"
+                        : isSent
+                            ? "bg-[#0f2a1f] border-[#00ff88]"
+                            : "bg-[#111111] border-[#1f1f1f]"
                 )}>
+                    {/* Archived marker - admin-only view */}
+                    {isDeleted && (
+                        <div className="flex items-center gap-1 mb-1.5 text-yellow-400 font-bold tracking-wider" style={{ fontSize: '10px' }}>
+                            <Archive className="w-3 h-3" />
+                            ARCHIVED
+                            <span className="text-yellow-700 font-normal normal-case tracking-normal">
+                                · kept on record, visible to admins only
+                            </span>
+                        </div>
+                    )}
+
                     {/* Sender name (for received messages) */}
                     {!isSent && (
-                        <div className="text-[#00ff88] mb-1 font-medium" style={{ fontSize: '11px' }}>
-                            {isAnonymous ? senderName : senderName}
+                        <div className={cn(
+                            "mb-1 font-medium",
+                            isDeleted ? "text-yellow-400/70" : "text-[#00ff88]"
+                        )} style={{ fontSize: '11px' }}>
+                            {senderName}
                         </div>
                     )}
 
@@ -189,7 +211,11 @@ export default function ChatBubble({
                     {!!displayContent && displayContent.trim() !== "" && (
                         <div
                             dir={contentIsArabic ? "rtl" : "ltr"}
-                            className={`whitespace-pre-wrap break-words leading-relaxed text-[#ffffff] ${contentIsArabic ? 'arabic-text text-right' : 'text-left'}`}
+                            className={cn(
+                                "whitespace-pre-wrap break-words leading-relaxed",
+                                isDeleted ? "text-gray-400 line-through decoration-yellow-700/60" : "text-[#ffffff]",
+                                contentIsArabic ? 'arabic-text text-right' : 'text-left'
+                            )}
                             style={{
                                 fontSize: '15px',
                                 unicodeBidi: contentIsArabic ? 'plaintext' : undefined
@@ -226,14 +252,25 @@ export default function ChatBubble({
                                 {status === 'delivered' && <CheckCheck className="w-3 h-3" />}
                             </span>
                         )}
-                        {/* Delete button for admins or message sender */}
-                        {onDelete && (isSent || isAdmin) && (
+                        {/* Archive button for admins or message sender. Messages are
+                            never deleted - archiving hides it from participants only. */}
+                        {onArchive && !isDeleted && (isSent || isAdmin) && (
                             <button
-                                onClick={(e) => { e.stopPropagation(); onDelete(id); }}
-                                className="ml-1 p-1 text-gray-600 hover:text-red-500 transition-colors opacity-50 hover:opacity-100"
-                                title="Delete message"
+                                onClick={(e) => { e.stopPropagation(); onArchive(id); }}
+                                className="ml-1 p-1 text-gray-600 hover:text-yellow-500 transition-colors opacity-50 hover:opacity-100"
+                                title="Archive message (kept on record for admins)"
                             >
-                                <Trash2 className="w-3 h-3" />
+                                <Archive className="w-3 h-3" />
+                            </button>
+                        )}
+                        {/* Admins can un-archive: history is never lost. */}
+                        {onRestore && isDeleted && isAdmin && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onRestore(id); }}
+                                className="ml-1 p-1 text-gray-600 hover:text-green-400 transition-colors opacity-50 hover:opacity-100"
+                                title="Restore message for the participants"
+                            >
+                                <ArchiveRestore className="w-3 h-3" />
                             </button>
                         )}
                     </div>

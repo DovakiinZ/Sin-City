@@ -14,6 +14,8 @@ export interface SessionData {
     isOnline?: boolean;
     lastSeen?: string;
     isAnonymous?: boolean;
+    /** Archived chats are kept in full - they are just out of the active list. */
+    isArchived?: boolean;
 }
 
 interface SessionItemProps {
@@ -100,6 +102,9 @@ export default function SessionItem({ session, isActive, onClick }: SessionItemP
                         {session.otherUserName}
                         {session.isAnonymous && (
                             <span className="ml-1 text-[10px] text-gray-500">🎭</span>
+                        )}
+                        {session.isArchived && (
+                            <span className="ml-1 text-[10px] text-yellow-500/80 uppercase tracking-wider">archived</span>
                         )}
                     </Link>
                     <span className="text-[10px] text-gray-500 flex-shrink-0">
