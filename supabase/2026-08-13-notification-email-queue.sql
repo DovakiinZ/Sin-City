@@ -105,6 +105,7 @@ DROP FUNCTION IF EXISTS public.trigger_cancel_dm_emails() CASCADE;
 DROP FUNCTION IF EXISTS public.queue_dm_notification(UUID, UUID, UUID, UUID);
 DROP FUNCTION IF EXISTS public.cancel_pending_dm_emails(UUID, UUID);
 DROP FUNCTION IF EXISTS public.get_notification_settings(UUID);
+DROP FUNCTION IF EXISTS public.is_user_offline(UUID);
 DROP TABLE IF EXISTS public.dm_email_queue;
 
 -- 5. Drop old settings table AFTER migration above.
