@@ -36,12 +36,18 @@ describe('renderActivityEmail', () => {
     const { subject, html } = renderActivityEmail(notes, opts);
     expect(subject).toMatch(/2/);
     expect(subject.toLowerCase()).toContain('notification');
-    expect(html).toContain(opts.unsubscribeUrl);
+    expect(html).toContain('unsubscribe&amp;token=tok');
     expect(html).toContain(opts.appUrl);
   });
 
   it('single notification gets a specific subject', () => {
     const { subject } = renderActivityEmail([at('dm_message', { senderUsername: 'alice' })], opts);
     expect(subject.toLowerCase()).toContain('message');
+  });
+
+  it('escapes user-controlled content', () => {
+    const { html } = renderActivityEmail([at('dm_message', { senderUsername: '<evil>' })], opts);
+    expect(html).not.toContain('<evil>');
+    expect(html).toContain('&lt;evil&gt;');
   });
 });

@@ -43,7 +43,7 @@ export function summarizeActivity(notes: EmailNotification[]): { total: number; 
 }
 
 function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 export function renderActivityEmail(
@@ -74,11 +74,11 @@ export function renderActivityEmail(
     <p>You have new activity while you were away:</p>
     <ul style="list-style:none;padding:0;">${items}</ul>
     <p style="margin-top:24px;">
-      <a href="${opts.appUrl}" style="color:#22c55e;">Open Sin City &rarr;</a>
+      <a href="${esc(opts.appUrl)}" style="color:#22c55e;">Open Sin City &rarr;</a>
     </p>
     <div style="margin-top:24px;padding-top:16px;border-top:1px solid #333;font-size:12px;color:#666;">
       Sin City ·
-      <a href="${opts.unsubscribeUrl}" style="color:#888;">Unsubscribe from activity emails</a>
+      <a href="${esc(opts.unsubscribeUrl)}" style="color:#888;">Unsubscribe from activity emails</a>
     </div>
   </div>`;
 
