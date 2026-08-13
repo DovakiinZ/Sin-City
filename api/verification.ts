@@ -248,6 +248,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ---- admin-remind (manual verification reminder email) ----
+  if (action === 'admin-remind') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    try {
+      const token = (req.headers.authorization || '').replace('Bearer ', '');
+      const svc = getServiceClient();
+      const { data: { user } } = await svc.auth.getUser(token);
+      if (!user) return res.status(403).json({ error: 'forbidden' });
+      const { data: prof } = await svc.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      if (prof?.role !== 'admin') return res.status(403).json({ error: 'forbidden' });
+
+      const { target } = req.body || {};
+      if (!target) return res.status(400).json({ error: 'bad request' });
+
+      const row = await getVerification(target);
+      if (!row) return res.status(404).json({ error: 'not found' });
+      if (row.verified_at) return res.status(200).json({ ok: true, skipped: 'already_verified' });
+      if (!row.email) return res.status(200).json({ ok: true, skipped: 'no_email' });
+
+      const nowIso = new Date().toISOString();
+      const code = generateOtp();
+      // Store the fresh code first so the delivered OTP is always valid, even if
+      // the email send races or the row is read again before the update lands.
+      await updateVerification(target, {
+        otp_hash: hashOtp(code),
+        otp_expires_at: new Date(Date.now() + OTP_TTL_MS).toISOString(),
+        otp_attempts: 0,
+        otp_channel: 'email',
+        last_reminder_sent_at: nowIso,
+      });
+      const hours = row.verification_deadline
+        ? Math.max(0, remainingMs(nowIso, row.verification_deadline) / 3600_000)
+        : 0;
+      const err = await sendReminderEmail(row.email, code, 0, hours);
+      if (err) {
+        console.error('[admin-remind] email send failed:', err);
+        await logEvent(target, 'VerificationReminderSendFailed', { manual: true, error: err });
+        return res.status(502).json({ error: 'email send failed' });
+      }
+      await logEvent(target, 'VerificationReminderSent', { manual: true, channel: 'email' });
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      console.error('[admin-remind]', e);
+      return res.status(500).json({ error: 'internal error' });
+    }
+  }
+
   // ---- cron ----
   if (action === 'cron') {
     if ((req.headers.authorization || '') !== `Bearer ${process.env.CRON_SECRET}`)
