@@ -30,3 +30,19 @@ export function sendOtpEmail(to: string, code: string) {
 export function sendReminderEmail(to: string, code: string, stage: number, remainingHours: number) {
   return send(to, `Verify soon — ~${Math.max(0, Math.round(remainingHours))}h left`, codeBox(code));
 }
+
+const loginBox = (loginUrl: string) => `
+  <div style="font-family:monospace;background:#0a0a0a;color:#22c55e;padding:40px;max-width:520px;margin:0 auto;">
+    <h1 style="border-bottom:1px solid #22c55e;padding-bottom:16px;">Sin City</h1>
+    <p>Please verify your email to keep your account active.</p>
+    <p>Log in below, then tap <strong>Send code</strong> on the verification screen and enter the code we email you.</p>
+    <div style="text-align:center;margin:28px 0;">
+      <a href="${loginUrl}" style="display:inline-block;background:#22c55e;color:#0a0a0a;font-weight:bold;text-decoration:none;padding:14px 28px;border-radius:4px;">Log in to verify</a>
+    </div>
+    <p style="font-size:12px;color:#888;">Or open this link: <a href="${loginUrl}" style="color:#22c55e;">${loginUrl}</a></p>
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #333;font-size:12px;color:#666;">Sin City</div>
+  </div>`;
+
+export function sendVerifyLoginEmail(to: string, loginUrl: string) {
+  return send(to, 'Verify your Sin City account', loginBox(loginUrl));
+}

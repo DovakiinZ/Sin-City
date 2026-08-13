@@ -10,7 +10,7 @@ export default function VerificationPanel() {
   useEffect(() => { load(); }, []);
   const act = async (target: string, op: 'verify' | 'restore') => { const reason = window.prompt(`Reason for ${op}?`) || ''; await fetch('/api/verification', { method: 'POST', headers: await hdr(), body: JSON.stringify({ action: op === 'verify' ? 'admin-verify' : 'admin-restore', target, reason }) }); await load(); };
   const remind = async (target: string, email: string) => {
-    if (!window.confirm(`Send a verification reminder email (with a fresh code) to ${email}?`)) return;
+    if (!window.confirm(`Email a "log in to verify" reminder to ${email}?`)) return;
     const r = await fetch('/api/verification', { method: 'POST', headers: await hdr(), body: JSON.stringify({ action: 'admin-remind', target }) });
     const b = await r.json().catch(() => ({} as { ok?: boolean; skipped?: string; error?: string }));
     if (r.ok && b.ok && !b.skipped) window.alert(`Reminder sent to ${email}.`);

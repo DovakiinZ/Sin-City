@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { getServiceClient, getVerification, updateVerification, logEvent, hashOtp } from '../lib/verification-db.js';
 import { canResendUser, generateOtp, OTP_TTL_MS, otpAttemptsExceeded, dueReminderStage, stageBit, remainingMs, GRACE_MS } from '../lib/verification-state.js';
-import { sendOtpEmail, sendReminderEmail } from '../lib/verification-email.js';
+import { sendOtpEmail, sendReminderEmail, sendVerifyLoginEmail } from '../lib/verification-email.js';
 import { getClientIP, hashIP } from './lib/ip-utils.js';
 
 const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
@@ -267,27 +267,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (row.verified_at) return res.status(200).json({ ok: true, skipped: 'already_verified' });
       if (!row.email) return res.status(200).json({ ok: true, skipped: 'no_email' });
 
-      const nowIso = new Date().toISOString();
-      const code = generateOtp();
-      // Store the fresh code first so the delivered OTP is always valid, even if
-      // the email send races or the row is read again before the update lands.
-      await updateVerification(target, {
-        otp_hash: hashOtp(code),
-        otp_expires_at: new Date(Date.now() + OTP_TTL_MS).toISOString(),
-        otp_attempts: 0,
-        otp_channel: 'email',
-        last_reminder_sent_at: nowIso,
-      });
-      const hours = row.verification_deadline
-        ? Math.max(0, remainingMs(nowIso, row.verification_deadline) / 3600_000)
-        : 0;
-      const err = await sendReminderEmail(row.email, code, 0, hours);
+      // The email carries a "Log in" button, not a code. After logging in the user
+      // requests + enters the OTP on the in-app /verify screen (RestrictionGuard
+      // routes restricted users there automatically).
+      const loginUrl = `${process.env.APP_URL || 'https://cicada.city'}/login`;
+      const err = await sendVerifyLoginEmail(row.email, loginUrl);
       if (err) {
         console.error('[admin-remind] email send failed:', err);
         await logEvent(target, 'VerificationReminderSendFailed', { manual: true, error: err });
         return res.status(502).json({ error: 'email send failed' });
       }
-      await logEvent(target, 'VerificationReminderSent', { manual: true, channel: 'email' });
+      await updateVerification(target, { last_reminder_sent_at: new Date().toISOString() });
+      await logEvent(target, 'VerificationReminderSent', { manual: true, channel: 'email', kind: 'login_link' });
       return res.status(200).json({ ok: true });
     } catch (e) {
       console.error('[admin-remind]', e);
