@@ -20,6 +20,22 @@ export interface UserProfile {
     updated_at: string;
 }
 
+/**
+ * Load one profile row. Network / IP columns on profiles are not readable by
+ * browsers (column privileges), so a plain select("*") is rejected; the
+ * get_profile_public RPC returns the row without those columns. Falls back to
+ * select("*") on databases where the RPC has not been installed yet.
+ */
+export async function fetchProfileRow(userId: string): Promise<{ data: any | null; error: { code?: string; message: string } | null }> {
+    const { data, error } = await supabase.rpc("get_profile_public", { p_id: userId });
+    if (!error) {
+        return data
+            ? { data, error: null }
+            : { data: null, error: { code: "PGRST116", message: "Profile not found" } };
+    }
+    return await supabase.from("profiles").select("*").eq("id", userId).single();
+}
+
 export function useProfile(userId: string | undefined) {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
@@ -37,11 +53,7 @@ export function useProfile(userId: string | undefined) {
         const fetchProfile = async () => {
             try {
                 setLoading(true);
-                const { data, error: fetchError } = await supabase
-                    .from("profiles")
-                    .select("*")
-                    .eq("id", userId)
-                    .single();
+                const { data, error: fetchError } = await fetchProfileRow(userId);
 
                 if (fetchError) {
                     // Profile doesn't exist, create it
@@ -63,11 +75,7 @@ export function useProfile(userId: string | undefined) {
                                 discord_username: null,
                             });
                             // Fetch again
-                            const { data: newProfile } = await supabase
-                                .from("profiles")
-                                .select("*")
-                                .eq("id", userId)
-                                .single();
+                            const { data: newProfile } = await fetchProfileRow(userId);
                             setProfile(newProfile);
                         }
                     } else {
@@ -97,7 +105,8 @@ export function useProfile(userId: string | undefined) {
                         filter: `id=eq.${userId}`,
                     },
                     (payload) => {
-                        setProfile(payload.new as UserProfile);
+                        // Merge: the realtime payload omits columns this role cannot read.
+                        setProfile(prev => ({ ...(prev || {}), ...(payload.new as UserProfile) }));
                     }
                 )
                 .subscribe();
@@ -117,29 +126,27 @@ export function useProfile(userId: string | undefined) {
 }
 
 export async function createProfile(profile: Omit<UserProfile, "created_at" | "updated_at">) {
-    const { data, error } = await supabase
+    // No RETURNING *: it would need read access to every column.
+    const { error } = await supabase
         .from("profiles")
-        .insert([profile])
-        .select()
-        .single();
+        .insert([profile]);
 
     if (error) throw error;
-    return data;
+    return (await fetchProfileRow(profile.id)).data;
 }
 
 export async function updateProfile(
     userId: string,
     updates: Partial<Omit<UserProfile, "id" | "created_at" | "updated_at">>
 ) {
-    const { data, error } = await supabase
+    // No RETURNING *: it would need read access to every column.
+    const { error } = await supabase
         .from("profiles")
         .update(updates)
-        .eq("id", userId)
-        .select()
-        .single();
+        .eq("id", userId);
 
     if (error) throw error;
-    return data;
+    return (await fetchProfileRow(userId)).data;
 }
 
 export async function getUserStats(userId: string) {

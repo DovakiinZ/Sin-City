@@ -10,6 +10,23 @@ interface SiteSetting {
     description: string;
 }
 
+// Boolean toggles shown on this page. A setting whose row does not exist yet is
+// shown as off and created on save.
+const TOGGLES: { id: string; label: string; description: string }[] = [
+    {
+        id: 'allow_anonymous_posts',
+        label: 'Anonymous Posting',
+        description: 'Toggle whether guests can create posts',
+    },
+    {
+        id: 'block_vpn',
+        label: 'Block VPN / Proxy / Tor',
+        description: 'Require visitors to turn off VPN / proxy / Tor to use the site (admins are exempt)',
+    },
+];
+
+const isOn = (value: any) => value === true || value === 'true';
+
 export default function SettingsManagement() {
     const [settings, setSettings] = useState<SiteSetting[]>([]);
     const [loading, setLoading] = useState(true);
@@ -42,10 +59,13 @@ export default function SettingsManagement() {
         }
     };
 
-    const handleToggle = (id: string, currentValue: boolean) => {
-        setSettings(prev => prev.map(s =>
-            s.id === id ? { ...s, value: !currentValue } : s
-        ));
+    const handleToggle = (id: string) => {
+        setSettings(prev => {
+            const existing = prev.find(s => s.id === id);
+            if (existing) return prev.map(s => s.id === id ? { ...s, value: !isOn(s.value) } : s);
+            const def = TOGGLES.find(t => t.id === id);
+            return [...prev, { id, value: true, description: def?.description || '' }];
+        });
     };
 
     const handleSave = async () => {
@@ -54,8 +74,12 @@ export default function SettingsManagement() {
             for (const setting of settings) {
                 const { error } = await supabase
                     .from("site_settings")
-                    .update({ value: setting.value, updated_at: new Date().toISOString() })
-                    .eq("id", setting.id);
+                    .upsert({
+                        id: setting.id,
+                        value: setting.value,
+                        description: setting.description,
+                        updated_at: new Date().toISOString(),
+                    });
 
                 if (error) throw error;
             }
@@ -143,30 +167,38 @@ export default function SettingsManagement() {
 
                 <div className="space-y-4">
                     {allowAnonPosts ? (
-                        <div className="flex items-center justify-between p-4 bg-black/20 border border-green-900/20 rounded-lg group hover:border-green-500/30 transition-all">
-                            <div className="max-w-[70%]">
-                                <label className="text-green-400 font-mono font-medium block mb-1">
-                                    Anonymous Posting
-                                </label>
-                                <p className="text-xs text-gray-500">
-                                    {allowAnonPosts.description}
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => handleToggle('allow_anonymous_posts', allowAnonPosts.value as boolean)}
-                                className={`
-                                    relative w-14 h-7 rounded-full transition-all duration-300
-                                    ${allowAnonPosts.value ? 'bg-green-600 shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-gray-800'}
-                                `}
-                            >
-                                <div
-                                    className={`
-                                        absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-300 transform
-                                        ${allowAnonPosts.value ? 'translate-x-8' : 'translate-x-1'}
-                                    `}
-                                />
-                            </button>
-                        </div>
+                        TOGGLES.map(toggle => {
+                            const on = isOn(settings.find(s => s.id === toggle.id)?.value);
+                            return (
+                                <div key={toggle.id} className="flex items-center justify-between p-4 bg-black/20 border border-green-900/20 rounded-lg group hover:border-green-500/30 transition-all">
+                                    <div className="max-w-[70%]">
+                                        <label className="text-green-400 font-mono font-medium block mb-1">
+                                            {toggle.label}
+                                        </label>
+                                        <p className="text-xs text-gray-500">
+                                            {toggle.description}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleToggle(toggle.id)}
+                                        role="switch"
+                                        aria-checked={on}
+                                        aria-label={toggle.label}
+                                        className={`
+                                            relative w-14 h-7 rounded-full transition-all duration-300
+                                            ${on ? 'bg-green-600 shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-gray-800'}
+                                        `}
+                                    >
+                                        <div
+                                            className={`
+                                                absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-300 transform
+                                                ${on ? 'translate-x-8' : 'translate-x-1'}
+                                            `}
+                                        />
+                                    </button>
+                                </div>
+                            );
+                        })
                     ) : (
                         <div className="p-8 border border-yellow-900/30 bg-yellow-900/5 rounded-lg text-center space-y-4">
                             <div className="flex justify-center">
@@ -193,7 +225,7 @@ export default function SettingsManagement() {
             <div className="ascii-box p-4 bg-yellow-900/5 border-yellow-900/20">
                 <p className="text-xs text-yellow-600 font-mono">
                     <span className="font-bold mr-2">NOTICE:</span>
-                    Changes to site settings are logged and apply instantly across the platform. Disabling anonymous posting will prevent guest users from creating new entries but will not hide existing ones.
+                    Changes to site settings are logged and apply instantly across the platform. Disabling anonymous posting will prevent guest users from creating new entries but will not hide existing ones. VPN blocking takes effect within about a minute; detection relies on public IP-reputation data, so some VPNs may slip through and admins are never blocked.
                 </p>
             </div>
         </div>

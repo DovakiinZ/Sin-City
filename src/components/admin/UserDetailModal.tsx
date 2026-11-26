@@ -23,6 +23,8 @@ interface UserProfile {
     vpn_detected?: boolean;
     tor_detected?: boolean;
     last_ip_update?: string | null;
+    last_seen?: string | null;
+    last_sign_in_at?: string | null;
     securityData?: { real_ip: string; ip_hash: string; last_seen_at: string; is_blocked?: boolean } | null;
 }
 
@@ -229,6 +231,14 @@ export default function UserDetailModal({ user, onClose, onUpdate }: UserDetailM
                                 <div className="ascii-box p-3">
                                     <div className="ascii-dim text-[10px] mb-1">ACCOUNT AGE</div>
                                     <div className="text-xs font-bold ascii-highlight">{engagement?.account_age_days ?? '—'} days</div>
+                                </div>
+                                <div className="ascii-box p-3 col-span-2">
+                                    <div className="ascii-dim text-[10px] mb-1 flex items-center gap-1"><Clock className="w-3 h-3" />LAST ACTIVE ON SITE</div>
+                                    <div className="text-xs">{user.last_seen ? new Date(user.last_seen).toLocaleString() : 'No record'}</div>
+                                </div>
+                                <div className="ascii-box p-3 col-span-2">
+                                    <div className="ascii-dim text-[10px] mb-1 flex items-center gap-1"><Clock className="w-3 h-3" />LAST LOGIN</div>
+                                    <div className="text-xs">{user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'No record'}</div>
                                 </div>
                             </div>
 

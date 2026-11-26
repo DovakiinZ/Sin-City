@@ -55,14 +55,23 @@ export default function AdminPostInspector({ guestId, onClose, onViewProfile }: 
         const loadGuest = async () => {
             try {
                 setLoading(true);
-                const { data, error: fetchError } = await supabase
-                    .from('guests')
-                    .select('*')
-                    .eq('id', guestId)
-                    .single();
+                // Admin RPC returns the full row (network columns are admin-only);
+                // falls back to the direct query if the RPC is not installed yet.
+                const rpc = await supabase.rpc('admin_get_guests', { p_id: guestId });
+                if (!rpc.error) {
+                    const row = (rpc.data || [])[0];
+                    if (!row) throw new Error('Guest not found');
+                    setGuest(row as any);
+                } else {
+                    const { data, error: fetchError } = await supabase
+                        .from('guests')
+                        .select('*')
+                        .eq('id', guestId)
+                        .single();
 
-                if (fetchError) throw fetchError;
-                setGuest(data);
+                    if (fetchError) throw fetchError;
+                    setGuest(data);
+                }
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to load guest info');
             } finally {

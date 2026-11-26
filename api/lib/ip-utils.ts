@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { isIP } from 'node:net';
 
 // Environment variables for security
 const IP_SALT = process.env.IP_HASH_SALT || 'sin-city-guest-salt-2024';
@@ -10,9 +11,8 @@ const PRIVATE_IP_PATTERNS = [
     /^172\.(1[6-9]|2[0-9]|3[01])\./, // Private Class B
     /^192\.168\./,               // Private Class C
     /^169\.254\./,               // Link-local
-    /^fc00:/i,                   // IPv6 private
-    /^fd00:/i,                   // IPv6 private
-    /^fe80:/i,                   // IPv6 link-local
+    /^f[cd][0-9a-f]{2}:/i,       // IPv6 unique-local (fc00::/7)
+    /^fe[89ab][0-9a-f]:/i,       // IPv6 link-local (fe80::/10)
     /^::1$/,                     // IPv6 localhost
     /^::$/,                      // IPv6 unspecified
     /^0\.0\.0\.0$/,              // Unspecified IPv4
@@ -29,17 +29,25 @@ export interface IPExtractionResult {
 
 /**
  * Normalize IP address:
+ * - Trim whitespace, lowercase (IPv6 hex)
+ * - Strip brackets / port ([2001:db8::1]:443, 1.2.3.4:443) and IPv6 zone ids
  * - Strip IPv6-mapped IPv4 prefixes (::ffff:)
- * - Trim whitespace
  * - Handle IPv4-compatible IPv6 (::192.168.1.1)
  */
 export function normalizeIP(ip: string | null | undefined): string {
     if (!ip) return 'unknown';
 
-    let normalized = ip.trim();
+    let normalized = ip.trim().toLowerCase();
+
+    const bracketed = normalized.match(/^\[([^\]]+)\](?::\d+)?$/);
+    if (bracketed) normalized = bracketed[1];
+    else if (/^\d{1,3}(\.\d{1,3}){3}:\d+$/.test(normalized)) normalized = normalized.split(':')[0];
+
+    // Drop IPv6 zone id (fe80::1%eth0)
+    normalized = normalized.split('%')[0];
 
     // Strip IPv6-mapped IPv4 prefix (::ffff:192.168.1.1 -> 192.168.1.1)
-    if (normalized.toLowerCase().startsWith('::ffff:')) {
+    if (normalized.startsWith('::ffff:') && normalized.includes('.')) {
         normalized = normalized.substring(7);
     }
 
@@ -52,10 +60,15 @@ export function normalizeIP(ip: string | null | undefined): string {
 }
 
 /**
- * Extract the real client IP from request headers using @supercharge/request-ip
- * Priority: Uses library's built-in header detection, then fallback to manual checks
- * 
- * SECURITY: realIp is NEVER returned to clients - only stored server-side for admin access
+ * Extract the real client IP from request headers.
+ *
+ * Order matters. Vercel sets x-vercel-forwarded-for / x-real-ip / x-forwarded-for
+ * itself from the TCP connection and overwrites whatever the client sent, so those
+ * cannot be spoofed. The CDN headers (cf-connecting-ip, true-client-ip) are
+ * client-controllable when the site is not actually behind that CDN, so they are
+ * only a last resort.
+ *
+ * SECURITY: realIp is only for server-side storage (admin visibility).
  */
 export function getClientIP(req: {
     headers: Record<string, string | string[] | undefined>;
@@ -75,61 +88,25 @@ export function getClientIP(req: {
     let ip = 'unknown';
     let source: IPExtractionResult['source'] = 'unknown';
 
-    // 1. Vercel's own forwarded-for header (most reliable on Vercel)
-    if (allHeaders['x-vercel-forwarded-for']) {
-        const vercelXff = allHeaders['x-vercel-forwarded-for'];
-        const ips = vercelXff.split(',').map(s => normalizeIP(s.trim()));
-        for (const candidate of ips) {
-            if (isValidIP(candidate) && !isPrivateIP(candidate)) {
-                ip = candidate;
-                source = 'vercel';
-                break;
-            }
-        }
-        // Fallback to first IP if all are private
-        if (ip === 'unknown' && ips.length > 0 && isValidIP(ips[0])) {
-            ip = ips[0];
-            source = 'vercel';
-        }
-    }
-    // 2. Cloudflare CF-Connecting-IP (highest priority for Cloudflare users)
-    else if (allHeaders['cf-connecting-ip'] && isValidIP(normalizeIP(allHeaders['cf-connecting-ip']))) {
-        ip = normalizeIP(allHeaders['cf-connecting-ip']!);
-        source = 'cf';
-    }
-    // 3. True-Client-IP (Cloudflare Enterprise / Akamai)
-    else if (allHeaders['true-client-ip'] && isValidIP(normalizeIP(allHeaders['true-client-ip']))) {
-        ip = normalizeIP(allHeaders['true-client-ip']!);
-        source = 'cf-true';
-    }
-    // 4. X-Forwarded-For (first non-private IP)
-    else if (allHeaders['x-forwarded-for']) {
-        const xff = allHeaders['x-forwarded-for'];
-        const ips = xff.split(',').map(s => normalizeIP(s.trim()));
-        // Find first public IP
-        for (const candidate of ips) {
-            if (isValidIP(candidate) && !isPrivateIP(candidate)) {
-                ip = candidate;
-                source = 'xff';
-                break;
-            }
-        }
-        // Fallback to first IP if all are private
-        if (ip === 'unknown' && ips.length > 0 && isValidIP(ips[0])) {
-            ip = ips[0];
-            source = 'xff';
-        }
-    }
-    // 5. X-Real-IP
-    else if (allHeaders['x-real-ip'] && isValidIP(normalizeIP(allHeaders['x-real-ip']))) {
-        ip = normalizeIP(allHeaders['x-real-ip']!);
-        source = 'real';
-    }
-    // 6. Socket remote address (last resort)
-    else if (allHeaders['socket'] && isValidIP(normalizeIP(allHeaders['socket']))) {
-        ip = normalizeIP(allHeaders['socket']!);
-        source = 'socket';
-    }
+    // Take the first public address from a (possibly comma-separated) header,
+    // falling back to its first valid entry.
+    const tryExtract = (header: string | undefined, src: IPExtractionResult['source']): boolean => {
+        if (!header) return false;
+        const ips = header.split(',').map(s => normalizeIP(s));
+        const chosen = ips.find(c => isValidIP(c) && !isPrivateIP(c)) || (isValidIP(ips[0]) ? ips[0] : null);
+        if (!chosen) return false;
+        ip = chosen;
+        source = src;
+        return true;
+    };
+
+    const _found =
+        tryExtract(allHeaders['x-vercel-forwarded-for'], 'vercel') ||
+        tryExtract(allHeaders['x-real-ip'], 'real') ||
+        tryExtract(allHeaders['x-forwarded-for'], 'xff') ||
+        tryExtract(allHeaders['cf-connecting-ip'], 'cf') ||
+        tryExtract(allHeaders['true-client-ip'], 'cf-true') ||
+        tryExtract(allHeaders['socket'], 'socket');
 
     const isPrivate = isPrivateIP(ip);
 
@@ -158,15 +135,7 @@ function getHeader(headers: Record<string, string | string[] | undefined>, key: 
  */
 export function isValidIP(ip: string): boolean {
     if (!ip || ip === 'unknown') return false;
-
-    // Basic IPv4 pattern
-    const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-    // Basic IPv6 pattern (simplified)
-    const ipv6Pattern = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
-    // IPv6-mapped IPv4
-    const ipv4MappedPattern = /^::ffff:(\d{1,3}\.){3}\d{1,3}$/i;
-
-    return ipv4Pattern.test(ip) || ipv6Pattern.test(ip) || ipv4MappedPattern.test(ip);
+    return isIP(ip) !== 0;
 }
 
 /**
@@ -214,9 +183,3 @@ export function maskIP(ip: string): string {
 
     return 'xxx.xxx.xxx.xxx';
 }
-
-// ============================================================
-// REMOVED: encryptIP and decryptIP functions
-// Real IP is now stored in plain text for admin-only visibility
-// Security is enforced via RLS policies, not encryption
-// ============================================================

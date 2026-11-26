@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Shield, ShieldOff, Users as UsersIcon, Globe, MapPin, Wifi, AlertTriangle, Ban, CheckCircle, Eye } from "lucide-react";
+import { Shield, ShieldOff, Users as UsersIcon, Globe, Wifi, AlertTriangle, Eye, ArrowDown } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import UserDetailModal from "./UserDetailModal";
 
 interface UserProfile {
@@ -18,7 +19,23 @@ interface UserProfile {
     vpn_detected?: boolean;
     tor_detected?: boolean;
     last_ip_update?: string | null;
+    last_seen?: string | null;        // last time the user had the site open
+    last_sign_in_at?: string | null;  // last time the user signed in
+    ip_count?: number;
     securityData?: { real_ip: string; ip_hash: string; last_seen_at: string; is_blocked?: boolean } | null;
+}
+
+const ONLINE_WINDOW_MS = 2 * 60 * 1000;
+
+function ago(iso?: string | null): string {
+    if (!iso) return 'Never';
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return 'Never';
+    return formatDistanceToNow(t, { addSuffix: true });
+}
+
+function exact(iso?: string | null): string {
+    return iso ? new Date(iso).toLocaleString() : 'No record';
 }
 
 export default function UserManagement() {
@@ -33,38 +50,54 @@ export default function UserManagement() {
     const loadUsers = async () => {
         setLoading(true);
         try {
-            // Get users with emails using secure RPC
-            const { data: profiles, error: profileError } = await supabase
-                .rpc('get_users_with_email');
-
-            if (profileError) throw profileError;
-
-            // Get secure logs for these users
-            const { data: securityLogs, error: logError } = await supabase
-                .from("ip_security_logs")
-                .select("user_id, real_ip, ip_hash, last_seen_at")
-                .not('user_id', 'is', null);
-
-            // Get blocked IPs
-            const { data: blockedIps, error: blockError } = await supabase
+            // Blocked IPs
+            const { data: blockedIps } = await supabase
                 .from("blocked_ips")
                 .select("ip_address");
-
             const blockedSet = new Set((blockedIps || []).map(b => b.ip_address));
 
-            // Merge data
-            const mergedUsers = (profiles || []).map((user: any) => {
-                const logs = securityLogs?.find(log => log.user_id === user.id);
-                return {
+            // Preferred: one admin RPC with last activity, last login and the
+            // most recent server-recorded IP per user.
+            const { data: rows, error: rpcError } = await supabase.rpc('get_users_with_activity');
+
+            let mergedUsers: UserProfile[];
+            if (!rpcError) {
+                mergedUsers = (rows || []).map((user: any) => ({
                     ...user,
-                    securityData: logs ? {
-                        real_ip: logs.real_ip,
-                        ip_hash: logs.ip_hash,
-                        last_seen_at: logs.last_seen_at,
-                        is_blocked: blockedSet.has(logs.real_ip)
+                    securityData: user.last_ip ? {
+                        real_ip: user.last_ip,
+                        ip_hash: user.ip_hash,
+                        last_seen_at: user.last_ip_seen_at,
+                        is_blocked: blockedSet.has(user.last_ip)
                     } : null
-                };
-            });
+                }));
+            } else {
+                // Fallback until supabase/2026-11-26-last-activity-vpn-gate.sql has been run.
+                console.warn('[UserManagement] get_users_with_activity unavailable, using legacy query:', rpcError.message);
+                const { data: profiles, error: profileError } = await supabase
+                    .rpc('get_users_with_email');
+                if (profileError) throw profileError;
+
+                const { data: securityLogs } = await supabase
+                    .from("ip_security_logs")
+                    .select("user_id, real_ip, ip_hash, last_seen_at")
+                    .not('user_id', 'is', null)
+                    .order('last_seen_at', { ascending: false });
+
+                mergedUsers = (profiles || []).map((user: any) => {
+                    // Logs are newest-first, so the first match is the latest IP.
+                    const logs = securityLogs?.find(log => log.user_id === user.id);
+                    return {
+                        ...user,
+                        securityData: logs ? {
+                            real_ip: logs.real_ip,
+                            ip_hash: logs.ip_hash,
+                            last_seen_at: logs.last_seen_at,
+                            is_blocked: blockedSet.has(logs.real_ip)
+                        } : null
+                    };
+                });
+            }
 
             setUsers(mergedUsers);
         } catch (error: any) {
@@ -144,8 +177,15 @@ export default function UserManagement() {
     };
 
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+    const [sortBy, setSortBy] = useState<'joined' | 'active'>('active');
 
     const adminCount = users.filter(u => u.role === 'admin').length;
+    const ts = (iso?: string | null) => (iso ? new Date(iso).getTime() || 0 : 0);
+    const isOnline = (u: UserProfile) => Date.now() - ts(u.last_seen) < ONLINE_WINDOW_MS;
+    const onlineCount = users.filter(isOnline).length;
+    const sortedUsers = [...users].sort((a, b) => sortBy === 'active'
+        ? ts(b.last_seen) - ts(a.last_seen)
+        : ts(b.created_at) - ts(a.created_at));
 
     // ... (keep useEffect and loading logic)
 
@@ -162,7 +202,7 @@ export default function UserManagement() {
     return (
         <div className="space-y-4">
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="ascii-box p-4">
                     <div className="ascii-dim text-xs mb-1">TOTAL USERS</div>
                     <div className="text-2xl ascii-highlight">{users.length}</div>
@@ -174,6 +214,10 @@ export default function UserManagement() {
                 <div className="ascii-box p-4">
                     <div className="ascii-dim text-xs mb-1">REGULAR USERS</div>
                     <div className="text-2xl ascii-highlight">{users.length - adminCount}</div>
+                </div>
+                <div className="ascii-box p-4">
+                    <div className="ascii-dim text-xs mb-1">ONLINE NOW</div>
+                    <div className="text-2xl ascii-highlight text-green-400">{onlineCount}</div>
                 </div>
             </div>
 
@@ -190,15 +234,33 @@ export default function UserManagement() {
                             <th className="p-2">Username</th>
                             <th className="p-2">Email</th>
                             <th className="p-2">Role</th>
+                            <th className="p-2 whitespace-nowrap">
+                                <button
+                                    onClick={() => setSortBy('active')}
+                                    className={`inline-flex items-center gap-1 hover:text-green-400 ${sortBy === 'active' ? 'text-green-400' : ''}`}
+                                    title="Sort by last active, newest first"
+                                >
+                                    Last Active{sortBy === 'active' && <ArrowDown className="w-3 h-3" />}
+                                </button>
+                            </th>
+                            <th className="p-2 whitespace-nowrap">Last Login</th>
                             <th className="p-2">Location</th>
                             <th className="p-2">Secure IP (Admin)</th>
                             <th className="p-2">Network</th>
-                            <th className="p-2">Joined</th>
+                            <th className="p-2 whitespace-nowrap">
+                                <button
+                                    onClick={() => setSortBy('joined')}
+                                    className={`inline-flex items-center gap-1 hover:text-green-400 ${sortBy === 'joined' ? 'text-green-400' : ''}`}
+                                    title="Sort by joined, newest first"
+                                >
+                                    Joined{sortBy === 'joined' && <ArrowDown className="w-3 h-3" />}
+                                </button>
+                            </th>
                             <th className="p-2">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {users.map((user) => (
+                        {sortedUsers.map((user) => (
                             <tr key={user.id} className="border-b border-ascii-border/50 hover:bg-white/5">
                                 <td className="p-2 font-mono">
                                     <button
@@ -221,6 +283,29 @@ export default function UserManagement() {
                                         )}
                                         {user.role.toUpperCase()}
                                     </span>
+                                </td>
+                                <td className="p-2 whitespace-nowrap" title={exact(user.last_seen)}>
+                                    {isOnline(user) ? (
+                                        <span className="inline-flex items-center gap-1.5 text-xs text-green-400">
+                                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                            Online now
+                                        </span>
+                                    ) : (
+                                        <div className="flex flex-col">
+                                            <span className={`text-xs ${user.last_seen ? '' : 'text-gray-600'}`}>{ago(user.last_seen)}</span>
+                                            {user.last_seen && (
+                                                <span className="text-[10px] ascii-dim">{exact(user.last_seen)}</span>
+                                            )}
+                                        </div>
+                                    )}
+                                </td>
+                                <td className="p-2 whitespace-nowrap" title={exact(user.last_sign_in_at)}>
+                                    <div className="flex flex-col">
+                                        <span className={`text-xs ${user.last_sign_in_at ? '' : 'text-gray-600'}`}>{ago(user.last_sign_in_at)}</span>
+                                        {user.last_sign_in_at && (
+                                            <span className="text-[10px] ascii-dim">{exact(user.last_sign_in_at)}</span>
+                                        )}
+                                    </div>
                                 </td>
                                 <td className="p-2">
                                     {user.country ? (
@@ -248,8 +333,9 @@ export default function UserManagement() {
                                                     <span className="text-[10px] text-red-500 font-bold">BLOCKED</span>
                                                 )}
                                             </div>
-                                            <span className="text-[10px] ascii-dim truncate max-w-[100px]" title={user.securityData.ip_hash || ''}>
-                                                {user.securityData.ip_hash?.substring(0, 8)}...
+                                            <span className="text-[10px] ascii-dim whitespace-nowrap" title={exact(user.securityData.last_seen_at)}>
+                                                seen {ago(user.securityData.last_seen_at)}
+                                                {(user.ip_count ?? 0) > 1 ? ` · ${user.ip_count} IPs` : ''}
                                             </span>
                                         </div>
                                     ) : (

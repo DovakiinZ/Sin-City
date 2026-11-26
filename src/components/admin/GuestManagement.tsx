@@ -94,13 +94,21 @@ export default function GuestManagement({ initialGuestId }: { initialGuestId?: s
     const loadGuests = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from("guests")
-                .select("*")
-                .order("last_seen_at", { ascending: false });
+            // Guest network / device columns are admin-only and not readable with a
+            // plain select; the admin RPC returns full rows. Falls back to the
+            // direct query on databases where the RPC is not installed yet.
+            const rpc = await supabase.rpc('admin_get_guests');
+            if (!rpc.error) {
+                setGuests((rpc.data || []) as any[]);
+            } else {
+                const { data, error } = await supabase
+                    .from("guests")
+                    .select("*")
+                    .order("last_seen_at", { ascending: false });
 
-            if (error) throw error;
-            setGuests(data || []);
+                if (error) throw error;
+                setGuests(data || []);
+            }
         } catch (error: any) {
             toast({
                 title: "Error",

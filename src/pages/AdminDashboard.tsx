@@ -92,9 +92,9 @@ export default function AdminDashboard() {
     const loadStats = async () => {
         try {
             const { count: postsCount } = await supabase.from("posts").select("*", { count: "exact", head: true });
-            const { count: usersCount } = await supabase.from("profiles").select("*", { count: "exact", head: true });
+            const { count: usersCount } = await supabase.from("profiles").select("id", { count: "exact", head: true });
             const { count: commentsCount } = await supabase.from("comments").select("*", { count: "exact", head: true });
-            const { count: guestsCount } = await supabase.from("guests").select("*", { count: "exact", head: true });
+            const { count: guestsCount } = await supabase.from("guests").select("id", { count: "exact", head: true });
 
             setStats({
                 posts: postsCount || 0,
@@ -111,7 +111,7 @@ export default function AdminDashboard() {
             if (rpcError) {
                 console.log('Falling back to profiles table');
                 // Fallback to profiles table if function doesn't exist
-                const { data: profilesData } = await supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(50);
+                const { data: profilesData } = await supabase.from("profiles").select("id, username, role, created_at, avatar_url").order("created_at", { ascending: false }).limit(50);
                 usersData = profilesData;
             } else {
                 usersData = rpcData;

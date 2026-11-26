@@ -41,13 +41,13 @@ import ScanlineEffect from "./components/ScanlineEffect";
 import TerminalCommand from "./components/TerminalCommand";
 import PageTransition from "./components/PageTransition";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useUserIPCapture } from "./hooks/useUserIPCapture";
 import useGuestFingerprint from "./hooks/useGuestFingerprint";
 import useAnalytics from "./hooks/useAnalytics";
 import EasterEggs from "./components/effects/EasterEggs";
 import { useSpotifyPresence } from "./hooks/useSpotifyPresence";
 import VerifyEmailBanner from "@/components/VerifyEmailBanner";
 import RestrictionGuard from "@/components/RestrictionGuard";
+import VpnGuard from "@/components/VpnGuard";
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 
 const queryClient = new QueryClient();
@@ -60,9 +60,6 @@ const AppContent = () => {
 
   // Polling for Spotify status
   useSpotifyPresence();
-
-  // Capture IP for logged-in users
-  useUserIPCapture();
 
   // Capture Guest Fingerprint & Logging
   const { createOrUpdateGuest, fingerprint, guestId } = useGuestFingerprint();
@@ -115,7 +112,8 @@ const AppContent = () => {
   }, [showTerminal]);
 
   return (
-    <>
+    // Visit check-in (last activity + server-side IP) and VPN gate
+    <VpnGuard>
       <ScanlineEffect />
       {showTerminal && <TerminalCommand onClose={() => setShowTerminal(false)} />}
       <VerifyEmailBanner />
@@ -161,7 +159,7 @@ const AppContent = () => {
       </div>
 
       {/* Chat is now accessed via /chat route */}
-    </>
+    </VpnGuard>
   );
 };
 

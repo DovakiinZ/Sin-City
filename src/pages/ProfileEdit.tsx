@@ -5,6 +5,7 @@ import BackButton from "@/components/BackButton";
 import ImageCropperModal from "@/components/ImageCropperModal";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { fetchProfileRow } from "@/hooks/useProfile";
 import { Camera, ImagePlus, Save, X, Check } from "lucide-react";
 
 import { useLogger } from "@/hooks/useLogger";
@@ -53,11 +54,7 @@ export default function ProfileEdit() {
             }
 
             try {
-                const { data, error } = await supabase
-                    .from("profiles")
-                    .select("*")
-                    .eq("id", user.id)
-                    .single();
+                const { data, error } = await fetchProfileRow(user.id);
 
                 if (!error && data) {
                     setUsername(data.username || "");

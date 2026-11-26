@@ -697,7 +697,7 @@ Engine: React + Vite`;
 
                 const { count: usersCount } = await supabase
                     .from('profiles')
-                    .select('*', { count: 'exact', head: true });
+                    .select('id', { count: 'exact', head: true });
 
                 const { count: commentsCount } = await supabase
                     .from('comments')
@@ -793,7 +793,7 @@ Engine: React + Vite`;
                 // Check if this is the last admin
                 const { count } = await supabase
                     .from('profiles')
-                    .select('*', { count: 'exact', head: true })
+                    .select('id', { count: 'exact', head: true })
                     .eq('role', 'admin');
 
                 if (count === 1) {
