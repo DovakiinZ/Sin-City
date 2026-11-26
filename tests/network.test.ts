@@ -18,9 +18,19 @@ describe('classifyNetwork', () => {
     }
   });
 
-  it('flags provider proxy / hosting flags', () => {
+  it('does not block on the ip-api hosting flag alone (it mislabels home broadband)', () => {
+    // Real case: an STC residential line was reported as hosting=true.
+    expect(classifyNetwork({
+      isp: 'Saudi Telecom Company JSC', org: 'Riyadh Residential Fixed Broadband',
+      asn: 'AS25019', proxy: false, hosting: true, proxyDb: 'no',
+    })).toEqual({ vpn_detected: false, tor_detected: false, vpn_reason: null });
+    expect(classifyNetwork({ isp: 'Some ISP', hosting: true }).vpn_detected).toBe(false);
+  });
+
+  it('uses the proxy flag, with the proxy database authoritative when present', () => {
     expect(classifyNetwork({ isp: 'Some ISP', proxy: true }).vpn_reason).toBe('proxy_flag');
-    expect(classifyNetwork({ isp: 'Some ISP', hosting: true }).vpn_reason).toBe('datacenter_flag');
+    expect(classifyNetwork({ isp: 'Some ISP', proxy: true, proxyDb: 'no' }).vpn_detected).toBe(false);
+    expect(classifyNetwork({ isp: 'Some ISP', proxy: false, proxyDb: 'yes', proxyType: 'VPN' }).vpn_reason).toBe('proxy_db:vpn');
   });
 
   it('flags known VPN / datacenter networks by ASN and name', () => {
@@ -32,8 +42,8 @@ describe('classifyNetwork', () => {
 
   it('flags Tor only on a real Tor signal', () => {
     expect(classifyNetwork({ isp: 'Tor Exit Node', asn: 'AS1' })).toMatchObject({ tor_detected: true, vpn_detected: true, vpn_reason: 'tor' });
-    expect(classifyNetwork({ isp: 'x', proxyType: 'TOR' }).tor_detected).toBe(true);
-    expect(classifyNetwork({ isp: 'x', proxyType: 'VPN' })).toMatchObject({ tor_detected: false, vpn_reason: 'proxy_db:vpn' });
+    expect(classifyNetwork({ isp: 'x', proxyDb: 'yes', proxyType: 'TOR' }).tor_detected).toBe(true);
+    expect(classifyNetwork({ isp: 'x', proxyDb: 'yes', proxyType: 'VPN' })).toMatchObject({ tor_detected: false, vpn_reason: 'proxy_db:vpn' });
   });
 });
 

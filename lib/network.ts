@@ -61,24 +61,38 @@ const VPN_ASNS = new Set([
 
 // "vpn" has no word boundary on purpose (NordVPN, ExpressVPN, PureVPN...).
 const VPN_NAME = /vpn|\b(proxy|proxies|mullvad|surfshark|proton ag|cyberghost|windscribe|tunnelbear|private internet access|hotspot shield|hide\.me|packethub|tefincom|datacamp|cdn77|m247|clouvider)\b/i;
-const HOSTING_NAME = /\b(hosting|datacenter|data ?center|colocation|vps|dedicated servers?|cloud|servers?|digitalocean|linode|vultr|choopa|hetzner|ovh|contabo|scaleway|leaseweb)\b/i;
+const HOSTING_NAME = /\b(hosting|datacenter|data ?center|colocation|vps|dedicated servers?|digitalocean|linode|vultr|choopa|hetzner|ovh|contabo|scaleway|leaseweb)\b/i;
 // Word-bounded: a bare "tor" substring also matches Operator, Vector, Storage...
 const TOR_NAME = /\btor\b|tor[- ]?exit|torservers|tor project/i;
 
+/**
+ * Decide whether a connection is a VPN / proxy / Tor exit.
+ *
+ * The result gates access to the site, so a false positive locks out a real
+ * visitor. Two rules follow from that:
+ *  - ip-api's "hosting" flag is NOT used on its own: it marks ordinary home
+ *    broadband ranges (e.g. STC residential) as hosting.
+ *  - When the proxycheck.io database answered (proxyDb), it is authoritative
+ *    over ip-api's "proxy" flag in both directions.
+ * ASN and provider-name matches are independent evidence and always count.
+ */
 export function classifyNetwork(n: {
-    isp?: string; org?: string; asn?: string; proxy?: boolean; hosting?: boolean; proxyType?: string | null;
+    isp?: string; org?: string; asn?: string; proxy?: boolean; hosting?: boolean;
+    /** proxycheck.io verdict: 'yes' | 'no', or null when it was not consulted. */
+    proxyDb?: 'yes' | 'no' | null;
+    proxyType?: string | null;
 }): { vpn_detected: boolean; tor_detected: boolean; vpn_reason: string | null } {
     const names = `${n.isp || ''} ${n.org || ''}`;
     const asn = (n.asn || '').toUpperCase().split(' ')[0];
     const type = (n.proxyType || '').toUpperCase();
+    const dbYes = n.proxyDb === 'yes';
 
-    const tor = type === 'TOR' || TOR_NAME.test(names);
+    const tor = (dbYes && type === 'TOR') || TOR_NAME.test(names);
 
     let reason: string | null = null;
     if (tor) reason = 'tor';
-    else if (type) reason = `proxy_db:${type.toLowerCase()}`;
-    else if (n.proxy) reason = 'proxy_flag';
-    else if (n.hosting) reason = 'datacenter_flag';
+    else if (dbYes) reason = `proxy_db:${(type || 'proxy').toLowerCase()}`;
+    else if (n.proxy && n.proxyDb !== 'no') reason = 'proxy_flag';
     else if (asn && VPN_ASNS.has(asn)) reason = `asn:${asn}`;
     else if (VPN_NAME.test(names)) reason = 'vpn_provider';
     else if (HOSTING_NAME.test(names)) reason = 'datacenter_name';
@@ -179,6 +193,7 @@ export async function lookupNetwork(ip: string, headers: Headers): Promise<Netwo
         ...classifyNetwork({
             isp: geo.isp, org: geo.org, asn: geo.asn,
             proxy: Boolean(a?.proxy), hosting: geo.hosting,
+            proxyDb: c ? (pcProxy ? 'yes' : 'no') : null,
             proxyType: pcProxy ? String(c?.type || 'proxy') : null,
         }),
     };
