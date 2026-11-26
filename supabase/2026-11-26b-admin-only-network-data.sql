@@ -25,7 +25,10 @@ AS $$
         'ip_hash', 'ip_encrypted', 'ip_source', 'ip_address', 'real_ip', 'last_ip', 'last_ip_update',
         'country', 'city', 'isp',
         'vpn_detected', 'tor_detected', 'proxy_detected', 'hosting_detected', 'mobile_detected',
-        'network_info', 'geo_mismatch', 'referrer', 'landing_page', 'utm'
+        'network_info', 'geo_mismatch', 'referrer', 'landing_page', 'utm',
+        -- contact / account-security details
+        'phone', 'email', 'gravatar_hash', 'has_gravatar', 'mfa_enabled',
+        'email_mx_valid', 'disposable_email_detected'
     ]::text[];
 $$;
 
@@ -181,6 +184,10 @@ GRANT EXECUTE ON FUNCTION public.admin_get_guests(UUID) TO authenticated;
 SELECT 'profiles.ip_hash' AS item,
        CASE WHEN has_column_privilege('anon', 'public.profiles', 'ip_hash', 'SELECT')
             THEN 'STILL READABLE' ELSE 'hidden from browsers' END AS status
+UNION ALL
+SELECT 'profiles.phone',
+       CASE WHEN has_column_privilege('anon', 'public.profiles', 'phone', 'SELECT')
+            THEN 'STILL READABLE' ELSE 'hidden from browsers' END
 UNION ALL
 SELECT 'guests.ip_hash',
        CASE WHEN has_column_privilege('anon', 'public.guests', 'ip_hash', 'SELECT')
