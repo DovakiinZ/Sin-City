@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { ShieldAlert, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { getFirstTouch } from '@/lib/tracking';
+import { getSessionTouch } from '@/lib/tracking';
 
 /**
  * Visit check-in + VPN gate.
@@ -60,7 +60,7 @@ export default function VpnGuard({ children }: { children: React.ReactNode }) {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             const device = deviceSnapshot();
-            const firstTouch = getFirstTouch();
+            const touch = getSessionTouch(); // where this visit came from
             const res = await fetch('/api/guest-init', {
                 method: 'POST',
                 headers: {
@@ -70,10 +70,11 @@ export default function VpnGuard({ children }: { children: React.ReactNode }) {
                 body: JSON.stringify({
                     device,
                     browser_tz: device.timezone,
-                    first_touch: {
-                        referrer: firstTouch.referrer || null,
-                        landing_page: firstTouch.landing_page || null,
-                        utm: firstTouch.utm || {},
+                    touch: {
+                        referrer: touch.referrer || null,
+                        landing_page: touch.landing_page || null,
+                        utm: touch.utm || {},
+                        internal: touch.source === 'internal',
                     },
                 }),
             });

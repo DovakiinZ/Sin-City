@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import IPContentModal from "./IPContentModal";
 import UserTimeline from "./UserTimeline";
+import TrafficSource, { type Attribution } from "./TrafficSource";
 
 interface UserProfile {
     id: string;
@@ -76,6 +77,8 @@ export default function UserDetailModal({ user, onClose, onUpdate }: UserDetailM
     const [notes, setNotes] = useState<AdminNote[]>([]);
     const [newNote, setNewNote] = useState('');
     const [activeTab, setActiveTab] = useState('overview');
+    // undefined = not loaded / function not installed yet, null = nothing recorded
+    const [attribution, setAttribution] = useState<Attribution | null | undefined>(undefined);
 
     useEffect(() => {
         loadAllData();
@@ -88,7 +91,13 @@ export default function UserDetailModal({ user, onClose, onUpdate }: UserDetailM
             supabase.rpc('get_user_risk_score', { p_user_id: user.id }),
             supabase.rpc('get_user_alt_accounts', { p_user_id: user.id }),
             supabase.rpc('get_admin_notes', { p_target_id: user.id, p_target_type: 'user' }),
+            // Needs supabase/2026-11-26c-traffic-source.sql; the box stays hidden until it is run.
+            supabase.rpc('admin_get_user_attribution', { p_user_id: user.id }),
         ]);
+
+        if (results[5].status === 'fulfilled' && !results[5].value.error) {
+            setAttribution((results[5].value.data as Attribution[] | null)?.[0] ?? null);
+        }
 
         if (results[1].status === 'fulfilled' && results[1].value.data) setEngagement(results[1].value.data);
         if (results[2].status === 'fulfilled' && results[2].value.data) setRisk(results[2].value.data);
@@ -241,6 +250,9 @@ export default function UserDetailModal({ user, onClose, onUpdate }: UserDetailM
                                     <div className="text-xs">{user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'No record'}</div>
                                 </div>
                             </div>
+
+                            {/* Where the user first came from */}
+                            {attribution !== undefined && <TrafficSource attribution={attribution} />}
 
                             {/* Engagement Stats */}
                             {engagement && (

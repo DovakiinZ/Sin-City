@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { getFirstTouch, getAudioFingerprint, getFontFingerprint, computeGeoMismatch, type FirstTouch } from '@/lib/tracking';
+import { getSessionTouch, getAudioFingerprint, getFontFingerprint, computeGeoMismatch } from '@/lib/tracking';
 
 interface DeviceInfo {
     userAgent: string;
@@ -354,13 +354,11 @@ export function useGuestFingerprint(): GuestFingerprintResult {
     const [guestData, setGuestData] = useState<GuestData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [firstTouch, setFirstTouch] = useState<FirstTouch | null>(null);
 
     // Generate fingerprint on mount
     useEffect(() => {
         const init = async () => {
             try {
-                setFirstTouch(getFirstTouch());
                 const { fingerprint: fp, fingerprintLegacy: fpL, deviceInfo: di } = await generateFingerprint();
                 setFingerprint(fp);
                 setFingerprintLegacy(fpL);
@@ -442,6 +440,11 @@ export function useGuestFingerprint(): GuestFingerprintResult {
             );
             const emailIntel = email ? await fetchEmailIntel(email) : null;
 
+            // Traffic source of THIS visit. Stored on the guest and replaced on
+            // every later visit, so the admin always sees where they last came from.
+            const touch = getSessionTouch();
+            const isArrival = touch.source !== 'internal'; // a tab opened from the site itself is not one
+
             let newGuestId: string;
             let currentPostCount: number;
 
@@ -471,11 +474,11 @@ export function useGuestFingerprint(): GuestFingerprintResult {
                         hosting_detected: networkInfo?.hosting_detected || false,
                         mobile_detected: networkInfo?.mobile_detected || false,
                         network_info: networkInfo?.network_info || {},
-                        // Abuse signals + first-touch attribution
+                        // Abuse signals + traffic source
                         geo_mismatch: geoMismatch,
-                        referrer: firstTouch?.referrer || null,
-                        landing_page: firstTouch?.landing_page || null,
-                        utm: firstTouch?.utm || {},
+                        referrer: isArrival ? (touch.referrer || null) : null,
+                        landing_page: touch.landing_page || null,
+                        utm: isArrival ? touch.utm : {},
                         // Email intelligence
                         disposable_email_detected: emailIntel?.disposable || false,
                         email_mx_valid: emailIntel?.mx_valid ?? null,
@@ -522,8 +525,14 @@ export function useGuestFingerprint(): GuestFingerprintResult {
                     updateData.mobile_detected = networkInfo.mobile_detected || false;
                     updateData.network_info = networkInfo.network_info || {};
                 }
-                // Refresh abuse signal every visit (attribution is first-touch only, not overwritten)
+                // Refresh abuse signal + traffic source every visit. This also fills
+                // the source in for guests created before it was tracked.
                 updateData.geo_mismatch = geoMismatch;
+                if (isArrival) {
+                    updateData.referrer = touch.referrer || null;
+                    updateData.landing_page = touch.landing_page || null;
+                    updateData.utm = touch.utm;
+                }
                 if (emailIntel) {
                     updateData.disposable_email_detected = emailIntel.disposable || false;
                     updateData.email_mx_valid = emailIntel.mx_valid ?? null;
@@ -601,7 +610,7 @@ export function useGuestFingerprint(): GuestFingerprintResult {
         } finally {
             setIsLoading(false);
         }
-    }, [fingerprint, fingerprintLegacy, deviceInfo, firstTouch]);
+    }, [fingerprint, fingerprintLegacy, deviceInfo]);
 
     // Refresh guest data (useful after verification)
     const refreshGuestData = useCallback(async () => {

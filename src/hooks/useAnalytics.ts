@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { getFirstTouch } from '@/lib/tracking';
+import { getSessionTouch } from '@/lib/tracking';
 
 /**
  * First-party page-view / engagement tracker.
@@ -34,7 +34,7 @@ export function useAnalytics({ userId, guestId }: AnalyticsIds) {
 
     const logEvent = (eventType: string, path: string, extraMeta: Record<string, unknown> = {}) => {
         try {
-            const ft = getFirstTouch();
+            const touch = getSessionTouch();
             const payload = {
                 session_id: getSessionId(),
                 guest_id: idsRef.current.guestId || null,
@@ -45,7 +45,10 @@ export function useAnalytics({ userId, guestId }: AnalyticsIds) {
                 referrer: document.referrer || null,
                 meta: {
                     ...extraMeta,
-                    utm: ft.utm,
+                    // Where this visit came from (session touch)
+                    source: touch.source,
+                    medium: touch.medium,
+                    utm: touch.utm,
                     viewport: `${window.innerWidth}x${window.innerHeight}`,
                 },
             };

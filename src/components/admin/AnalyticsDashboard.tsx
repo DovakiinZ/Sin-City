@@ -10,6 +10,9 @@ interface Overview {
     avg_dwell_ms: number;
     top_pages: Array<{ path: string; views: number; sessions: number }>;
     top_referrers: Array<{ referrer: string; sessions: number }>;
+    // Present once supabase/2026-11-26c-traffic-source.sql has been run
+    top_sources?: Array<{ source: string; medium: string | null; sessions: number; views: number }>;
+    top_campaigns?: Array<{ campaign: string; source: string; sessions: number }>;
     daily: Array<{ day: string; views: number; sessions: number }>;
 }
 
@@ -105,6 +108,55 @@ export default function AnalyticsDashboard() {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Where visits come from */}
+                    {data.top_sources ? (
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <div className="ascii-dim text-xs mb-2 flex items-center gap-1"><Globe className="w-3 h-3" /> Top sources</div>
+                                <table className="w-full text-sm">
+                                    <tbody>
+                                        {data.top_sources.map((s) => (
+                                            <tr key={s.source} className="border-b border-ascii-border/30">
+                                                <td className="py-1 truncate max-w-[200px]">
+                                                    {s.source}
+                                                    {s.medium && s.medium !== s.source && <span className="ascii-dim text-xs"> · {s.medium}</span>}
+                                                </td>
+                                                <td className="py-1 text-right ascii-highlight">{s.sessions}</td>
+                                                <td className="py-1 text-right ascii-dim text-xs">
+                                                    {data.unique_sessions > 0 ? Math.round((s.sessions / data.unique_sessions) * 100) : 0}%
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {data.top_sources.length === 0 && (
+                                            <tr><td className="ascii-dim py-2 text-xs">No data yet</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div>
+                                <div className="ascii-dim text-xs mb-2">Top campaigns (utm_campaign)</div>
+                                <table className="w-full text-sm">
+                                    <tbody>
+                                        {(data.top_campaigns || []).map((c) => (
+                                            <tr key={`${c.campaign}|${c.source}`} className="border-b border-ascii-border/30">
+                                                <td className="py-1 truncate max-w-[200px]">{c.campaign}</td>
+                                                <td className="py-1 ascii-dim text-xs">{c.source}</td>
+                                                <td className="py-1 text-right ascii-highlight">{c.sessions}</td>
+                                            </tr>
+                                        ))}
+                                        {(!data.top_campaigns || data.top_campaigns.length === 0) && (
+                                            <tr><td className="ascii-dim py-2 text-xs">No tagged links visited yet — add <span className="font-mono">?utm_source=…&amp;utm_campaign=…</span> to links you share.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="ascii-dim text-xs">
+                            Run <span className="font-mono">supabase/2026-11-26c-traffic-source.sql</span> to see top sources and campaigns here.
                         </div>
                     )}
 

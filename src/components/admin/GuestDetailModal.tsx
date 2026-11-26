@@ -23,10 +23,12 @@ import {
     Wifi,
     MapPin,
     Activity,
+    Users,
     Zap
 } from "lucide-react";
 import IPContentModal from "./IPContentModal";
 import GuestTimeline from "./GuestTimeline";
+import TrafficSource from "./TrafficSource";
 
 interface Guest {
     id: string;
@@ -530,32 +532,7 @@ export default function GuestDetailModal({ guest, onClose, onUpdate }: GuestDeta
                     )}
 
                     {/* Traffic source (first-touch attribution) */}
-                    {(guest.referrer || (guest.utm && Object.keys(guest.utm).length > 0)) && (
-                        <div className="ascii-box p-4 space-y-2">
-                            <h3 className="ascii-highlight text-sm border-b border-ascii-border pb-2 flex items-center gap-2">
-                                <ExternalLink className="w-4 h-4" />
-                                TRAFFIC SOURCE
-                            </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                                <div>
-                                    <div className="ascii-dim text-xs">Referrer</div>
-                                    <div className="truncate">{guest.referrer || '(direct)'}</div>
-                                </div>
-                                {guest.landing_page && (
-                                    <div>
-                                        <div className="ascii-dim text-xs">Landing page</div>
-                                        <div className="truncate font-mono">{guest.landing_page}</div>
-                                    </div>
-                                )}
-                                {guest.utm && Object.entries(guest.utm).map(([k, v]) => (
-                                    <div key={k}>
-                                        <div className="ascii-dim text-xs">utm_{k}</div>
-                                        <div className="truncate">{v}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    <TrafficSource attribution={guest} />
 
                     {/* Network Info - New Section */}
                     {guest.country || guest.isp || securityData ? (

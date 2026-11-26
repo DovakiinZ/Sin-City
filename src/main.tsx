@@ -2,6 +2,10 @@ import "./polyfills";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { captureTouch } from "./lib/tracking";
+
+// Record where this visit came from (referrer / UTM) before any redirect can drop it.
+captureTouch();
 
 // Unregister any lingering service workers that might intercept and hang fetch requests
 if ('serviceWorker' in navigator) {

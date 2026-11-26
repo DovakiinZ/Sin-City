@@ -35,6 +35,29 @@ function clip(v: unknown, max: number): string | null {
     return typeof v === 'string' && v.length > 0 ? v.slice(0, max) : null;
 }
 
+const UTM_KEYS = ['source', 'medium', 'campaign', 'term', 'content', 'ref', 'click_id'];
+
+/** Keeps only the known attribution keys, as short strings. */
+function cleanUtm(raw: unknown): Record<string, string> {
+    const out: Record<string, string> = {};
+    if (!raw || typeof raw !== 'object') return out;
+    for (const k of UTM_KEYS) {
+        const v = clip((raw as Record<string, unknown>)[k], 120);
+        if (v) out[k] = v;
+    }
+    return out;
+}
+
+/** True once a traffic source has been stored for the account. */
+async function hasAttribution(userId: string): Promise<boolean> {
+    try {
+        const { data } = await getServiceClient().from('profiles').select('landing_page').eq('id', userId).maybeSingle();
+        return !!data?.landing_page;
+    } catch {
+        return false;
+    }
+}
+
 function tzRegion(tz: string): string {
     return (tz.split('/')[0] || '').toLowerCase();
 }
@@ -80,12 +103,26 @@ async function handleVisit(req: VercelRequest, res: VercelResponse) {
             const browserTz = clip(body.browser_tz, 64);
             if (browserTz && net.timezone) data.geo_mismatch = tzRegion(browserTz) !== tzRegion(net.timezone);
         }
-        const ft = body.first_touch && typeof body.first_touch === 'object' ? body.first_touch : {};
-        const referrer = clip(ft.referrer, 500);
-        const landing = clip(ft.landing_page, 500);
-        if (referrer) data.referrer = referrer;
-        if (landing) data.landing_page = landing;
-        if (ft.utm && typeof ft.utm === 'object' && JSON.stringify(ft.utm).length < 1000) data.utm = ft.utm;
+        // Traffic source = where the user's LATEST visit came from. `touch` describes
+        // the current visit and replaces what is stored, every visit — which also
+        // fills it in for accounts created before source tracking existed. A tab
+        // opened from the site itself (internal) is not a new arrival and is skipped.
+        // Browsers still running an older bundle send `first_touch` instead; that
+        // one is only used to fill an account that has nothing recorded yet.
+        const touch = body.touch && typeof body.touch === 'object' ? body.touch : null;
+        const legacy = body.first_touch && typeof body.first_touch === 'object' ? body.first_touch : null;
+        const src = touch
+            ? (touch.internal === true ? null : touch)
+            : (legacy && !(await hasAttribution(userId)) ? legacy : null);
+        if (src) {
+            const landing = clip(src.landing_page, 500);
+            if (landing) {
+                // Empty string / {} (not null) so a direct visit clears the old referrer.
+                data.referrer = clip(src.referrer, 500) ?? '';
+                data.landing_page = landing;
+                data.utm = cleanUtm(src.utm);
+            }
+        }
 
         try {
             const { error } = await getServiceClient().rpc('record_user_visit', {
